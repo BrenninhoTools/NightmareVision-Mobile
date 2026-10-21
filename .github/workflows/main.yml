@@ -256,6 +256,8 @@ jobs:
                 haxelib dev lime "$LIME_DIR"
                 haxelib run lime rebuild mac -release < /dev/null
                 ls "$LIME_DIR"/ndll/Mac*/lime.ndll
+                sed -i '' 's/return \[\[\[UIDevice currentDevice\] systemVersion\] UTF8String\];/return (char*)[[[UIDevice currentDevice] systemVersion] UTF8String];/' "$LIME_DIR/project/src/system/ios/System.mm"
+                grep -q "return (char\*)\[\[\[UIDevice" "$LIME_DIR/project/src/system/ios/System.mm"
                 cd "$LIME_DIR/project"
                 haxelib run hxcpp Build.xml -Dios -DHXCPP_ARM64 -DIPHONE_VER=$IPHONE_VER < /dev/null
                 ls "$LIME_DIR/ndll/iPhone"

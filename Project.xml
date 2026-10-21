@@ -14,7 +14,7 @@
         <architecture name="arm64"/>
         <architecture exclude="armv7"/>
         <architecture exclude="x86"/>
-        <architecture exclude="x86_64"/>
+        <architecture exclude="x64"/>
     </section>
 
     <!-- ENGINE CONFIGS -->

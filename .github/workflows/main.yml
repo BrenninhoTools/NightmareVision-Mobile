@@ -64,7 +64,12 @@ jobs:
                 local-cache: true
 
             - name: Export NDK path
-              run: echo "ANDROID_NDK_ROOT=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+              run: |
+                NDK="${{ steps.setup-ndk.outputs.ndk-path }}"
+                test -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++"
+                echo "ANDROID_NDK_ROOT=$NDK" >> "$GITHUB_ENV"
+                echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
+                echo "ANDROID_NDK_LATEST_HOME=$NDK" >> "$GITHUB_ENV"
 
             - uses: krdlab/setup-haxe@v2.1.0
               with:
@@ -124,10 +129,13 @@ jobs:
                 git -C "$LIME_DIR" checkout "$LIME_HASH"
                 git -C "$LIME_DIR" submodule update --init --recursive --force --depth 1
                 haxelib dev lime "$LIME_DIR"
-                haxelib run lime rebuild linux -64 -release < /dev/null
+                CC=gcc CXX=g++ haxelib run lime rebuild linux -64 -release < /dev/null
                 test -f "$LIME_DIR/ndll/Linux64/lime.ndll"
                 cd "$LIME_DIR/project"
-                haxelib run hxcpp Build.xml -Dandroid -DHXCPP_ARM64 \
+                unset CC CXX
+                export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+                clang++ --version | head -n 1
+                haxelib run hxcpp Build.xml -Dandroid -DHXCPP_ARM64 -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
                   -DPLATFORM=android-$ANDROID_PLATFORM -DHXCPP_ANDROID_PLATFORM=$ANDROID_PLATFORM < /dev/null
                 ls "$LIME_DIR/ndll/Android"
 
@@ -156,6 +164,8 @@ jobs:
               run: |
                 FLAGS=""
                 if [ -n "$BUILD_FLAGS" ]; then FLAGS="-D $BUILD_FLAGS"; fi
+                unset CC CXX
+                export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
                 haxelib run lime build Project.xml android -release -arm64 $FLAGS < /dev/null
 
             - name: Save build cache

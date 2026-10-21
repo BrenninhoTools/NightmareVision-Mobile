@@ -31,7 +31,7 @@ concurrency:
 
 env:
     HAXE_VERSION: 4.3.7
-    NDK_VERSION: 25.2.9519653
+    NDK_VERSION: 27.2.12479018
     ANDROID_PLATFORM: 28
     LIME_HASH: 6421de16b9dfa4fb55c19f12db65d392a57585c8
     LIME_DIR: ${{ github.workspace }}/.lime

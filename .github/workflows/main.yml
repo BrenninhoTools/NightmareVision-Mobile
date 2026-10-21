@@ -15,10 +15,15 @@ on:
                 required: false
                 type: string
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 env:
     HAXE_VERSION: 4.3.7
     NDK_VERSION: r25c
     HXCPP_COMPILE_CACHE: ${{ github.workspace }}/.hxcpp_cache
+    HXCPP_COMPILE_THREADS: 8
     LIME_HASH: 6421de16b9dfa4fb55c19f12db65d392a57585c8
     BUILD_FLAGS: ${{ inputs.buildFlags }}
 
@@ -39,6 +44,8 @@ jobs:
 
             - name: Setup Android SDK
               uses: android-actions/setup-android@v3
+              with:
+                log-accepted-android-sdk-licenses: false
 
             - name: Setup Android NDK
               id: setup-ndk
@@ -46,12 +53,37 @@ jobs:
               with:
                 ndk-version: ${{ env.NDK_VERSION }}
                 add-to-path: false
+                local-cache: true
 
             - uses: krdlab/setup-haxe@v2.1.0
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
 
+            - name: Restore libs
+              id: cache-libs
+              uses: actions/cache@v4
+              with:
+                path: .haxelib
+                key: android-libs-${{ env.LIME_HASH }}-${{ env.NDK_VERSION }}-${{ hashFiles('.hxpkg') }}
+
+            - name: Restore hxcpp cache
+              uses: actions/cache@v4
+              with:
+                path: .hxcpp_cache
+                key: android-hxcpp-${{ github.sha }}
+                restore-keys: android-hxcpp-
+
+            - name: Restore Gradle cache
+              uses: actions/cache@v4
+              with:
+                path: |
+                  ~/.gradle/caches
+                  ~/.gradle/wrapper
+                key: android-gradle-${{ hashFiles('Project.xml') }}
+                restore-keys: android-gradle-
+
             - name: Install libs
+              if: steps.cache-libs.outputs.cache-hit != 'true'
               run: |
                 set -euo pipefail
                 haxelib setup ~/haxelib
@@ -60,7 +92,7 @@ jobs:
                 rm -rf .haxelib/lime
                 git clone https://github.com/FunkinCrew/lime .haxelib/lime/git
                 git -C .haxelib/lime/git checkout ${{ env.LIME_HASH }}
-                git -C .haxelib/lime/git submodule update --init --recursive --force
+                git -C .haxelib/lime/git submodule update --init --recursive --force --depth 1
                 haxelib dev lime .haxelib/lime/git
 
             - name: Configure Lime
@@ -71,6 +103,7 @@ jobs:
                 haxelib run lime config ANDROID_SETUP true
 
             - name: Rebuild Lime (Android)
+              if: steps.cache-libs.outputs.cache-hit != 'true'
               run: haxelib run lime rebuild android -release -arm64
 
             - name: Compile build
@@ -85,7 +118,7 @@ jobs:
                 APK_DIR=export/release/android/bin/app/build/outputs/apk/release
                 UNSIGNED=$(find "$APK_DIR" -name "*.apk" | head -n 1)
                 BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
-                keytool -genkeypair -v -keystore release.keystore -alias nightmarevision -keyalg RSA -keysize 2048 -validity 10000 \
+                keytool -genkeypair -keystore release.keystore -alias nightmarevision -keyalg RSA -keysize 2048 -validity 10000 \
                   -storepass android -keypass android -dname "CN=NightmareVision, OU=Mobile, O=nmvTeam, C=BR"
                 mkdir -p export/release/android/signed
                 "$BUILD_TOOLS/zipalign" -f -p 4 "$UNSIGNED" export/release/android/signed/aligned.apk
@@ -98,6 +131,7 @@ jobs:
               with:
                 name: NightmareVision (Android)
                 path: export/release/android/signed/NightmareVision.apk
+                compression-level: 0
 
     iOS:
         runs-on: macos-latest
@@ -111,7 +145,22 @@ jobs:
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
 
+            - name: Restore libs
+              id: cache-libs
+              uses: actions/cache@v4
+              with:
+                path: .haxelib
+                key: ios-libs-${{ env.LIME_HASH }}-${{ hashFiles('.hxpkg') }}
+
+            - name: Restore hxcpp cache
+              uses: actions/cache@v4
+              with:
+                path: .hxcpp_cache
+                key: ios-hxcpp-${{ github.sha }}
+                restore-keys: ios-hxcpp-
+
             - name: Install libs
+              if: steps.cache-libs.outputs.cache-hit != 'true'
               run: |
                 set -euo pipefail
                 haxelib setup ~/haxelib
@@ -120,10 +169,11 @@ jobs:
                 rm -rf .haxelib/lime
                 git clone https://github.com/FunkinCrew/lime .haxelib/lime/git
                 git -C .haxelib/lime/git checkout ${{ env.LIME_HASH }}
-                git -C .haxelib/lime/git submodule update --init --recursive --force
+                git -C .haxelib/lime/git submodule update --init --recursive --force --depth 1
                 haxelib dev lime .haxelib/lime/git
 
             - name: Rebuild Lime (iOS)
+              if: steps.cache-libs.outputs.cache-hit != 'true'
               run: haxelib run lime rebuild ios -release
 
             - name: Compile build
@@ -146,3 +196,4 @@ jobs:
               with:
                 name: NightmareVision (iOS)
                 path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
+                compression-level: 0

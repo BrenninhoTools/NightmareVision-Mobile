@@ -159,6 +159,7 @@ jobs:
             - name: Compile build
               timeout-minutes: 75
               run: |
+                if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "$BUILD_FLAGS" ]; then FLAGS="-D $BUILD_FLAGS"; fi
                 unset CC CXX
@@ -285,6 +286,7 @@ jobs:
             - name: Compile build
               timeout-minutes: 75
               run: |
+                if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "$BUILD_FLAGS" ]; then FLAGS="-D $BUILD_FLAGS"; fi
                 haxelib run lime build Project.xml ios -release -nosign $FLAGS < /dev/null

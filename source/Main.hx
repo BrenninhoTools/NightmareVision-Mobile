@@ -45,12 +45,12 @@ class Main extends Sprite
 	{
 		super();
 		
-		#if mobile
-		funkin.mobile.StorageUtil.init();
+		#if (CRASH_HANDLER && !debug)
+		funkin.backend.AntiCrash.init();
 		#end
 		
-		#if (CRASH_HANDLER && !debug)
-		funkin.backend.CrashHandler.init();
+		#if mobile
+		funkin.mobile.StorageUtil.init();
 		#end
 		
 		initHaxeUI();

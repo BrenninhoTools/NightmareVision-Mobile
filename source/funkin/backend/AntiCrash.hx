@@ -67,7 +67,15 @@ class AntiCrash
 		event.stopPropagation();
 		event.stopImmediatePropagation();
 
-		handle(describe(event.error), formatStack(CallStack.exceptionStack(true)), true);
+		var stack = formatStack(CallStack.exceptionStack(true));
+		
+		if (stack.length == 0 && Std.isOfType(event.error, haxe.Exception))
+		{
+			final exception:haxe.Exception = cast event.error;
+			stack = formatStack(cast exception.stack);
+		}
+		
+		handle(describe(event.error), stack, true);
 	}
 
 	static function handle(message:String, stack:String, recover:Bool):Void
@@ -169,9 +177,9 @@ class AntiCrash
 		lines.push('Platform: ${lime.system.System.platformLabel ?? 'unknown'} ${lime.system.System.platformVersion ?? ''}');
 		lines.push('Device: ${lime.system.System.deviceVendor ?? ''} ${lime.system.System.deviceModel ?? ''}');
 		lines.push('Date: ${Date.now().toString()}');
-		lines.push('State: $stateName');
 		lines.push('');
 		lines.push('Exception: $message');
+		lines.push('State: $stateName');
 		lines.push('');
 		lines.push('Callstack:');
 		lines.push(stack.length > 0 ? stack : 'N/A');

@@ -34,6 +34,7 @@ class ModsState extends MusicBeatState
 	{
 		modList = [];
 		FunkinSound.playMusic(Paths.music("freakyMenu"));
+		Mods.updateModList();
 		
 		for (i in CoolUtil.coolTextFile('modsList.txt'))
 		{
@@ -91,11 +92,81 @@ class ModsState extends MusicBeatState
 		add(new FlxSprite().loadGraphic(Paths.image("menus/mods/menuborder1")));
 		add(new FlxSprite(685, 645).loadGraphic(Paths.image("menus/mods/menuborder2")));
 		
+		#if mobile
+		hintText = new FlxText(txtbox.x + txtbox.width + 20, FlxG.height - 110, FlxG.width - txtbox.x - txtbox.width - 220, '', 18);
+		hintText.setFormat(Paths.DEFAULT_FONT, 18, FlxColor.WHITE, FlxTextAlign.LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+		hintText.text = 'Tap the box to enable or disable a mod, hold it to make the mod top priority.\nMods folder: ' + funkin.mobile.StorageUtil.getPath(Paths.MODS_DIRECTORY);
+		add(hintText);
+		
+		add(funkin.mobile.MobileUtil.createBackButton());
+		#end
+		
+		if (modList.length == 0)
+		{
+			box.visible = checkbox.visible = icon.visible = false;
+			name.text = 'No mods found';
+			name.screenCenter();
+			description.text = 'Put your mod folders inside the content folder and open this menu again.';
+			description.setPosition(name.x, name.y + name.height + 10);
+			listtxt.text = '';
+			return;
+		}
+		
 		changeDir(0);
 	}
 	
+	#if mobile
+	var hintText:FlxText;
+	
+	function handleTouch():Bool
+	{
+		if (modList.length == 0) return false;
+		
+		if (funkin.mobile.TouchUtil.longPressedOn(box) || funkin.mobile.TouchUtil.longPressedOn(checkbox))
+		{
+			makeTopMod(modList[curDir]);
+			return true;
+		}
+		
+		if (!funkin.mobile.TouchUtil.tapped) return false;
+		
+		if (funkin.mobile.TouchUtil.tappedOn(checkbox) || funkin.mobile.TouchUtil.tappedOn(box))
+		{
+			toggleMod();
+			return true;
+		}
+		
+		if (funkin.mobile.TouchUtil.tappedOn(listtxt) && modList.length > 0)
+		{
+			final lineHeight = listtxt.height / modList.length;
+			final row = Std.int((funkin.mobile.TouchInput.tapPosition.y - listtxt.y) / lineHeight);
+			
+			if (row >= 0 && row < modList.length && row != curDir)
+			{
+				changeDir(row - curDir);
+				FlxG.sound.play(Paths.sound("scrollMenu"));
+			}
+		}
+		
+		return true;
+	}
+	#end
+	
 	override public function update(elapsed)
 	{
+		super.update(elapsed);
+		
+		var touchHandled = false;
+		#if mobile
+		touchHandled = handleTouch();
+		#end
+		
+		if (modList.length == 0)
+		{
+			if (controls.BACK) FlxG.switchState(() -> new MainMenuState());
+			return;
+		}
+		
 		if (controls.UI_UP_P)
 		{
 			changeDir(-1);
@@ -106,7 +177,7 @@ class ModsState extends MusicBeatState
 			changeDir(1);
 			FlxG.sound.play(Paths.sound("scrollMenu"));
 		}
-		if (controls.ACCEPT) toggleMod();
+		if (controls.ACCEPT && !touchHandled) toggleMod();
 		
 		if (FlxG.keys.justPressed.TAB) makeTopMod(modList[curDir]);
 		if (controls.BACK)
@@ -231,6 +302,9 @@ class ModsState extends MusicBeatState
 	
 	function correctTopMod()
 	{
+		if (modList.length == 0) return;
+		if (topModIndex < 0 || topModIndex >= modList.length) topModIndex = 0;
+		
 		if (!modList[topModIndex].enabled)
 		{
 			for (i in modList)

@@ -183,6 +183,14 @@ class StoryMenuState extends MusicBeatState
 		add(scoreText);
 		add(txtWeekTitle);
 		
+		if (loadedWeeks.length == 0)
+		{
+			CoolUtil.setTransSkip(true, false);
+			persistentUpdate = false;
+			FlxG.switchState(() -> new FallbackState('Cannot load Story Mode as every week is hidden or locked.', () -> FlxG.switchState(MainMenuState.new)));
+			return;
+		}
+		
 		changeWeek();
 		changeDifficulty();
 		
@@ -343,6 +351,9 @@ class StoryMenuState extends MusicBeatState
 	
 	function changeDifficulty(change:Int = 0):Void
 	{
+		if (Difficulty.difficulties.length == 0) Difficulty.reset();
+		if (Difficulty.difficulties.length == 0 || loadedWeeks.length == 0) return;
+		
 		curDifficulty += change;
 		
 		if (curDifficulty < 0) curDifficulty = Difficulty.difficulties.length - 1;
@@ -384,6 +395,8 @@ class StoryMenuState extends MusicBeatState
 	
 	function changeWeek(change:Int = 0):Void
 	{
+		if (loadedWeeks.length == 0) return;
+		
 		curWeek += change;
 		
 		if (curWeek >= loadedWeeks.length) curWeek = 0;

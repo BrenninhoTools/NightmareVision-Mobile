@@ -244,6 +244,8 @@ class MainMenuState extends MusicBeatState
 	
 	function changeSelection(diff:Int = 0)
 	{
+		if (menuItems == null || menuItems.length == 0) return;
+		
 		final lastCurSel = curSelected;
 		curSelected = FlxMath.wrap(curSelected + diff, 0, menuItems.length - 1);
 		

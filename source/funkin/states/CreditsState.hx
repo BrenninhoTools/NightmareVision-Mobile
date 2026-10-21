@@ -271,6 +271,8 @@ class CreditsState extends MusicBeatState
 	
 	function changeSelection(change:Int = 0):Void
 	{
+		if (credits.length == 0 || !Lambda.exists(credits, (credit) -> !credit.isTitle)) return;
+		
 		FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
 		
 		do

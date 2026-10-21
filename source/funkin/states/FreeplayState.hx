@@ -531,13 +531,26 @@ class FreeplayState extends MusicBeatState
 			
 			if (tabs == null)
 			{
-				var dir = FunkinAssets.readDirectory('content/${i.folder}/data/weeks');
+				var fromWeeks:Array<String> = [];
 				
-				var fromWeeks = [];
-				for (week in dir)
+				for (folder in ['${Paths.MODS_DIRECTORY}/${i.folder}/data/weeks', '${Paths.MODS_DIRECTORY}/${i.folder}/weeks'])
 				{
-					final sanitizedWeek = Paths.sanitize(week).replace('.json', '');
-					fromWeeks.push(sanitizedWeek);
+					if (!FunkinAssets.isDirectory(folder)) continue;
+					
+					final listed = CoolUtil.coolTextFile('$folder/weekList.txt');
+					for (week in listed)
+					{
+						final name = week.trim();
+						if (name.length > 0 && !fromWeeks.contains(name)) fromWeeks.push(name);
+					}
+					
+					for (week in FunkinAssets.readDirectory(folder))
+					{
+						if (!week.toLowerCase().endsWith('.json')) continue;
+						
+						final name = week.substr(0, week.length - 5);
+						if (!fromWeeks.contains(name)) fromWeeks.push(name);
+					}
 				}
 				
 				tabs = [];
@@ -556,6 +569,25 @@ class FreeplayState extends MusicBeatState
 				freeplayTabs.push(tab);
 			}
 		}
+		
+		var index = freeplayTabs.length;
+		while (index-- > 0)
+		{
+			songs = [];
+			
+			try
+			{
+				loadTab(index);
+			}
+			catch (e:Dynamic)
+			{
+				songs = [];
+			}
+			
+			if (songs.length == 0) freeplayTabs.splice(index, 1);
+		}
+		
+		songs = [];
 	}
 	
 	function getSongMeta(song:String):Null<SongMetaData>
@@ -612,6 +644,8 @@ class FreeplayState extends MusicBeatState
 		debugBG.alpha = 0;
 		debugTxt.text = '';
 		
+		if (songs.length == 0 || Difficulty.difficulties.length == 0) return;
+		
 		curDifficulty = FlxMath.wrap(curDifficulty + change, 0, Difficulty.difficulties.length - 1);
 		
 		lastDifficultyName = Difficulty.difficulties[curDifficulty];
@@ -628,6 +662,8 @@ class FreeplayState extends MusicBeatState
 	{
 		debugBG.alpha = 0;
 		debugTxt.text = '';
+		
+		if (songs.length == 0) return;
 		
 		if (diff != 0) FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
 		
@@ -666,7 +702,7 @@ class FreeplayState extends MusicBeatState
 		var songWeek = WeekData.weeksLoaded[songs[curSelected].week];
 		if (songWeek != null) weekDiffs = songWeek.difficulties;
 		
-		if (songMeta != null && songMeta.difficulties != null)
+		if (songMeta != null && songMeta.difficulties != null && songMeta.difficulties.length > 0)
 		{
 			Difficulty.difficulties = songMeta.difficulties;
 		}

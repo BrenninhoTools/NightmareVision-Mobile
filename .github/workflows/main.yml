@@ -67,7 +67,7 @@ jobs:
               uses: actions/cache@v4
               with:
                 path: .haxelib
-                key: android-libs-${{ env.LIME_HASH }}-${{ env.NDK_VERSION }}-${{ hashFiles('.hxpkg') }}
+                key: android-libs-v2-${{ env.LIME_HASH }}-${{ env.NDK_VERSION }}-${{ hashFiles('.hxpkg') }}
 
             - name: Restore hxcpp cache
               uses: actions/cache@v4
@@ -97,6 +97,20 @@ jobs:
                 git -C .haxelib/lime/git checkout ${{ env.LIME_HASH }}
                 git -C .haxelib/lime/git submodule update --init --recursive --force --depth 1
                 haxelib dev lime .haxelib/lime/git
+
+            - name: Install host dependencies
+              if: steps.cache-libs.outputs.cache-hit != 'true'
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y --no-install-recommends \
+                  libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libpulse-dev \
+                  libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev libxcursor-dev
+
+            - name: Rebuild Lime tools (Linux)
+              if: steps.cache-libs.outputs.cache-hit != 'true'
+              run: |
+                haxelib run lime rebuild cpp -release
+                test -f .haxelib/lime/git/ndll/Linux64/lime.ndll
 
             - name: Configure Lime
               run: |
@@ -156,7 +170,7 @@ jobs:
               uses: actions/cache@v4
               with:
                 path: .haxelib
-                key: ios-libs-${{ env.LIME_HASH }}-${{ hashFiles('.hxpkg') }}
+                key: ios-libs-v2-${{ env.LIME_HASH }}-${{ hashFiles('.hxpkg') }}
 
             - name: Restore hxcpp cache
               uses: actions/cache@v4
@@ -177,6 +191,12 @@ jobs:
                 git -C .haxelib/lime/git checkout ${{ env.LIME_HASH }}
                 git -C .haxelib/lime/git submodule update --init --recursive --force --depth 1
                 haxelib dev lime .haxelib/lime/git
+
+            - name: Rebuild Lime tools (macOS)
+              if: steps.cache-libs.outputs.cache-hit != 'true'
+              run: |
+                haxelib run lime rebuild cpp -release
+                ls .haxelib/lime/git/ndll/Mac*/lime.ndll
 
             - name: Rebuild Lime (iOS)
               if: steps.cache-libs.outputs.cache-hit != 'true'

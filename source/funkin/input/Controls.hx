@@ -10,6 +10,7 @@ import flixel.input.gamepad.FlxGamepadInputID;
 import flixel.input.keyboard.FlxKey;
 
 import funkin.states.options.ControlsSubState;
+import funkin.mobile.TouchInput;
 
 // at some point i do wanna rework this to be simpler and easier to work with
 
@@ -177,143 +178,143 @@ class Controls extends FlxActionSet
 	
 	public var UI_UP(get, never):Bool;
 	
-	inline function get_UI_UP() return _ui_up.check();
+	inline function get_UI_UP() return _ui_up.check() || TouchInput.check(_ui_up.name);
 	
 	public var UI_LEFT(get, never):Bool;
 	
-	inline function get_UI_LEFT() return _ui_left.check();
+	inline function get_UI_LEFT() return _ui_left.check() || TouchInput.check(_ui_left.name);
 	
 	public var UI_RIGHT(get, never):Bool;
 	
-	inline function get_UI_RIGHT() return _ui_right.check();
+	inline function get_UI_RIGHT() return _ui_right.check() || TouchInput.check(_ui_right.name);
 	
 	public var UI_DOWN(get, never):Bool;
 	
-	inline function get_UI_DOWN() return _ui_down.check();
+	inline function get_UI_DOWN() return _ui_down.check() || TouchInput.check(_ui_down.name);
 	
 	public var UI_UP_P(get, never):Bool;
 	
-	inline function get_UI_UP_P() return _ui_upP.check();
+	inline function get_UI_UP_P() return _ui_upP.check() || TouchInput.check(_ui_upP.name);
 	
 	public var UI_LEFT_P(get, never):Bool;
 	
-	inline function get_UI_LEFT_P() return _ui_leftP.check();
+	inline function get_UI_LEFT_P() return _ui_leftP.check() || TouchInput.check(_ui_leftP.name);
 	
 	public var UI_RIGHT_P(get, never):Bool;
 	
-	inline function get_UI_RIGHT_P() return _ui_rightP.check();
+	inline function get_UI_RIGHT_P() return _ui_rightP.check() || TouchInput.check(_ui_rightP.name);
 	
 	public var UI_DOWN_P(get, never):Bool;
 	
-	inline function get_UI_DOWN_P() return _ui_downP.check();
+	inline function get_UI_DOWN_P() return _ui_downP.check() || TouchInput.check(_ui_downP.name);
 	
 	public var UI_UP_R(get, never):Bool;
 	
-	inline function get_UI_UP_R() return _ui_upR.check();
+	inline function get_UI_UP_R() return _ui_upR.check() || TouchInput.check(_ui_upR.name);
 	
 	public var UI_LEFT_R(get, never):Bool;
 	
-	inline function get_UI_LEFT_R() return _ui_leftR.check();
+	inline function get_UI_LEFT_R() return _ui_leftR.check() || TouchInput.check(_ui_leftR.name);
 	
 	public var UI_RIGHT_R(get, never):Bool;
 	
-	inline function get_UI_RIGHT_R() return _ui_rightR.check();
+	inline function get_UI_RIGHT_R() return _ui_rightR.check() || TouchInput.check(_ui_rightR.name);
 	
 	public var UI_DOWN_R(get, never):Bool;
 	
-	inline function get_UI_DOWN_R() return _ui_downR.check();
+	inline function get_UI_DOWN_R() return _ui_downR.check() || TouchInput.check(_ui_downR.name);
 	
 	public var NOTE_UP(get, never):Bool;
 	
-	inline function get_NOTE_UP() return _note_up.check();
+	inline function get_NOTE_UP() return _note_up.check() || TouchInput.check(_note_up.name);
 	
 	public var NOTE_LEFT(get, never):Bool;
 	
-	inline function get_NOTE_LEFT() return _note_left.check();
+	inline function get_NOTE_LEFT() return _note_left.check() || TouchInput.check(_note_left.name);
 	
 	public var NOTE_RIGHT(get, never):Bool;
 	
-	inline function get_NOTE_RIGHT() return _note_right.check();
+	inline function get_NOTE_RIGHT() return _note_right.check() || TouchInput.check(_note_right.name);
 	
 	public var NOTE_DOWN(get, never):Bool;
 	
-	inline function get_NOTE_DOWN() return _note_down.check();
+	inline function get_NOTE_DOWN() return _note_down.check() || TouchInput.check(_note_down.name);
 	
 	public var NOTE_UP_P(get, never):Bool;
 	
-	inline function get_NOTE_UP_P() return _note_upP.check();
+	inline function get_NOTE_UP_P() return _note_upP.check() || TouchInput.check(_note_upP.name);
 	
 	public var NOTE_LEFT_P(get, never):Bool;
 	
-	inline function get_NOTE_LEFT_P() return _note_leftP.check();
+	inline function get_NOTE_LEFT_P() return _note_leftP.check() || TouchInput.check(_note_leftP.name);
 	
 	public var NOTE_RIGHT_P(get, never):Bool;
 	
-	inline function get_NOTE_RIGHT_P() return _note_rightP.check();
+	inline function get_NOTE_RIGHT_P() return _note_rightP.check() || TouchInput.check(_note_rightP.name);
 	
 	public var NOTE_DOWN_P(get, never):Bool;
 	
-	inline function get_NOTE_DOWN_P() return _note_downP.check();
+	inline function get_NOTE_DOWN_P() return _note_downP.check() || TouchInput.check(_note_downP.name);
 	
 	public var NOTE_UP_R(get, never):Bool;
 	
-	inline function get_NOTE_UP_R() return _note_upR.check();
+	inline function get_NOTE_UP_R() return _note_upR.check() || TouchInput.check(_note_upR.name);
 	
 	public var NOTE_LEFT_R(get, never):Bool;
 	
-	inline function get_NOTE_LEFT_R() return _note_leftR.check();
+	inline function get_NOTE_LEFT_R() return _note_leftR.check() || TouchInput.check(_note_leftR.name);
 	
 	public var NOTE_RIGHT_R(get, never):Bool;
 	
-	inline function get_NOTE_RIGHT_R() return _note_rightR.check();
+	inline function get_NOTE_RIGHT_R() return _note_rightR.check() || TouchInput.check(_note_rightR.name);
 	
 	public var NOTE_DOWN_R(get, never):Bool;
 	
-	inline function get_NOTE_DOWN_R() return _note_downR.check();
+	inline function get_NOTE_DOWN_R() return _note_downR.check() || TouchInput.check(_note_downR.name);
 	
 	public var ACCEPT(get, never):Bool;
 	
-	inline function get_ACCEPT() return _accept.check();
+	inline function get_ACCEPT() return _accept.check() || TouchInput.check(_accept.name);
 	
 	public var BACK(get, never):Bool;
 	
-	inline function get_BACK() return _back.check();
+	inline function get_BACK() return _back.check() || TouchInput.check(_back.name);
 	
 	public var PAUSE(get, never):Bool;
 	
-	inline function get_PAUSE() return _pause.check();
+	inline function get_PAUSE() return _pause.check() || TouchInput.check(_pause.name);
 	
 	public var RESET(get, never):Bool;
 	
-	inline function get_RESET() return _reset.check();
+	inline function get_RESET() return _reset.check() || TouchInput.check(_reset.name);
 	
 	public var NOTE_DODGE(get, never):Bool;
 	
-	inline function get_NOTE_DODGE() return _note_dodge.check();
+	inline function get_NOTE_DODGE() return _note_dodge.check() || TouchInput.check(_note_dodge.name);
 	
 	public var NOTE_DODGE_P(get, never):Bool;
 	
-	inline function get_NOTE_DODGE_P() return _note_dodgeP.check();
+	inline function get_NOTE_DODGE_P() return _note_dodgeP.check() || TouchInput.check(_note_dodgeP.name);
 	
 	public var NOTE_DODGE_R(get, never):Bool;
 	
-	inline function get_NOTE_DODGE_R() return _note_dodgeR.check();
+	inline function get_NOTE_DODGE_R() return _note_dodgeR.check() || TouchInput.check(_note_dodgeR.name);
 	
 	public var FULLSCREEN(get, never):Bool;
 	
-	inline function get_FULLSCREEN() return _fullscreen.check();
+	inline function get_FULLSCREEN() return _fullscreen.check() || TouchInput.check(_fullscreen.name);
 	
 	public var SWITCH_DEBUG_DISPLAY(get, never):Bool;
 	
-	inline function get_SWITCH_DEBUG_DISPLAY() return switch_debug_display.check();
+	inline function get_SWITCH_DEBUG_DISPLAY() return switch_debug_display.check() || TouchInput.check(switch_debug_display.name);
 	
 	public var SOFT_RELOAD(get, never):Bool;
 	
-	inline function get_SOFT_RELOAD() return _soft_reload.check();
+	inline function get_SOFT_RELOAD() return _soft_reload.check() || TouchInput.check(_soft_reload.name);
 	
 	public var HARD_RELOAD(get, never):Bool;
 	
-	inline function get_HARD_RELOAD() return _hard_reload.check();
+	inline function get_HARD_RELOAD() return _hard_reload.check() || TouchInput.check(_hard_reload.name);
 	
 	public function new(name, scheme = None)
 	{
@@ -549,7 +550,7 @@ class Controls extends FlxActionSet
 			
 			if (action != null)
 			{
-				return action.check();
+				return action.check() || TouchInput.check(action.name);
 			}
 		}
 		

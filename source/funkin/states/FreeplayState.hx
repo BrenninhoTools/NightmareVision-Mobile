@@ -180,6 +180,10 @@ class FreeplayState extends MusicBeatState
 		}
 		curDifficulty = Math.round(Math.max(0, Difficulty.defaultDifficulties.indexOf(lastDifficultyName)));
 		
+		#if mobile
+		add(funkin.mobile.MobileUtil.createBackButton());
+		#end
+		
 		super.create();
 		scriptGroup.call('onCreate', []);
 	}

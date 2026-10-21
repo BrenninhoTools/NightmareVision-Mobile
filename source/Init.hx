@@ -21,6 +21,10 @@ class Init extends FlxState
 		// load settings/save
 		funkin.input.Controls.init();
 		
+		#if mobile
+		funkin.mobile.TouchInput.init();
+		#end
+		
 		ClientPrefs.load();
 		
 		funkin.data.Highscore.load();

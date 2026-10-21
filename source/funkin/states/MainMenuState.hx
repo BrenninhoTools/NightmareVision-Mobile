@@ -109,6 +109,10 @@ class MainMenuState extends MusicBeatState
 		
 		changeSelection();
 		
+		#if mobile
+		add(funkin.mobile.MobileUtil.createBackButton());
+		#end
+		
 		super.create();
 		
 		scriptGroup.call('onCreate', []);

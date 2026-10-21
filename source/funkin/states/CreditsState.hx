@@ -183,6 +183,10 @@ class CreditsState extends MusicBeatState
 		add(descText);
 		
 		changeSelection();
+		#if mobile
+		add(funkin.mobile.MobileUtil.createBackButton());
+		#end
+		
 		super.create();
 		
 		scriptGroup.call('onCreate');

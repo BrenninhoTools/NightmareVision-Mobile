@@ -197,6 +197,10 @@ class NoteOffsetState extends MusicBeatState
 		Conductor.bpm = 128.0;
 		FunkinSound.playMusic(Paths.music('offsetSong'), 1, true);
 		
+		#if mobile
+		add(funkin.mobile.MobileUtil.createBackButton());
+		#end
+		
 		super.create();
 	}
 	

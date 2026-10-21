@@ -99,6 +99,10 @@ class GameOverSubstate extends MusicBeatSubstate
 			FlxG.camera.follow(camFollow, LOCKON, 0);
 		}
 		
+		#if mobile
+		add(funkin.mobile.MobileUtil.createBackButton());
+		#end
+		
 		super.create();
 		
 		PlayState.instance?.scripts.call('onGameOverPost', []);

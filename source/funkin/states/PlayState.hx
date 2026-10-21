@@ -563,6 +563,36 @@ class PlayState extends MusicBeatState
 	
 	var input:InputSystem;
 	
+	#if mobile
+	public var camMobile:FlxCamera;
+	
+	public var hitbox:funkin.mobile.Hitbox;
+	
+	public var pauseButton:funkin.mobile.TouchButton;
+	
+	function createMobileControls():Void
+	{
+		camMobile = funkin.mobile.MobileUtil.createCamera();
+		
+		hitbox = new funkin.mobile.Hitbox([for (action in InputSystem.ACTION_LIST) (action : String)]).setCamera(camMobile);
+		add(hitbox);
+		
+		pauseButton = funkin.mobile.MobileUtil.createPauseButton(camMobile);
+		add(pauseButton);
+	}
+	
+	public function setMobileControlsEnabled(value:Bool):Void
+	{
+		if (hitbox != null) hitbox.enabled = value;
+		
+		if (pauseButton != null)
+		{
+			pauseButton.touchEnabled = value;
+			pauseButton.visible = value;
+		}
+	}
+	#end
+	
 	private var traceCheck:Bool = false;
 	private var loadStart:Float = 0;
 	
@@ -819,6 +849,10 @@ class PlayState extends MusicBeatState
 		input = new InputSystem(controls);
 		input.addEventListener(InputEvent.INPUT_PRESSED, onInputPress);
 		input.addEventListener(InputEvent.INPUT_RELEASED, onInputRelease);
+		
+		#if mobile
+		createMobileControls();
+		#end
 		
 		Conductor.safeZoneOffset = (ClientPrefs.safeFrames / 60) * 1000;
 		
@@ -1582,6 +1616,10 @@ class PlayState extends MusicBeatState
 	
 	override function openSubState(SubState:FlxSubState):Void
 	{
+		#if mobile
+		setMobileControlsEnabled(false);
+		#end
+		
 		if (paused)
 		{
 			if (audio != null) audio.pause();
@@ -1632,6 +1670,10 @@ class PlayState extends MusicBeatState
 		}
 		scripts.call('onSubstateClose', []);
 		super.closeSubState();
+		
+		#if mobile
+		setMobileControlsEnabled(true);
+		#end
 	}
 	
 	override public function onFocus():Void

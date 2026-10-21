@@ -7,11 +7,11 @@
     <window if="desktop" orientation="landscape" fullscreen="false" resizable="true" vsync="false"/>
 	<window unless="mac" allow-high-dpi="true"/>
 
-    <window if="mobile" orientation="landscape" fullscreen="true" width="0" height="0" resizable="false"/>
+    <window if="mobile" orientation="landscape" fullscreen="true" width="0" height="0" resizable="false" allow-shaders="true" require-shaders="true"/>
 
     <!-- ENGINE CONFIGS -->
 
-    <define name="MODS_ALLOWED" if="desktop"/>
+    <define name="MODS_ALLOWED" if="desktop || mobile"/>
     <define name="VIDEOS_ALLOWED" if="cpp"/>
     <define name="DISCORD_ALLOWED" if="cpp" unless="android || ios"/>
 

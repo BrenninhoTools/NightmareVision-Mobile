@@ -12,6 +12,7 @@ import flixel.input.actions.FlxAction.FlxActionDigital;
 
 import funkin.input.Controls;
 import funkin.input.Controls.Action;
+import funkin.mobile.TouchInput;
 
 import lime.system.System;
 #if FLX_GAMEINPUT_API
@@ -144,7 +145,7 @@ class InputSystem extends EventDispatcher implements flixel.util.IFlxDestroyable
 	 */
 	public function inputPressed(noteData:Int)
 	{
-		return pressedActions[noteData].check();
+		return pressedActions[noteData].check() || TouchInput.check(pressedActions[noteData].name);
 	}
 	
 	/**
@@ -153,7 +154,7 @@ class InputSystem extends EventDispatcher implements flixel.util.IFlxDestroyable
 	 */
 	public function inputJustPressed(noteData:Int)
 	{
-		return justPressedActions[noteData].check();
+		return justPressedActions[noteData].check() || TouchInput.check(justPressedActions[noteData].name);
 	}
 	
 	/**
@@ -162,7 +163,7 @@ class InputSystem extends EventDispatcher implements flixel.util.IFlxDestroyable
 	 */
 	public function inputJustReleased(noteData:Int)
 	{
-		return justReleasedActions[noteData].check();
+		return justReleasedActions[noteData].check() || TouchInput.check(justReleasedActions[noteData].name);
 	}
 	
 	/**
@@ -177,6 +178,20 @@ class InputSystem extends EventDispatcher implements flixel.util.IFlxDestroyable
 			if (info.gamepad.checkStatus(info.id, JUST_PRESSED)) onInputEvent(InputEvent.INPUT_PRESSED, Gamepad(info.gamepad.id), info.id, info.timer);
 			else if (info.gamepad.checkStatus(info.id, JUST_RELEASED)) onInputEvent(InputEvent.INPUT_RELEASED, Gamepad(info.gamepad.id), info.id, info.timer);
 		}
+		
+		if (TouchInput.enabled)
+		{
+			for (noteData => action in justPressedActions)
+			{
+				if (TouchInput.check(action.name)) awaitingEvents.push(new InputEvent(InputEvent.INPUT_PRESSED, false, true, noteData, Keys, -1, System.getTimer()));
+			}
+			
+			for (noteData => action in justReleasedActions)
+			{
+				if (TouchInput.check(action.name)) awaitingEvents.push(new InputEvent(InputEvent.INPUT_RELEASED, false, true, noteData, Keys, -1, System.getTimer()));
+			}
+		}
+		
 		while (awaitingEvents.length > 0)
 			dispatchEvent(awaitingEvents.shift());
 	}

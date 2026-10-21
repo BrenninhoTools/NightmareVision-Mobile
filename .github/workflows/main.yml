@@ -37,6 +37,7 @@ env:
     LIME_DIR: ${{ github.workspace }}/.lime
     HXCPP_COMPILE_CACHE: ${{ github.workspace }}/.hxcpp_cache
     BUILD_FLAGS: ${{ inputs.buildFlags }}
+    GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.vfs.watch=false
 
 jobs:
     Android:

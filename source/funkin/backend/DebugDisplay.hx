@@ -165,16 +165,18 @@ class DebugDisplay extends Sprite
 		addEventListener(openfl.events.Event.ADDED_TO_STAGE, onAddedToStage);
 	}
 	
-	function onAddedToStage(_):Void
+	function onAddedToStage(_:Null<openfl.events.Event>):Void
 	{
 		removeEventListener(openfl.events.Event.ADDED_TO_STAGE, onAddedToStage);
 		
-		stage.addEventListener(openfl.events.Event.RESIZE, onResize);
+		final stage = this.stage;
+		if (stage != null) stage.addEventListener(openfl.events.Event.RESIZE, onResize);
 		onResize(null);
 	}
 	
-	function onResize(_):Void
+	function onResize(_:Null<openfl.events.Event>):Void
 	{
+		final stage = this.stage;
 		if (stage == null) return;
 		
 		final ratio = Math.min(stage.stageWidth / FlxG.width, stage.stageHeight / FlxG.height);
@@ -200,7 +202,7 @@ class DebugDisplay extends Sprite
 	}
 	
 	#if mobile
-	function onTap(_):Void
+	function onTap(_:Null<openfl.events.MouseEvent>):Void
 	{
 		final types:Array<String> = ['Simple', 'Advanced', 'Disabled'];
 		final next = FlxMath.wrap(types.indexOf(ClientPrefs.fpsDisplayType) + 1, 0, types.length - 1);

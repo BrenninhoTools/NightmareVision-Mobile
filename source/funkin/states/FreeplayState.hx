@@ -338,6 +338,22 @@ class FreeplayState extends MusicBeatState
 			return;
 		}
 		
+		var touchBlocksAccept:Bool = false;
+		
+		#if mobile
+		if (funkin.mobile.TouchUtil.tapped)
+		{
+			final tappedIndex = getTappedSong();
+			touchBlocksAccept = tappedIndex != curSelected;
+			
+			if (tappedIndex != -1 && tappedIndex != curSelected)
+			{
+				changeSelection(tappedIndex - curSelected);
+				changeDiff();
+			}
+		}
+		#end
+		
 		if (controls.UI_LEFT_P) changeDiff(-1);
 		else if (controls.UI_RIGHT_P) changeDiff(1);
 		else if (controls.UI_UP_P || controls.UI_DOWN_P) changeDiff();
@@ -378,7 +394,7 @@ class FreeplayState extends MusicBeatState
 				instPlaying = curSelected;
 			}
 		}
-		else if (controls.ACCEPT)
+		else if (controls.ACCEPT && !touchBlocksAccept)
 		{
 			persistentUpdate = false;
 			
@@ -431,6 +447,23 @@ class FreeplayState extends MusicBeatState
 		
 		super.update(elapsed);
 	}
+	
+	#if mobile
+	function getTappedSong():Int
+	{
+		for (idx => item in grpSongs.members)
+		{
+			if (item != null && item.visible && funkin.mobile.TouchUtil.tappedOn(item)) return idx;
+		}
+		
+		for (idx => icon in grpIcons.members)
+		{
+			if (icon != null && icon.visible && funkin.mobile.TouchUtil.tappedOn(icon)) return idx;
+		}
+		
+		return -1;
+	}
+	#end
 	
 	public static function destroyFreeplayVocals()
 	{

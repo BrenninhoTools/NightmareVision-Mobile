@@ -52,6 +52,8 @@ class TurboControl extends FlxBasic // very basic turbo control thingy
 	 */
 	public var keys:Array<Int>;
 	
+	public var action:Null<String> = null;
+	
 	/**
 	 * Whether the hooked inputs are being pressed.
 	 */
@@ -93,6 +95,18 @@ class TurboControl extends FlxBasic // very basic turbo control thingy
 		
 		justPressed = (justPressed || FlxG.keys.anyJustPressed(keys));
 		pressed = (pressed || FlxG.keys.anyPressed(keys));
+		
+		#if mobile
+		if (action != null)
+		{
+			if (funkin.mobile.TouchInput.check(action + funkin.mobile.TouchInput.PRESS_SUFFIX))
+			{
+				holding = false;
+				justPressed = true;
+			}
+			pressed = pressed || funkin.mobile.TouchInput.check(action);
+		}
+		#end
 		
 		if (!holding)
 		{
@@ -143,6 +157,7 @@ class TurboControl extends FlxBasic // very basic turbo control thingy
 		if (keys == null) throw 'what. $action keybinds doesnt exist.';
 		
 		var instance = new TurboControl(keys, rate);
+		instance.action = action;
 		
 		if (action.startsWith('ui_')) // hacky but im just porting this from something else //clean it up if ud like
 		{

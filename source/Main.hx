@@ -49,25 +49,27 @@ class Main extends Sprite
 		funkin.backend.AntiCrash.init();
 		#end
 		
-		#if mobile
-		funkin.mobile.StorageUtil.init();
-		#end
-		
 		#if android
-		funkin.mobile.StorageUtil.requestPermissions();
+		funkin.mobile.LogcatUtil.init();
 		#end
 		
 		#if mobile
 		funkin.mobile.LogcatUtil.startBoot();
+		funkin.mobile.LogcatUtil.mark('main started');
+		funkin.mobile.StorageUtil.init();
 		funkin.mobile.LogcatUtil.mark('storage ready: ' + funkin.mobile.StorageUtil.directory);
 		#end
 		
 		#if android
-		funkin.mobile.LogcatUtil.init();
-		funkin.mobile.LogcatUtil.mark('logcat started');
+		funkin.mobile.StorageUtil.requestPermissions();
+		funkin.mobile.LogcatUtil.mark('permissions requested');
 		#end
 		
 		initHaxeUI();
+		
+		#if mobile
+		funkin.mobile.LogcatUtil.mark('haxeui ready');
+		#end
 		
 		#if desktop
 		WindowUtil.resetWindow();
@@ -76,6 +78,10 @@ class Main extends Sprite
 		// load save data before creating FlxGame
 		ClientPrefs.loadDefaultKeys();
 		ClientPrefs.tryBindingSave('funkin');
+		
+		#if mobile
+		funkin.mobile.LogcatUtil.mark('save bound');
+		#end
 		
 		#if mobile
 		funkin.mobile.LogcatUtil.mark('creating game');

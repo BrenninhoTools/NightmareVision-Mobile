@@ -96,18 +96,10 @@ class StorageUtil
 		final candidates:Array<Null<String>> = [];
 
 		#if android
-		try
-		{
-			candidates.push(extension.androidtools.content.Context.getExternalFilesDir());
-		}
-		catch (e:Dynamic) {}
-
-		try
-		{
-			candidates.push(extension.androidtools.content.Context.getFilesDir());
-		}
-		catch (e:Dynamic) {}
-
+		candidates.push(callString('getMediaDirectory'));
+		candidates.push(callString('getExternalFilesDirectory'));
+		candidates.push(callString('getInternalFilesDirectory'));
+		
 		candidates.push(lime.system.System.applicationStorageDirectory);
 		#elseif ios
 		candidates.push(lime.system.System.documentsDirectory);
@@ -119,6 +111,94 @@ class StorageUtil
 		return candidates;
 	}
 
+	#if android
+	public static final ANDROID_HELPER:String = 'org/nightmarevision/StorageHelper';
+	
+	public static function callString(method:String):Null<String>
+	{
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, method, '()Ljava/lang/String;');
+			if (func != null)
+			{
+				final result:Null<String> = func();
+				if (result != null && result.length > 0) return result;
+			}
+		}
+		catch (e:Dynamic) {}
+		
+		return null;
+	}
+	
+	public static function getSdkVersion():Int
+	{
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'getSdkVersion', '()I');
+			if (func != null) return func();
+		}
+		catch (e:Dynamic) {}
+		
+		return 0;
+	}
+	
+	public static function hasPermission(permission:String):Bool
+	{
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'hasPermission', '(Ljava/lang/String;)Z');
+			if (func != null) return func(permission);
+		}
+		catch (e:Dynamic) {}
+		
+		return false;
+	}
+	
+	public static function hasAllFilesAccess():Bool
+	{
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'hasAllFilesAccess', '()Z');
+			if (func != null) return func();
+		}
+		catch (e:Dynamic) {}
+		
+		return false;
+	}
+	
+	public static function requestPermissions(?permissions:Array<String>):Void
+	{
+		if (permissions == null)
+		{
+			permissions = getSdkVersion() >= 33 ? [
+				'android.permission.READ_MEDIA_AUDIO',
+				'android.permission.READ_MEDIA_VIDEO',
+				'android.permission.READ_MEDIA_IMAGES'
+			] : [
+				'android.permission.READ_EXTERNAL_STORAGE',
+				'android.permission.WRITE_EXTERNAL_STORAGE'
+			];
+		}
+		
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'requestPermissions', '(Ljava/lang/String;)V');
+			if (func != null) func(permissions.join(','));
+		}
+		catch (e:Dynamic) {}
+	}
+	
+	public static function requestAllFilesAccess():Void
+	{
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'requestAllFilesAccess', '()V');
+			if (func != null) func();
+		}
+		catch (e:Dynamic) {}
+	}
+	#end
+	
 	static function prepareDirectory(path:String):Bool
 	{
 		#if sys

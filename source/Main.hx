@@ -53,6 +53,10 @@ class Main extends Sprite
 		funkin.mobile.StorageUtil.init();
 		#end
 		
+		#if android
+		funkin.mobile.StorageUtil.requestPermissions();
+		#end
+		
 		#if mobile
 		funkin.mobile.LogcatUtil.startBoot();
 		funkin.mobile.LogcatUtil.mark('storage ready: ' + funkin.mobile.StorageUtil.directory);

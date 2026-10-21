@@ -46,11 +46,44 @@ class Chart
 	{
 		songName = Paths.sanitize(songName);
 		
-		var path = Paths.json('$songName/charts/${Difficulty.getDifficultyFilePath(difficulty)}');
+		final difficultyName = Difficulty.getDifficultyFilePath(difficulty);
 		
-		if (!FunkinAssets.exists(path)) throw 'couldnt find chart at ($path)';
+		var path = Paths.json('$songName/charts/$difficultyName');
+		
+		if (!FunkinAssets.exists(path))
+		{
+			final legacy = findLegacyChart(songName, difficultyName);
+			if (legacy == null) throw 'couldnt find chart at ($path)';
+			path = legacy;
+		}
 		
 		return fromData(FunkinAssets.parseJson(FunkinAssets.getContent(path)));
+	}
+	
+	static function findLegacyChart(songName:String, difficultyName:String):Null<String>
+	{
+		final isDefault = difficultyName == Paths.sanitize(Difficulty.defaultDifficulty);
+		
+		final candidates:Array<String> = [
+			'data/$songName/$songName-$difficultyName.json',
+			'songs/$songName/$songName-$difficultyName.json',
+			'data/$songName/$difficultyName.json',
+			'data/$songName/charts/$difficultyName.json'
+		];
+		
+		if (isDefault)
+		{
+			candidates.insert(0, 'data/$songName/$songName.json');
+			candidates.insert(1, 'songs/$songName/$songName.json');
+		}
+		
+		for (candidate in candidates)
+		{
+			final path = Paths.getPath(candidate, null, true);
+			if (FunkinAssets.exists(path)) return path;
+		}
+		
+		return null;
 	}
 	
 	public static function fromData(data:Dynamic):Song
@@ -61,7 +94,10 @@ class Chart
 		}
 		
 		final format = checkFormat(data);
-		if (format != UNKNOWN) throw 'this is using a incompatible format\n($format)'; // this isnt gonna stay btw
+		
+		if (format == PSYCH && !Reflect.hasField(data, 'song')) data = {song: data};
+		else if (format == PSYCH && Std.isOfType(Reflect.field(data, 'song'), String)) data = {song: data};
+		else if (format != UNKNOWN && format != PSYCH) throw 'this is using a incompatible format\n($format)';
 		
 		if (!Reflect.hasField(data, 'song')) throw "data provided is invalid";
 		

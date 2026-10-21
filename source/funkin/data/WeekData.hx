@@ -76,11 +76,36 @@ class WeekData
 	{
 		for (field in Reflect.fields(weekFile))
 		{
+			if (field == 'difficulties' || field == 'freeplayColor') continue;
+			
 			if (_fields.contains(field))
 			{
 				Reflect.setField(this, field, Reflect.field(weekFile, field));
 			}
 		}
+		
+		final rawDifficulties:Dynamic = Reflect.field(weekFile, 'difficulties');
+		if (Std.isOfType(rawDifficulties, String))
+		{
+			final list:String = rawDifficulties;
+			difficulties = [for (entry in list.split(',')) if (entry.trim().length > 0) entry.trim()];
+		}
+		else if (Std.isOfType(rawDifficulties, Array))
+		{
+			final list:Array<Dynamic> = rawDifficulties;
+			difficulties = [for (entry in list) if (entry != null && Std.string(entry).trim().length > 0) Std.string(entry).trim()];
+		}
+		
+		final rawColor:Dynamic = Reflect.field(weekFile, 'freeplayColor');
+		if (Std.isOfType(rawColor, Array))
+		{
+			final list:Array<Dynamic> = rawColor;
+			if (list.length >= 3) freeplayColor = [for (i in 0...3) Std.int(Std.parseFloat(Std.string(list[i])))];
+		}
+		
+		if (songs == null) songs = [];
+		if (weekCharacters == null) weekCharacters = [];
+		if (weekBefore == null) weekBefore = '';
 		
 		this.fileName = fileName;
 	}

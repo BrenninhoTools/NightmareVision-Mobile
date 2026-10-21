@@ -3752,6 +3752,11 @@ class OLDChartEditorState extends MusicBeatState
 		
 		if ((data != null) && (data.length > 0))
 		{
+			#if mobile
+			funkin.utils.FileUtil.saveFile(data.trim(), Paths.sanitize(_song.song) + ".json");
+			return;
+			#end
+			
 			_file = new FileReference();
 			_file.addEventListener(Event.COMPLETE, onSaveComplete);
 			_file.addEventListener(Event.CANCEL, onSaveCancel);
@@ -3781,6 +3786,11 @@ class OLDChartEditorState extends MusicBeatState
 		
 		if ((data != null) && (data.length > 0))
 		{
+			#if mobile
+			funkin.utils.FileUtil.saveFile(data.trim(), "events.json");
+			return;
+			#end
+			
 			_file = new FileReference();
 			_file.addEventListener(Event.COMPLETE, onSaveComplete);
 			_file.addEventListener(Event.CANCEL, onSaveCancel);

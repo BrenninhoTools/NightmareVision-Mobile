@@ -168,6 +168,11 @@ class PauseSubState extends MusicBeatSubstate
 		regenMenu();
 		cameras = [cam];
 		
+		#if mobile
+		final backButton = funkin.mobile.MobileUtil.createBackButton(cam);
+		add(backButton);
+		#end
+
 		super.create();
 		
 		scriptGroup.call('onCreatePost', []);
@@ -182,6 +187,32 @@ class PauseSubState extends MusicBeatSubstate
 		super.update(elapsed);
 		
 		if (skipTimeText != null && skipTimeTracker != null) updateSkipTextStuff();
+		
+		var touchBlocksAccept:Bool = false;
+		
+		#if mobile
+		if (funkin.mobile.TouchUtil.tapped)
+		{
+			final tapped = getTappedItem();
+			touchBlocksAccept = tapped != curSelected;
+			
+			if (tapped >= 0 && tapped != curSelected) changeSelection(tapped - curSelected);
+		}
+		
+		if (controls.BACK)
+		{
+			if (menuItems == difficultyChoices)
+			{
+				menuItems = menuItemsOG;
+				regenMenu();
+			}
+			else
+			{
+				close();
+			}
+			return;
+		}
+		#end
 		
 		if (controls.UI_UP_P)
 		{
@@ -224,7 +255,7 @@ class PauseSubState extends MusicBeatSubstate
 				}
 		}
 		
-		if (controls.ACCEPT)
+		if (controls.ACCEPT && !touchBlocksAccept)
 		{
 			if (menuItems == difficultyChoices)
 			{
@@ -368,6 +399,18 @@ class PauseSubState extends MusicBeatSubstate
 		
 		super.destroy();
 	}
+	
+	#if mobile
+	function getTappedItem():Int
+	{
+		for (idx => item in grpMenuShit.members)
+		{
+			if (item != null && item.visible && funkin.mobile.TouchUtil.tappedOn(item)) return idx;
+		}
+		
+		return -1;
+	}
+	#end
 	
 	function changeSelection(change:Int = 0):Void
 	{

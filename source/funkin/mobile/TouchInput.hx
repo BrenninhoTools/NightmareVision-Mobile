@@ -57,7 +57,7 @@ class TouchInput
 
 	public static var naturalScrolling:Bool = true;
 
-	public static var swipeDistance:Float = 60;
+	public static var swipeDistance:Float = 95;
 
 	public static var tapDistance:Float = 28;
 
@@ -65,17 +65,17 @@ class TouchInput
 
 	public static var holdRepeat:Bool = true;
 
-	public static var holdDelay:Float = 380;
+	public static var holdDelay:Float = 520;
 
-	public static var holdInterval:Float = 90;
+	public static var holdInterval:Float = 150;
 
 	public static var flickEnabled:Bool = true;
 
-	public static var flickSpeed:Float = 1.6;
+	public static var flickSpeed:Float = 2.6;
 
-	public static var maxFlickSteps:Int = 4;
+	public static var maxFlickSteps:Int = 2;
 
-	public static var flickInterval:Int = 3;
+	public static var flickInterval:Int = 5;
 
 	public static var twoFingerBack:Bool = true;
 

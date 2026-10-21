@@ -72,9 +72,15 @@
     <haxelib name="extension-androidtools" version="2.2.2" if="android"/>
     <java path="projFiles/android/java" if="android"/>
 
+    <section if="ios">
+        <config:ios deployment="14.0"/>
+        <dependency name="UniformTypeIdentifiers.framework"/>
+    </section>
+
     <section if="android">
         <config:android extension="org.nightmarevision.CrashLogger"/>
         <config:android extension="org.nightmarevision.AssetExtractor"/>
+        <config:android extension="org.nightmarevision.NativeHelper"/>
         <config:android permission="android.permission.INTERNET"/>
         <config:android permission="android.permission.ACCESS_NETWORK_STATE"/>
         <config:android permission="android.permission.VIBRATE"/>

@@ -22,9 +22,55 @@ typedef BrowseOptions =
 @:nullSafety
 class FileUtil
 {
+	#if mobile
+	public static inline final EXPORT_FOLDER:String = 'exports';
+	
+	static function filterExtensions(?filters:Array<FileFilter>):Array<String>
+	{
+		final extensions:Array<String> = [];
+		if (filters == null) return extensions;
+		
+		for (filter in filters)
+		{
+			if (filter == null || filter.extension == null) continue;
+			
+			for (part in filter.extension.split(';'))
+			{
+				final clean = part.trim().replace('*.', '').replace('.', '');
+				if (clean.length > 0 && clean != '*' && !extensions.contains(clean)) extensions.push(clean);
+			}
+		}
+		
+		return extensions;
+	}
+	
+	static function saveToExports(data:Dynamic, fileName:String):Null<String>
+	{
+		final name = fileName.withoutDirectory();
+		final path = haxe.io.Path.join([EXPORT_FOLDER, name.length > 0 ? name : 'file']);
+		
+		if (!saveFileToPath(data, path)) return null;
+		
+		#if sys
+		return sys.FileSystem.absolutePath(path);
+		#else
+		return path;
+		#end
+	}
+	#end
+	
 	public static function browseForFile(options:BrowseOptions, ?onSelect:String->Void, ?onCancel:Void->Void)
 	{
-		final title = options.title;
+		#if mobile
+		final started = funkin.mobile.NativeUtil.pickFiles(filterExtensions(options.typeFilter), false, (files) -> {
+			if (onSelect != null) onSelect(files[0]);
+		}, onCancel);
+		
+		if (!started && onCancel != null) onCancel();
+		return;
+		#end
+		
+final title = options.title;
 		final filters = options.typeFilter;
 		final startPath = options.defaultSearch;
 		
@@ -42,7 +88,16 @@ class FileUtil
 	
 	public static function browseForMultipleFiles(options:BrowseOptions, ?onSelect:Array<String>->Void, ?onCancel:Void->Void)
 	{
-		final title = options.title;
+		#if mobile
+		final started = funkin.mobile.NativeUtil.pickFiles(filterExtensions(options.typeFilter), true, (files) -> {
+			if (onSelect != null) onSelect(files);
+		}, onCancel);
+		
+		if (!started && onCancel != null) onCancel();
+		return;
+		#end
+		
+final title = options.title;
 		final filters = options.typeFilter;
 		final startPath = options.defaultSearch;
 		
@@ -62,6 +117,25 @@ class FileUtil
 	{
 		if (data == null) return;
 		
+		#if mobile
+		final saved = saveToExports(data, fileName ?? 'file');
+		
+		if (saved != null)
+		{
+			funkin.mobile.NativeUtil.toast('Saved to ' + EXPORT_FOLDER + '/' + saved.withoutDirectory(), true);
+			#if ios
+			funkin.mobile.NativeUtil.shareFile(saved);
+			#end
+			if (onSelect != null) onSelect(saved);
+		}
+		else
+		{
+			funkin.mobile.NativeUtil.toast('Could not save ' + (fileName ?? 'the file'), true);
+			if (onCancel != null) onCancel();
+		}
+		return;
+		#end
+
 		var filters = null;
 		if (fileName != null && fileName.extension().length > 0)
 		{

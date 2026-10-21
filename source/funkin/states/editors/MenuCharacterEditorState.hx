@@ -429,6 +429,11 @@ class MenuCharacterEditorState extends MusicBeatState
 			var splittedImage:Array<String> = imageInputText.text.trim().split('_');
 			var characterName:String = splittedImage[splittedImage.length - 1].toLowerCase().replace(' ', '');
 			
+			#if mobile
+			funkin.utils.FileUtil.saveFile(data, characterName + ".json");
+			return;
+			#end
+			
 			_file = new FileReference();
 			_file.addEventListener(Event.COMPLETE, onSaveComplete);
 			_file.addEventListener(Event.CANCEL, onSaveCancel);

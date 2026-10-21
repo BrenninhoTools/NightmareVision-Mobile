@@ -86,6 +86,10 @@
             {
                 "name": "json5hx",
                 "version": "1.0.2"
+            },
+            {
+                "name": "extension-androidtools",
+                "version": "2.2.2"
             }
         ]
     }

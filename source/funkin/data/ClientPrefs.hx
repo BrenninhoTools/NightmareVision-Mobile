@@ -64,6 +64,9 @@ class ClientPrefs
 	
 	@saveVar public static var hideHud:Bool = false;
 	
+	// mobile ------------------------------------------------------------------------//
+	@saveVar public static var invisibleHitbox:Bool = false;
+
 	@saveVar public static var showRatings:Bool = true;
 	
 	@saveVar public static var timeBarType:String = 'Time Left';

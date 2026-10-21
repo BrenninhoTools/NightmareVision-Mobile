@@ -28,6 +28,10 @@ class OptionsState extends MusicBeatState
 	
 	var justLeftSubState = false;
 	
+	#if mobile
+	var mobileOptionsButton:Null<funkin.mobile.TouchButton> = null;
+	#end
+
 	public function openSelectedSubstate(label:String)
 	{
 		switch (label)
@@ -91,7 +95,12 @@ class OptionsState extends MusicBeatState
 		changeSelection();
 		
 		#if mobile
-		add(funkin.mobile.MobileUtil.createBackButton());
+		final mobileCamera = funkin.mobile.MobileUtil.createCamera();
+		add(funkin.mobile.MobileUtil.createBackButton(mobileCamera));
+		
+		mobileOptionsButton = funkin.mobile.MobileUtil.createButton('mobileOptionsButton', 'mobileOptions', [], funkin.mobile.MobileUtil.optionsScale, mobileCamera);
+		mobileOptionsButton.setPosition(FlxG.width - mobileOptionsButton.width - funkin.mobile.MobileUtil.BUTTON_MARGIN, funkin.mobile.MobileUtil.BUTTON_MARGIN);
+		add(mobileOptionsButton);
 		#end
 		
 		super.create();
@@ -130,6 +139,19 @@ class OptionsState extends MusicBeatState
 			}
 			else FlxG.switchState(MainMenuState.new);
 		}
+		
+		#if mobile
+		funkin.mobile.TouchInput.poll();
+		
+		if (subState == null && mobileOptionsButton != null && mobileOptionsButton.touchJustPressed)
+		{
+			FlxG.sound.play(Paths.sound('scrollMenu'));
+			openSubState(new funkin.states.options.MobileOptionsSubState());
+			scriptGroup.call('onUpdatePost', [elapsed]);
+			justLeftSubState = false;
+			return;
+		}
+		#end
 		
 		if (controls.ACCEPT)
 		{

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="mobileOptionsButton.png">
+	<SubTexture name="mobileOptions0000" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0001" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0002" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0003" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0004" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0005" x="243" y="305" width="232" height="258" frameX="-19" frameY="-21" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0006" x="0" y="0" width="270" height="300"/>
+	<SubTexture name="mobileOptions0007" x="275" y="0" width="260" height="289" frameX="-5" frameY="-6" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0008" x="540" y="0" width="251" height="279" frameX="-10" frameY="-10" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0009" x="0" y="305" width="238" height="264" frameX="-16" frameY="-18" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0010" x="0" y="574" width="196" height="218" frameX="-37" frameY="-41" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0011" x="0" y="574" width="196" height="218" frameX="-37" frameY="-41" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0012" x="692" y="305" width="201" height="223" frameX="-34" frameY="-38" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0013" x="692" y="305" width="201" height="223" frameX="-34" frameY="-38" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0014" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0015" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0016" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0017" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0018" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0019" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0020" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0021" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+	<SubTexture name="mobileOptions0022" x="480" y="305" width="207" height="230" frameX="-32" frameY="-35" frameWidth="270" frameHeight="300"/>
+</TextureAtlas>

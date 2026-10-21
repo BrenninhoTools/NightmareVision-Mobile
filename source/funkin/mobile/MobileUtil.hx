@@ -17,6 +17,8 @@ class MobileUtil
 	public static var pauseScale:Float = 0.85;
 
 	public static var arrowScale:Float = 0.5;
+	
+	public static var optionsScale:Float = 0.55;
 
 	public static function createCamera():FlxCamera
 	{

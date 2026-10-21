@@ -38,7 +38,7 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 
 			lane.onDown.add(() -> {
 				fades.get(lane)?.cancel();
-				lane.alpha = pressedAlpha;
+				lane.alpha = ClientPrefs.invisibleHitbox ? 0 : pressedAlpha;
 			});
 
 			lane.onUp.add(() -> {

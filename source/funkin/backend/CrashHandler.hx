@@ -78,6 +78,15 @@ class CrashHandler
 		
 		var fullReport = '$curFlxState\n\nException caught: $message\n\nCallstack:$callstackMessage';
 		
+		#if (sys && mobile)
+		try
+		{
+			if (!sys.FileSystem.exists('crash')) sys.FileSystem.createDirectory('crash');
+			sys.io.File.saveContent('crash/crash-' + DateTools.format(Date.now(), '%Y-%m-%d_%H-%M-%S') + '.txt', fullReport);
+		}
+		catch (e:Dynamic) {}
+		#end
+		
 		FlxG.switchState(() -> new FallbackState(fullReport, () -> FlxG.switchState(() -> new MainMenuState())));
 	}
 }

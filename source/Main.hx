@@ -55,7 +55,9 @@ class Main extends Sprite
 		
 		initHaxeUI();
 		
+		#if desktop
 		WindowUtil.resetWindow();
+		#end
 		
 		// load save data before creating FlxGame
 		ClientPrefs.loadDefaultKeys();

@@ -42,19 +42,11 @@ class StorageUtil
 		#if android
 		try
 		{
-			final context:Dynamic = lime.system.JNI.createStaticField('org/haxe/extension/Extension', 'mainContext', 'Landroid/content/Context;').get();
-			final getExternalFilesDir:Dynamic = lime.system.JNI.createMemberMethod('android/content/Context', 'getExternalFilesDir', '(Ljava/lang/String;)Ljava/io/File;');
-			final getAbsolutePath:Dynamic = lime.system.JNI.createMemberMethod('java/io/File', 'getAbsolutePath', '()Ljava/lang/String;');
-
-			final file:Dynamic = getExternalFilesDir(context, null);
-			if (file != null)
-			{
-				final path:String = getAbsolutePath(file);
-				if (path != null && path.length > 0) return Path.addTrailingSlash(path);
-			}
+			final path = extension.androidtools.content.Context.getExternalFilesDir();
+			if (path != null && path.length > 0) return Path.addTrailingSlash(path);
 		}
 		catch (e:Dynamic) {}
-
+		
 		return Path.addTrailingSlash(lime.system.System.applicationStorageDirectory);
 		#elseif ios
 		return Path.addTrailingSlash(lime.system.System.documentsDirectory);

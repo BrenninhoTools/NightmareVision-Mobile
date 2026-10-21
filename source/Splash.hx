@@ -15,6 +15,8 @@ class Splash extends FlxState
 {
 	var _cachedAutoPause:Bool;
 	
+	var finished:Bool = false;
+	
 	var spriteEvents:FlxTimer;
 	var logo:FlxSprite;
 	
@@ -53,7 +55,7 @@ class Splash extends FlxState
 			logo.screenCenter();
 		}
 		
-		if (FlxG.keys.justPressed.SPACE || FlxG.keys.justPressed.ENTER)
+		if (FlxG.keys.justPressed.SPACE || FlxG.keys.justPressed.ENTER #if FLX_TOUCH || FlxG.touches.justStarted().length > 0 #end)
 		{
 			finish();
 		}
@@ -121,14 +123,20 @@ class Splash extends FlxState
 	
 	function finish()
 	{
+		if (finished) return;
+		finished = true;
+		
 		if (spriteEvents != null)
 		{
 			spriteEvents.cancel();
 			spriteEvents.destroy();
 		}
 		#if VIDEOS_ALLOWED
-		video.stop();
-		video.destroy();
+		if (video != null)
+		{
+			video.stop();
+			video.destroy();
+		}
 		#end
 		complete();
 	}

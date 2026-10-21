@@ -53,8 +53,14 @@ class Main extends Sprite
 		funkin.mobile.StorageUtil.init();
 		#end
 		
+		#if mobile
+		funkin.mobile.LogcatUtil.startBoot();
+		funkin.mobile.LogcatUtil.mark('storage ready: ' + funkin.mobile.StorageUtil.directory);
+		#end
+		
 		#if android
 		funkin.mobile.LogcatUtil.init();
+		funkin.mobile.LogcatUtil.mark('logcat started');
 		#end
 		
 		initHaxeUI();
@@ -66,6 +72,10 @@ class Main extends Sprite
 		// load save data before creating FlxGame
 		ClientPrefs.loadDefaultKeys();
 		ClientPrefs.tryBindingSave('funkin');
+		
+		#if mobile
+		funkin.mobile.LogcatUtil.mark('creating game');
+		#end
 		
 		addChild(new funkin.backend.FunkinGame(startMeta.width, startMeta.height, #if mobile funkin.mobile.CopyState #else Init #end, startMeta.fps, startMeta.fps, true, startMeta.startFullScreen));
 		

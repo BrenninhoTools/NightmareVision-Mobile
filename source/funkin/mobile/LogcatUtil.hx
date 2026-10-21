@@ -14,6 +14,8 @@ class LogcatUtil
 	public static final SESSION_FILE:String = 'session.txt';
 
 	public static final MARKER_FILE:String = '.running';
+	
+	public static final BOOT_FILE:String = 'boot.txt';
 
 	public static var maxFiles:Int = 10;
 
@@ -44,6 +46,39 @@ class LogcatUtil
 		#end
 	}
 
+	public static function mark(step:String):Void
+	{
+		#if mobile
+		try
+		{
+			final base = directory.length > 0 ? directory : Path.join([StorageUtil.directory.length > 0 ? StorageUtil.directory : Sys.getCwd(), FOLDER]);
+			if (!FileSystem.exists(base)) FileSystem.createDirectory(base);
+			
+			final output = File.append(Path.join([base, BOOT_FILE]), false);
+			output.writeString(DateTools.format(Date.now(), '%H:%M:%S') + ' ' + step + '\n');
+			output.flush();
+			output.close();
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
+	
+	public static function startBoot():Void
+	{
+		#if mobile
+		try
+		{
+			final base = Path.join([StorageUtil.directory.length > 0 ? StorageUtil.directory : Sys.getCwd(), FOLDER]);
+			if (!FileSystem.exists(base)) FileSystem.createDirectory(base);
+			
+			final boot = Path.join([base, BOOT_FILE]);
+			if (FileSystem.exists(boot)) File.copy(boot, Path.join([base, 'boot-previous.txt']));
+			File.saveContent(boot, '');
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
+	
 	public static function stop():Void
 	{
 		#if android
@@ -129,7 +164,7 @@ class LogcatUtil
 		{
 			final files = [
 				for (entry in FileSystem.readDirectory(directory))
-					if (entry.endsWith('.txt') && entry != SESSION_FILE) entry
+					if (entry.endsWith('.txt') && entry != SESSION_FILE && entry != BOOT_FILE && entry != 'boot-previous.txt') entry
 			];
 
 			files.sort((a, b) -> {

@@ -26,6 +26,10 @@ class Splash extends FlxState
 	
 	override function create()
 	{
+		#if mobile
+		funkin.mobile.LogcatUtil.mark('Splash.create');
+		#end
+		
 		_cachedAutoPause = FlxG.autoPause;
 		FlxG.autoPause = false;
 		

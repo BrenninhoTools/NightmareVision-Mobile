@@ -67,7 +67,9 @@ class CopyState extends FlxState
 		retryButton = createChoice('RETRY', FlxG.width * 0.25);
 		continueButton = createChoice('CONTINUE', FlxG.width * 0.75);
 
-		start(StorageUtil.getPendingFiles());
+		final pending = StorageUtil.getPendingFiles();
+		LogcatUtil.mark('CopyState: ' + pending.length + ' pending files');
+		start(pending);
 	}
 
 	function createChoice(text:String, centerX:Float):FlxText
@@ -116,6 +118,7 @@ class CopyState extends FlxState
 		while (index < files.length && Sys.time() - start < frameBudget)
 		{
 			final id = files[index++];
+			LogcatUtil.mark('copy ' + id);
 			if (!StorageUtil.copyAsset(id)) failed.push(id);
 		}
 
@@ -185,6 +188,7 @@ class CopyState extends FlxState
 
 	function finish():Void
 	{
+		LogcatUtil.mark('CopyState: finished, failed ' + failed.length);
 		copying = false;
 		waitingChoice = false;
 

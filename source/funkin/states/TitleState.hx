@@ -49,6 +49,10 @@ class TitleState extends MusicBeatState
 	
 	override public function create():Void
 	{
+		#if mobile
+		funkin.mobile.LogcatUtil.mark('TitleState.create');
+		#end
+		
 		init();
 		
 		randomIntroText = FlxG.random.getObject(getIntroText());

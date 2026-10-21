@@ -106,9 +106,11 @@ jobs:
               run: |
                 sudo apt-get update
                 sudo apt-get install -y --no-install-recommends \
+                  build-essential pkg-config \
                   libwayland-dev libwayland-bin wayland-protocols libxkbcommon-dev libdecor-0-dev \
-                  libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev libgbm-dev libdrm-dev \
-                  libasound2-dev libpulse-dev libdbus-1-dev libudev-dev \
+                  libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev libgbm-dev libdrm-dev libvulkan-dev \
+                  libasound2-dev libpulse-dev libjack-jackd2-dev libpipewire-0.3-dev libsndio-dev \
+                  libdbus-1-dev libudev-dev libibus-1.0-dev \
                   libx11-dev libxext-dev libx11-xcb-dev libxfixes-dev libxss-dev libxrender-dev \
                   libxrandr-dev libxcursor-dev libxi-dev libxinerama-dev libxxf86vm-dev
 

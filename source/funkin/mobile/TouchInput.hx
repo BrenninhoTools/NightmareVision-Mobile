@@ -524,7 +524,7 @@ class TouchInput
 		final sign:Float = naturalScrolling ? -1 : 1;
 
 		if (deltaY != 0) return deltaY * sign > 0 ? DOWN : UP;
-		if (deltaX != 0) return deltaX * sign > 0 ? RIGHT : LEFT;
+		if (deltaX != 0) return deltaX > 0 ? RIGHT : LEFT;
 		return NONE;
 	}
 	#end

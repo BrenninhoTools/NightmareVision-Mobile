@@ -118,24 +118,25 @@ final title = options.title;
 		if (data == null) return;
 		
 		#if mobile
-		final saved = saveToExports(data, fileName ?? 'file');
+		final name = (fileName ?? 'file').withoutDirectory();
+		final safeName = name.length > 0 ? name : 'file';
+		final staging = haxe.io.Path.join([funkin.mobile.StorageUtil.getPath('.cache'), safeName]);
 		
-		if (saved != null)
+		if (saveFileToPath(data, staging))
 		{
-			funkin.mobile.NativeUtil.toast('Saved to ' + EXPORT_FOLDER + '/' + saved.withoutDirectory(), true);
-			#if ios
-			funkin.mobile.NativeUtil.shareFile(saved);
-			#end
-			if (onSelect != null) onSelect(saved);
+			final started = funkin.mobile.NativeUtil.saveFile(staging, safeName, (savedName) -> {
+				final shown = savedName.length > 0 ? savedName : safeName;
+				funkin.mobile.NativeUtil.toast('Saved ' + shown, false);
+				if (onSelect != null) onSelect(shown);
+			}, () -> {
+				if (onCancel != null) onCancel();
+			}, () -> saveFallback(data, safeName, onSelect, onCancel));
+			
+			if (started) return;
 		}
-		else
-		{
-			funkin.mobile.NativeUtil.toast('Could not save ' + (fileName ?? 'the file'), true);
-			if (onCancel != null) onCancel();
-		}
-		return;
-		#end
-
+		
+		saveFallback(data, safeName, onSelect, onCancel);
+		#else
 		var filters = null;
 		if (fileName != null && fileName.extension().length > 0)
 		{
@@ -155,7 +156,26 @@ final title = options.title;
 				if (onCancel != null) onCancel();
 			}
 		}, filters, fileName);
+		#end
 	}
+	
+	#if mobile
+	static function saveFallback(data:Dynamic, fileName:String, ?onSelect:String->Void, ?onCancel:Void->Void):Void
+	{
+		final saved = saveToExports(data, fileName);
+		
+		if (saved != null)
+		{
+			funkin.mobile.NativeUtil.toast('Saved to ' + EXPORT_FOLDER + '/' + saved.withoutDirectory(), true);
+			if (onSelect != null) onSelect(saved);
+		}
+		else
+		{
+			funkin.mobile.NativeUtil.toast('Could not save ' + fileName, true);
+			if (onCancel != null) onCancel();
+		}
+	}
+	#end
 	
 	public static function saveFileToPath(data:Dynamic, path:String, ensureDirectory:Bool = true):Bool
 	{

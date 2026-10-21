@@ -13,6 +13,10 @@ extern "C" const char *nmv_native_picked_files();
 extern "C" void nmv_native_reset_pick();
 extern "C" void nmv_native_share_file(const char *path);
 extern "C" void nmv_native_exclude_from_backup(const char *path);
+extern "C" void nmv_native_save_file(const char *sourcePath, const char *fileName);
+extern "C" const char *nmv_native_save_state();
+extern "C" const char *nmv_native_saved_name();
+extern "C" void nmv_native_reset_save();
 extern "C" long long nmv_native_free_space();
 ')
 #end
@@ -144,6 +148,89 @@ class NativeUtil
 		#else
 		return false;
 		#end
+	}
+	
+	static var saveCallback:Null<String->Void> = null;
+	
+	static var saveCancel:Null<Void->Void> = null;
+	
+	static var saveError:Null<Void->Void> = null;
+	
+	static var savePolling:Bool = false;
+	
+	public static function saveFile(sourcePath:String, fileName:String, onSave:String->Void, ?onCancel:Void->Void, ?onError:Void->Void):Bool
+	{
+		#if (android || ios)
+		saveCallback = onSave;
+		saveCancel = onCancel;
+		saveError = onError;
+		
+		#if android
+		final func = jni('saveFile', '(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V');
+		if (func == null) return false;
+		final mimes = toMimeTypes([haxe.io.Path.extension(fileName)]);
+		func(sourcePath, fileName, mimes.length > 0 ? mimes[0] : 'application/octet-stream');
+		#else
+		untyped __cpp__('nmv_native_save_file({0}.utf8_str(), {1}.utf8_str())', sourcePath, fileName);
+		#end
+		
+		if (!savePolling)
+		{
+			savePolling = true;
+			FlxG.signals.postUpdate.add(pollSave);
+		}
+		
+		return true;
+		#else
+		return false;
+		#end
+	}
+	
+	static function pollSave():Void
+	{
+		#if android
+		final stateFunc = jni('getSaveState', '()Ljava/lang/String;');
+		final state:String = (stateFunc != null ? stateFunc() : null) ?? 'error';
+		#elseif ios
+		final state:String = untyped __cpp__('::String::create(nmv_native_save_state())');
+		#else
+		final state = 'error';
+		#end
+		
+		if (state == 'pending' || state == 'idle') return;
+		
+		FlxG.signals.postUpdate.remove(pollSave);
+		savePolling = false;
+		
+		#if android
+		final nameFunc = jni('getSavedName', '()Ljava/lang/String;');
+		final name:String = (nameFunc != null ? nameFunc() : null) ?? '';
+		final resetFunc = jni('resetSave', '()V');
+		if (resetFunc != null) resetFunc();
+		#elseif ios
+		final name:String = untyped __cpp__('::String::create(nmv_native_saved_name())');
+		untyped __cpp__('nmv_native_reset_save()');
+		#else
+		final name = '';
+		#end
+		
+		final done = saveCallback;
+		final cancel = saveCancel;
+		final error = saveError;
+		saveCallback = null;
+		saveCancel = null;
+		saveError = null;
+		
+		switch (state)
+		{
+			case 'done':
+				if (done != null) done(name);
+			case 'cancel':
+				if (cancel != null) cancel();
+			default:
+				if (error != null) error();
+				else if (cancel != null) cancel();
+		}
 	}
 	
 	static function pollPick():Void

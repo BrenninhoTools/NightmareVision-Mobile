@@ -82,6 +82,99 @@ static NSString *nmvImportFolder()
 
 static NMVDocumentPickerDelegate *nmvPickerDelegate = nil;
 
+static NSString *nmvSaveState = @"idle";
+static NSString *nmvSavedName = @"";
+static NSString *nmvSaveSource = @"";
+static std::string nmvSaveStateBuffer;
+static std::string nmvSavedNameBuffer;
+
+@interface NMVSavePickerDelegate : NSObject <UIDocumentPickerDelegate>
+@end
+
+@implementation NMVSavePickerDelegate
+
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls
+{
+	NSURL *url = urls.firstObject;
+	nmvSavedName = url != nil ? url.lastPathComponent : @"";
+	nmvSaveState = url != nil ? @"done" : @"cancel";
+	[[NSFileManager defaultManager] removeItemAtPath:nmvSaveSource error:nil];
+}
+
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller
+{
+	nmvSaveState = @"cancel";
+	[[NSFileManager defaultManager] removeItemAtPath:nmvSaveSource error:nil];
+}
+
+@end
+
+static NMVSavePickerDelegate *nmvSaveDelegate = nil;
+
+extern "C" void nmv_native_save_file(const char *sourcePath, const char *fileName)
+{
+	if (sourcePath == NULL)
+	{
+		nmvSaveState = @"cancel";
+		return;
+	}
+
+	nmvSaveState = @"pending";
+	nmvSavedName = @"";
+
+	NSString *source = [NSString stringWithUTF8String:sourcePath];
+	NSString *name = fileName != NULL ? [NSString stringWithUTF8String:fileName] : source.lastPathComponent;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		NSFileManager *manager = [NSFileManager defaultManager];
+		NSString *folder = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+		[manager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
+
+		NSString *staged = [folder stringByAppendingPathComponent:(name.length > 0 ? name : source.lastPathComponent)];
+		[manager removeItemAtPath:staged error:nil];
+
+		if (![manager moveItemAtPath:source toPath:staged error:nil] && ![manager copyItemAtPath:source toPath:staged error:nil])
+		{
+			nmvSaveState = @"error";
+			return;
+		}
+
+		nmvSaveSource = staged;
+
+		UIViewController *controller = nmvTopController();
+		if (controller == nil)
+		{
+			nmvSaveState = @"error";
+			return;
+		}
+
+		UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForExportingURLs:@[[NSURL fileURLWithPath:staged]] asCopy:YES];
+
+		if (nmvSaveDelegate == nil) nmvSaveDelegate = [[NMVSavePickerDelegate alloc] init];
+		picker.delegate = nmvSaveDelegate;
+
+		[controller presentViewController:picker animated:YES completion:nil];
+	});
+}
+
+extern "C" const char *nmv_native_save_state()
+{
+	nmvSaveStateBuffer = [nmvSaveState UTF8String];
+	return nmvSaveStateBuffer.c_str();
+}
+
+extern "C" const char *nmv_native_saved_name()
+{
+	nmvSavedNameBuffer = [nmvSavedName UTF8String];
+	return nmvSavedNameBuffer.c_str();
+}
+
+extern "C" void nmv_native_reset_save()
+{
+	nmvSaveState = @"idle";
+	nmvSavedName = @"";
+}
+
 static UIImpactFeedbackGenerator *nmvImpactGenerators[3];
 
 static UIImpactFeedbackGenerator *nmvImpactGenerator(int milliseconds)

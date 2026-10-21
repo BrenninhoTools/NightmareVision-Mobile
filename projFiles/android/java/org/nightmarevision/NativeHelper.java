@@ -15,6 +15,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,6 +27,14 @@ import org.haxe.extension.Extension;
 public class NativeHelper extends Extension
 {
 	private static final int PICK_REQUEST_CODE = 4201;
+
+	private static final int SAVE_REQUEST_CODE = 4202;
+
+	private static volatile String saveState = "idle";
+
+	private static volatile String savedName = "";
+
+	private static String saveSource = "";
 
 	private static final String IMPORT_FOLDER = "imports";
 
@@ -197,6 +206,108 @@ public class NativeHelper extends Extension
 		});
 	}
 
+	public static void saveFile(final String sourcePath, final String fileName, final String mimeType)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null || sourcePath == null || !new File(sourcePath).isFile())
+		{
+			saveState = "cancel";
+			return;
+		}
+
+		saveState = "pending";
+		savedName = "";
+		saveSource = sourcePath;
+
+		activity.runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				try
+				{
+					Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+					intent.addCategory(Intent.CATEGORY_OPENABLE);
+					intent.setType(mimeType != null && mimeType.length() > 0 ? mimeType : "application/octet-stream");
+					intent.putExtra(Intent.EXTRA_TITLE, fileName != null && fileName.length() > 0 ? fileName : new File(sourcePath).getName());
+					activity.startActivityForResult(intent, SAVE_REQUEST_CODE);
+				}
+				catch (Throwable e)
+				{
+					saveState = "error";
+				}
+			}
+		});
+	}
+
+	public static String getSaveState()
+	{
+		return saveState;
+	}
+
+	public static String getSavedName()
+	{
+		return savedName;
+	}
+
+	public static void resetSave()
+	{
+		saveState = "idle";
+		savedName = "";
+	}
+
+	private static void finishSave(final Uri uri)
+	{
+		new Thread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				Context context = getContext();
+				InputStream input = null;
+				OutputStream output = null;
+
+				try
+				{
+					ContentResolver resolver = context.getContentResolver();
+					input = new FileInputStream(saveSource);
+					output = resolver.openOutputStream(uri, "wt");
+					if (output == null) output = resolver.openOutputStream(uri);
+					if (output == null) throw new Exception("no output");
+
+					byte[] buffer = new byte[256 * 1024];
+					int read;
+					while ((read = input.read(buffer)) != -1)
+						output.write(buffer, 0, read);
+
+					output.flush();
+					savedName = queryName(resolver, uri);
+					saveState = "done";
+				}
+				catch (Throwable e)
+				{
+					saveState = "error";
+				}
+				finally
+				{
+					try
+					{
+						if (input != null) input.close();
+					}
+					catch (Throwable e) {}
+
+					try
+					{
+						if (output != null) output.close();
+					}
+					catch (Throwable e) {}
+
+					new File(saveSource).delete();
+				}
+			}
+		}, "NativeHelper-Save").start();
+	}
+
 	public static String getPickState()
 	{
 		return pickState;
@@ -216,6 +327,20 @@ public class NativeHelper extends Extension
 	@Override
 	public boolean onActivityResult(int requestCode, int resultCode, final Intent data)
 	{
+		if (requestCode == SAVE_REQUEST_CODE)
+		{
+			if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null)
+			{
+				new File(saveSource).delete();
+				saveState = "cancel";
+			}
+			else
+			{
+				finishSave(data.getData());
+			}
+			return false;
+		}
+
 		if (requestCode != PICK_REQUEST_CODE) return true;
 
 		if (resultCode != Activity.RESULT_OK || data == null)

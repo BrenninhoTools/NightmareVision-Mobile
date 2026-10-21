@@ -8,6 +8,7 @@ import openfl.Assets;
 import openfl.display.Sprite;
 
 import funkin.input.Controls;
+import funkin.backend.plugins.DebugTextPlugin;
 
 import flixel.util.FlxStringUtil;
 import flixel.FlxG;
@@ -127,6 +128,8 @@ class DebugDisplay extends Sprite
 	
 	var deltaTimeout:Float = 0.0;
 	
+	var lastDisplayType:String = '';
+	
 	public function new(x:Float = 10, y:Float = 10, color:Int = 0x000000)
 	{
 		super();
@@ -234,6 +237,12 @@ class DebugDisplay extends Sprite
 			ClientPrefs.fpsDisplayType = fpsTypeArray[FlxMath.wrap(fpsTypeArray.indexOf(ClientPrefs.fpsDisplayType) + 1, 0, fpsTypeArray.length - 1)];
 		}
 		
+		if (lastDisplayType != ClientPrefs.fpsDisplayType)
+		{
+			lastDisplayType = ClientPrefs.fpsDisplayType;
+			deltaTimeout = 100;
+		}
+		
 		// prevents the overlay from updating every frame, why would you need to anyways @crowplexus
 		if (deltaTimeout < 100)
 		{
@@ -245,6 +254,8 @@ class DebugDisplay extends Sprite
 		updateText();
 		textUnderlay.width = textField.width + 3;
 		textUnderlay.height = textField.height + (displayType == FpsDisplayMode.ADVANCED ? 0 : -5);
+		
+		DebugTextPlugin.instance?.repositionTexts();
 		
 		deltaTimeout = 0.0;
 	}
@@ -258,10 +269,9 @@ class DebugDisplay extends Sprite
 	function __updateText()
 	{
 		displayType = FpsDisplayMode.fromString(ClientPrefs.fpsDisplayType);
+		visible = displayType != FpsDisplayMode.DISABLED;
 		
 		if (!canUpdate || !visible) return;
-		
-		visible = displayType != FpsDisplayMode.DISABLED;
 		
 		#if cpp
 		var str = 'FPS: $currentFPS • [GC: ${FlxStringUtil.formatBytes(gcMemory)} | Task: ${FlxStringUtil.formatBytes(taskMemory)}]';

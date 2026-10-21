@@ -200,7 +200,7 @@ jobs:
                 compression-level: 0
 
     iOS:
-        runs-on: macos-15
+        runs-on: macos-latest
         timeout-minutes: 120
 
         steps:

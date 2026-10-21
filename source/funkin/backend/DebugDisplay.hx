@@ -113,6 +113,14 @@ class DebugDisplay extends Sprite
 	
 	public var displayType:Int = FpsDisplayMode.SIMPLE;
 	
+	public static var mobileScale:Float = 1.35;
+	
+	public static var margin:Float = 10;
+	
+	var baseX:Float = 10;
+	
+	var baseY:Float = 3;
+	
 	public var plugins:Array<Void->Null<String>> = [];
 	
 	var times:Array<Float> = [];
@@ -142,9 +150,64 @@ class DebugDisplay extends Sprite
 		addChild(textUnderlay);
 		addChild(textField);
 		
+		baseX = x;
+		baseY = y;
+		
 		this.x = x;
 		this.y = y;
+		
+		#if mobile
+		textField.wordWrap = false;
+		mouseEnabled = true;
+		addEventListener(openfl.events.MouseEvent.CLICK, onTap);
+		#end
+		
+		addEventListener(openfl.events.Event.ADDED_TO_STAGE, onAddedToStage);
 	}
+	
+	function onAddedToStage(_):Void
+	{
+		removeEventListener(openfl.events.Event.ADDED_TO_STAGE, onAddedToStage);
+		
+		stage.addEventListener(openfl.events.Event.RESIZE, onResize);
+		onResize(null);
+	}
+	
+	function onResize(_):Void
+	{
+		if (stage == null) return;
+		
+		final ratio = Math.min(stage.stageWidth / FlxG.width, stage.stageHeight / FlxG.height);
+		
+		#if mobile
+		final scale = Math.max(1, ratio) * mobileScale;
+		#else
+		final scale = 1.0;
+		#end
+		
+		scaleX = scaleY = scale;
+		
+		#if mobile
+		final offsetX = (stage.stageWidth - FlxG.width * ratio) / 2;
+		final offsetY = (stage.stageHeight - FlxG.height * ratio) / 2;
+		
+		x = Math.max(0, offsetX) + margin * scale;
+		y = Math.max(0, offsetY) + baseY * scale;
+		#else
+		x = baseX;
+		y = baseY;
+		#end
+	}
+	
+	#if mobile
+	function onTap(_):Void
+	{
+		final types:Array<String> = ['Simple', 'Advanced', 'Disabled'];
+		final next = FlxMath.wrap(types.indexOf(ClientPrefs.fpsDisplayType) + 1, 0, types.length - 1);
+		ClientPrefs.fpsDisplayType = types[next] == 'Disabled' ? 'Simple' : types[next];
+		deltaTimeout = 100;
+	}
+	#end
 	
 	public static function addPlugin(fun:Void->String):Void->Null<String>
 	{

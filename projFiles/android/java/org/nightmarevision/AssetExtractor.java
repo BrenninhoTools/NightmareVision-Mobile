@@ -19,6 +19,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +43,9 @@ public class AssetExtractor extends Extension
 
 	private static final String[] ALWAYS_UPDATE = {"assets/"};
 
-	private static final int BUFFER_SIZE = 256 * 1024;
+	private static final int BUFFER_SIZE = 512 * 1024;
+
+	private static final int MAX_THREADS = 4;
 
 	private static volatile String status = "idle";
 
@@ -107,8 +113,6 @@ public class AssetExtractor extends Extension
 		status = "running";
 		writeText(new File(gameDirectory, STATUS_FILE), "running");
 
-		showOverlay();
-
 		Thread worker = new Thread(new Runnable()
 		{
 			@Override
@@ -175,51 +179,96 @@ public class AssetExtractor extends Extension
 
 	private static void extract(Context context) throws Exception
 	{
-		AssetManager assets = Extension.assetManager != null ? Extension.assetManager : context.getAssets();
+		final AssetManager assets = Extension.assetManager != null ? Extension.assetManager : context.getAssets();
 
-		List<String> files = new ArrayList<String>();
-		for (String root : ROOTS)
-			collect(assets, root, files);
+		final Map<String, Long> manifest = new ConcurrentHashMap<String, Long>(readManifest());
+		final String version = getVersion(context);
+		final File versionFile = new File(gameDirectory, VERSION_FILE);
+		final boolean updated = !version.equals(readText(versionFile));
 
-		total = files.size();
-		done = 0;
+		List<String> files;
 
-		Map<String, Long> manifest = readManifest();
-		String version = getVersion(context);
-		File versionFile = new File(gameDirectory, VERSION_FILE);
-		boolean updated = !version.equals(readText(versionFile));
+		if (!updated && !manifest.isEmpty())
+		{
+			files = new ArrayList<String>(manifest.keySet());
+		}
+		else
+		{
+			files = new ArrayList<String>();
+			for (String root : ROOTS)
+				collect(assets, root, files);
+		}
 
-		List<String> failed = new ArrayList<String>();
-		byte[] buffer = new byte[BUFFER_SIZE];
-		long lastSave = System.currentTimeMillis();
+		final List<String> pending = new ArrayList<String>();
 
 		for (String path : files)
 		{
 			File target = new File(gameDirectory, path);
 
-			if (needsCopy(path, target, manifest, updated))
-			{
-				long size = copy(assets, path, target, buffer);
-
-				if (size < 0) size = copy(assets, path, target, buffer);
-
-				if (size >= 0) manifest.put(path, size);
-				else failed.add(path);
-			}
-			else if (!manifest.containsKey(path))
-			{
-				manifest.put(path, target.length());
-			}
-
-			done++;
-			updateOverlay();
-
-			if (System.currentTimeMillis() - lastSave > 1500)
-			{
-				writeManifest(manifest);
-				lastSave = System.currentTimeMillis();
-			}
+			if (needsCopy(path, target, manifest, updated)) pending.add(path);
+			else if (!manifest.containsKey(path)) manifest.put(path, target.length());
 		}
+
+		total = pending.size();
+		done = 0;
+
+		if (pending.isEmpty())
+		{
+			if (updated) writeManifest(manifest);
+			writeText(versionFile, version);
+			new File(gameDirectory, ERROR_FILE).delete();
+			return;
+		}
+
+		createDirectories(pending);
+		showOverlay();
+
+		final AtomicInteger cursor = new AtomicInteger(0);
+		final AtomicInteger completed = new AtomicInteger(0);
+		final List<String> failed = Collections.synchronizedList(new ArrayList<String>());
+		final AtomicLong lastSave = new AtomicLong(System.currentTimeMillis());
+
+		int threads = Math.max(2, Math.min(MAX_THREADS, Runtime.getRuntime().availableProcessors()));
+		Thread[] workers = new Thread[threads];
+
+		for (int t = 0; t < threads; t++)
+		{
+			workers[t] = new Thread(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					byte[] buffer = new byte[BUFFER_SIZE];
+
+					while (true)
+					{
+						int index = cursor.getAndIncrement();
+						if (index >= pending.size()) break;
+
+						String path = pending.get(index);
+						File target = new File(gameDirectory, path);
+
+						long size = copy(assets, path, target, buffer);
+						if (size < 0) size = copy(assets, path, target, buffer);
+
+						if (size >= 0) manifest.put(path, size);
+						else failed.add(path);
+
+						done = completed.incrementAndGet();
+						updateOverlay();
+
+						long now = System.currentTimeMillis();
+						long previous = lastSave.get();
+						if (now - previous > 1500 && lastSave.compareAndSet(previous, now)) writeManifest(manifest);
+					}
+				}
+			}, "AssetExtractor-" + t);
+
+			workers[t].start();
+		}
+
+		for (Thread worker : workers)
+			worker.join();
 
 		writeManifest(manifest);
 
@@ -233,9 +282,29 @@ public class AssetExtractor extends Extension
 		else
 		{
 			StringBuilder builder = new StringBuilder();
-			for (String path : failed)
-				builder.append(path).append('\n');
+			synchronized (failed)
+			{
+				for (String path : failed)
+					builder.append(path).append('\n');
+			}
 			writeText(errors, builder.toString());
+		}
+	}
+
+	private static void createDirectories(List<String> paths)
+	{
+		java.util.HashSet<String> created = new java.util.HashSet<String>();
+
+		for (String path : paths)
+		{
+			int slash = path.lastIndexOf('/');
+			if (slash <= 0) continue;
+
+			String folder = path.substring(0, slash);
+			if (!created.add(folder)) continue;
+
+			File dir = new File(gameDirectory, folder);
+			if (!dir.isDirectory()) dir.mkdirs();
 		}
 	}
 
@@ -279,26 +348,12 @@ public class AssetExtractor extends Extension
 
 		if (children == null || children.length == 0)
 		{
-			if (isFile(assets, path)) output.add(path);
+			output.add(path);
 			return;
 		}
 
 		for (String child : children)
 			collect(assets, path + "/" + child, output);
-	}
-
-	private static boolean isFile(AssetManager assets, String path)
-	{
-		try
-		{
-			InputStream input = assets.open(path, AssetManager.ACCESS_STREAMING);
-			input.close();
-			return true;
-		}
-		catch (Throwable e)
-		{
-			return false;
-		}
 	}
 
 	private static long copy(AssetManager assets, String path, File target, byte[] buffer)
@@ -397,7 +452,7 @@ public class AssetExtractor extends Extension
 		return manifest;
 	}
 
-	private static void writeManifest(Map<String, Long> manifest)
+	private static synchronized void writeManifest(Map<String, Long> manifest)
 	{
 		StringBuilder builder = new StringBuilder();
 		for (Map.Entry<String, Long> entry : manifest.entrySet())
@@ -467,12 +522,19 @@ public class AssetExtractor extends Extension
 		});
 	}
 
+	private static volatile long lastOverlayUpdate = 0;
+
 	private static void updateOverlay()
 	{
 		final Activity activity = Extension.mainActivity;
-		if (activity == null || overlay == null || (done % 10 != 0 && done != total)) return;
+		if (activity == null || overlay == null) return;
 
-		final String text = "Copying game files...\n" + done + " / " + total;
+		long now = System.currentTimeMillis();
+		if (now - lastOverlayUpdate < 100 && done != total) return;
+		lastOverlayUpdate = now;
+
+		final int percent = total > 0 ? (int) (done * 100L / total) : 100;
+		final String text = "Copying game files... " + percent + "%\n" + done + " / " + total;
 
 		activity.runOnUiThread(new Runnable()
 		{

@@ -1,19 +1,38 @@
 package funkin.mobile;
 
 import flixel.FlxG;
+import flixel.math.FlxPoint;
 #if FLX_TOUCH
 import flixel.input.touch.FlxTouch;
 #end
 
+enum SwipeDirection
+{
+	NONE;
+	UP;
+	DOWN;
+	LEFT;
+	RIGHT;
+}
+
 typedef TouchGesture =
 {
+	var id:Int;
 	var startX:Float;
 	var startY:Float;
 	var anchorX:Float;
 	var anchorY:Float;
+	var lastX:Float;
+	var lastY:Float;
 	var startTime:Float;
-	var swiped:Bool;
+	var lastMoveTime:Float;
+	var lastPulseTime:Float;
+	var velocityX:Float;
+	var velocityY:Float;
+	var direction:SwipeDirection;
+	var steps:Int;
 	var blocked:Bool;
+	var primary:Bool;
 }
 
 class TouchInput
@@ -38,17 +57,43 @@ class TouchInput
 
 	public static var naturalScrolling:Bool = true;
 
-	public static var swipeDistance:Float = 70;
+	public static var swipeDistance:Float = 60;
 
-	public static var tapDistance:Float = 30;
+	public static var tapDistance:Float = 28;
 
-	public static var tapTime:Float = 350;
+	public static var tapTime:Float = 300;
+
+	public static var holdRepeat:Bool = true;
+
+	public static var holdDelay:Float = 380;
+
+	public static var holdInterval:Float = 90;
+
+	public static var flickEnabled:Bool = true;
+
+	public static var flickSpeed:Float = 1.6;
+
+	public static var maxFlickSteps:Int = 4;
+
+	public static var flickInterval:Int = 3;
+
+	public static var twoFingerBack:Bool = true;
+
+	public static var androidBackKey:Bool = true;
+
+	public static var justTapped(default, null):Bool = false;
+
+	public static var lastSwipe(default, null):SwipeDirection = NONE;
+
+	public static final tapPosition:FlxPoint = FlxPoint.get();
 
 	static final zones:Array<TouchButton> = [];
 
 	static final gestures:Map<Int, TouchGesture> = [];
 
 	static final pulses:Array<String> = [];
+
+	static final queued:Array<{action:String, frame:Int}> = [];
 
 	static var current:Map<String, Bool> = [];
 
@@ -60,6 +105,12 @@ class TouchInput
 
 	static var initialized:Bool = false;
 
+	static var primaryId:Int = -1;
+
+	static var maxFingers:Int = 0;
+
+	static var multiStartTime:Float = 0;
+
 	public static function init():Void
 	{
 		if (initialized) return;
@@ -67,7 +118,16 @@ class TouchInput
 
 		FlxG.signals.preUpdate.add(onPreUpdate);
 		FlxG.signals.postUpdate.add(poll);
-		FlxG.signals.preStateSwitch.add(onStateSwitch);
+		FlxG.signals.preStateSwitch.add(reset);
+
+		#if android
+		final window = lime.app.Application.current?.window;
+		if (window != null)
+		{
+			window.onKeyDown.add(onKeyDown);
+			window.onKeyUp.add(onKeyUp);
+		}
+		#end
 	}
 
 	public static function register(zone:TouchButton):Void
@@ -110,8 +170,14 @@ class TouchInput
 		return !current.exists(action) && previous.exists(action);
 	}
 
-	public static function pulse(action:String):Void
+	public static function pulse(action:String, delayFrames:Int = 0):Void
 	{
+		if (delayFrames > 0)
+		{
+			queued.push({action: action, frame: frame + delayFrames});
+			return;
+		}
+
 		if (!pulses.contains(action)) pulses.push(action);
 	}
 
@@ -127,6 +193,17 @@ class TouchInput
 		return true;
 	}
 
+	public static function reset():Void
+	{
+		gestures.clear();
+		pulses.resize(0);
+		queued.resize(0);
+		primaryId = -1;
+		maxFingers = 0;
+		justTapped = false;
+		lastSwipe = NONE;
+	}
+
 	public static function poll():Void
 	{
 		if (!enabled || polledFrame == frame) return;
@@ -137,11 +214,30 @@ class TouchInput
 		current = swap;
 		current.clear();
 
+		justTapped = false;
+		lastSwipe = NONE;
+
+		var i = queued.length;
+		while (i-- > 0)
+		{
+			if (queued[i].frame <= frame)
+			{
+				pulse(queued[i].action);
+				queued.splice(i, 1);
+			}
+		}
+
 		for (zone in zones)
 			zone.beginPoll();
 
 		#if FLX_TOUCH
 		final allowGestures = gesturesActive();
+
+		var activeFingers = 0;
+		for (touch in FlxG.touches.list)
+			if (touch.pressed) activeFingers++;
+
+		updateMultiTouch(activeFingers, allowGestures);
 
 		for (touch in FlxG.touches.list)
 		{
@@ -168,6 +264,20 @@ class TouchInput
 		pulses.resize(0);
 	}
 
+	static function updateMultiTouch(activeFingers:Int, allowGestures:Bool):Void
+	{
+		final now = FlxG.game.ticks;
+
+		if (activeFingers >= 2 && maxFingers < 2) multiStartTime = now;
+		if (activeFingers > maxFingers) maxFingers = activeFingers;
+
+		if (activeFingers == 0)
+		{
+			if (maxFingers == 2 && twoFingerBack && allowGestures && now - multiStartTime <= tapTime * 1.5) pulse('back');
+			maxFingers = 0;
+		}
+	}
+
 	#if FLX_TOUCH
 	static function findZone(touch:FlxTouch):Null<TouchButton>
 	{
@@ -188,18 +298,31 @@ class TouchInput
 	static function handleGesture(touch:FlxTouch, zone:Null<TouchButton>, allowGestures:Bool):Void
 	{
 		final id = touch.touchPointID;
+		final now = FlxG.game.ticks;
 
 		if (touch.justPressed)
 		{
+			final primary = primaryId == -1;
+			if (primary) primaryId = id;
+
 			gestures.set(id,
 				{
+					id: id,
 					startX: touch.gameX,
 					startY: touch.gameY,
 					anchorX: touch.gameX,
 					anchorY: touch.gameY,
-					startTime: FlxG.game.ticks,
-					swiped: false,
-					blocked: zone != null
+					lastX: touch.gameX,
+					lastY: touch.gameY,
+					startTime: now,
+					lastMoveTime: now,
+					lastPulseTime: now,
+					velocityX: 0,
+					velocityY: 0,
+					direction: NONE,
+					steps: 0,
+					blocked: zone != null,
+					primary: primary
 				});
 			return;
 		}
@@ -207,52 +330,150 @@ class TouchInput
 		final gesture = gestures.get(id);
 		if (gesture == null) return;
 
+		trackVelocity(gesture, touch.gameX, touch.gameY, now);
+
 		if (touch.justReleased)
 		{
 			gestures.remove(id);
+			if (id == primaryId) primaryId = -1;
 
-			if (!allowGestures || gesture.blocked || gesture.swiped) return;
+			if (!allowGestures || gesture.blocked || !gesture.primary || maxFingers > 1) return;
+
+			if (gesture.direction != NONE)
+			{
+				flick(gesture);
+				return;
+			}
 
 			final distance = Math.sqrt(Math.pow(touch.gameX - gesture.startX, 2) + Math.pow(touch.gameY - gesture.startY, 2));
-			if (distance <= tapDistance && FlxG.game.ticks - gesture.startTime <= tapTime) pulse('accept');
+
+			if (distance <= tapDistance && now - gesture.startTime <= tapTime)
+			{
+				justTapped = true;
+				tapPosition.set(touch.gameX, touch.gameY);
+				pulse('accept');
+			}
 
 			return;
 		}
 
-		if (!allowGestures || gesture.blocked) return;
+		if (!allowGestures || gesture.blocked || !gesture.primary || maxFingers > 1) return;
 
 		final deltaX = touch.gameX - gesture.anchorX;
 		final deltaY = touch.gameY - gesture.anchorY;
 
-		final direction:Float = naturalScrolling ? -1 : 1;
+		var direction:SwipeDirection = NONE;
 
 		if (Math.abs(deltaY) >= swipeDistance && Math.abs(deltaY) >= Math.abs(deltaX))
 		{
-			pulse(deltaY * direction > 0 ? 'ui_down' : 'ui_up');
+			direction = resolveDirection(0, deltaY);
 		}
 		else if (Math.abs(deltaX) >= swipeDistance)
 		{
-			pulse(deltaX * direction > 0 ? 'ui_right' : 'ui_left');
+			direction = resolveDirection(deltaX, 0);
 		}
-		else
+
+		if (direction != NONE)
 		{
+			emitSwipe(gesture, direction, now);
+			gesture.anchorX = touch.gameX;
+			gesture.anchorY = touch.gameY;
 			return;
 		}
 
-		gesture.anchorX = touch.gameX;
-		gesture.anchorY = touch.gameY;
-		gesture.swiped = true;
+		if (holdRepeat && gesture.direction != NONE && now - gesture.lastMoveTime >= holdDelay && now - gesture.lastPulseTime >= holdInterval)
+		{
+			emitSwipe(gesture, gesture.direction, now);
+		}
+	}
+
+	static function trackVelocity(gesture:TouchGesture, x:Float, y:Float, now:Float):Void
+	{
+		final elapsed = Math.max(1, now - gesture.lastMoveTime);
+		final movedX = x - gesture.lastX;
+		final movedY = y - gesture.lastY;
+
+		if (Math.abs(movedX) + Math.abs(movedY) > 2)
+		{
+			gesture.velocityX = gesture.velocityX * 0.4 + (movedX / elapsed) * 0.6;
+			gesture.velocityY = gesture.velocityY * 0.4 + (movedY / elapsed) * 0.6;
+			gesture.lastMoveTime = now;
+		}
+
+		gesture.lastX = x;
+		gesture.lastY = y;
+	}
+
+	static function emitSwipe(gesture:TouchGesture, direction:SwipeDirection, now:Float):Void
+	{
+		gesture.direction = direction;
+		gesture.lastPulseTime = now;
+		gesture.steps++;
+		lastSwipe = direction;
+		pulse(actionFor(direction));
+	}
+
+	static function flick(gesture:TouchGesture):Void
+	{
+		if (!flickEnabled || FlxG.game.ticks - gesture.lastMoveTime > 80) return;
+
+		final speed = switch (gesture.direction)
+		{
+			case UP | DOWN: Math.abs(gesture.velocityY);
+			case LEFT | RIGHT: Math.abs(gesture.velocityX);
+			default: 0;
+		}
+
+		if (speed < flickSpeed) return;
+
+		final extra = Std.int(Math.min(maxFlickSteps, Math.floor(speed / flickSpeed)));
+		final action = actionFor(gesture.direction);
+
+		for (step in 1...extra + 1)
+			pulse(action, step * flickInterval);
+	}
+
+	static function resolveDirection(deltaX:Float, deltaY:Float):SwipeDirection
+	{
+		final sign:Float = naturalScrolling ? -1 : 1;
+
+		if (deltaY != 0) return deltaY * sign > 0 ? DOWN : UP;
+		if (deltaX != 0) return deltaX * sign > 0 ? RIGHT : LEFT;
+		return NONE;
+	}
+	#end
+
+	static function actionFor(direction:SwipeDirection):String
+	{
+		return switch (direction)
+		{
+			case UP: 'ui_up';
+			case DOWN: 'ui_down';
+			case LEFT: 'ui_left';
+			case RIGHT: 'ui_right';
+			default: '';
+		}
+	}
+
+	#if android
+	static function onKeyDown(key:lime.ui.KeyCode, modifier:lime.ui.KeyModifier):Void
+	{
+		if (!androidBackKey || key != lime.ui.KeyCode.APP_CONTROL_BACK) return;
+
+		pulse('back');
+		pulse('pause');
+	}
+
+	static function onKeyUp(key:lime.ui.KeyCode, modifier:lime.ui.KeyModifier):Void
+	{
+		if (!androidBackKey || key != lime.ui.KeyCode.APP_CONTROL_BACK) return;
+
+		lime.app.Application.current?.window?.onKeyUp.cancel();
 	}
 	#end
 
 	static function onPreUpdate():Void
 	{
 		frame++;
-	}
-
-	static function onStateSwitch():Void
-	{
-		gestures.clear();
-		pulses.resize(0);
 	}
 }

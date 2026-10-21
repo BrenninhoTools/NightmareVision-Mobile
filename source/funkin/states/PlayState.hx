@@ -578,6 +578,7 @@ class PlayState extends MusicBeatState
 		add(hitbox);
 		
 		pauseButton = funkin.mobile.MobileUtil.createPauseButton(camMobile);
+		if (ClientPrefs.invisiblePauseButton) pauseButton.alpha = 0;
 		add(pauseButton);
 	}
 	

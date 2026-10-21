@@ -16,6 +16,7 @@ import flixel.util.FlxColor;
 typedef VirtualKey =
 {
 	var label:String;
+	var ?image:String;
 	var key:FlxKey;
 	var ?charCode:Int;
 	var ?toggle:Bool;
@@ -27,6 +28,8 @@ class VirtualPadButton extends TouchButton
 	public final key:VirtualKey;
 
 	public var latched(default, null):Bool = false;
+	
+	var baseScale:Float = 1;
 
 	public function new(x:Float, y:Float, size:Int, key:VirtualKey)
 	{
@@ -35,7 +38,20 @@ class VirtualPadButton extends TouchButton
 		this.key = key;
 		blocksGestures = true;
 
-		loadGraphic(createGraphic(size, key.label), false, 0, 0, true);
+		final graphic = key.image != null ? Paths.image('mobile/virtualpad/${key.image}') : null;
+		
+		if (graphic != null)
+		{
+			loadGraphic(graphic);
+			setGraphicSize(size, size);
+		}
+		else
+		{
+			loadGraphic(createGraphic(size, key.label), false, 0, 0, true);
+		}
+		
+		updateHitbox();
+		baseScale = scale.x;
 		alpha = VirtualPad.idleAlpha;
 
 		onDown.add(press);
@@ -64,7 +80,7 @@ class VirtualPadButton extends TouchButton
 
 		VirtualPad.sendKey(key, true);
 		alpha = 1;
-		scale.set(0.92, 0.92);
+		scale.set(baseScale * 0.9, baseScale * 0.9);
 	}
 
 	function release():Void
@@ -73,17 +89,17 @@ class VirtualPadButton extends TouchButton
 
 		VirtualPad.sendKey(key, false);
 		alpha = VirtualPad.idleAlpha;
-		scale.set(1, 1);
+		scale.set(baseScale, baseScale);
 	}
 
 	function flash():Void
 	{
 		alpha = 1;
-		scale.set(0.92, 0.92);
+		scale.set(baseScale * 0.9, baseScale * 0.9);
 		FlxTimer.wait(0.1, () -> {
 			if (!exists) return;
 			alpha = VirtualPad.idleAlpha;
-			scale.set(1, 1);
+			scale.set(baseScale, baseScale);
 		});
 	}
 
@@ -171,24 +187,24 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		padCamera = camera;
 
 		dpad ??= [
-			{label: '^', key: UP},
-			{label: '<', key: LEFT},
-			{label: '>', key: RIGHT},
-			{label: 'v', key: DOWN}
+			{label: '^', image: 'up', key: UP},
+			{label: '<', image: 'left', key: LEFT},
+			{label: '>', image: 'right', key: RIGHT},
+			{label: 'v', image: 'down', key: DOWN}
 		];
 
 		actions ??= [
 			[
-				{label: 'Q', key: Q, charCode: 'q'.code},
-				{label: 'E', key: E, charCode: 'e'.code},
-				{label: 'ENTER', key: ENTER, charCode: 13},
-				{label: 'ESC', key: ESCAPE, charCode: 27}
+				{label: 'Q', image: 'q', key: Q, charCode: 'q'.code},
+				{label: 'E', image: 'e', key: E, charCode: 'e'.code},
+				{label: 'ENTER', image: 'enter', key: ENTER, charCode: 13},
+				{label: 'ESC', image: 'esc', key: ESCAPE, charCode: 27}
 			],
 			[
-				{label: 'SHIFT', key: SHIFT, toggle: true},
-				{label: 'CTRL', key: CONTROL, toggle: true},
-				{label: 'SPACE', key: SPACE, charCode: 32},
-				{label: 'KB', key: NONE, action: toggleKeyboard}
+				{label: 'SHIFT', image: 'shift', key: SHIFT, toggle: true},
+				{label: 'CTRL', image: 'ctrl', key: CONTROL, toggle: true},
+				{label: 'SPACE', image: 'space', key: SPACE, charCode: 32},
+				{label: 'KB', image: 'kb', key: NONE, action: toggleKeyboard}
 			]
 		];
 
@@ -214,7 +230,7 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 			}
 		}
 
-		toggleButton = new VirtualPadButton(margin, margin, Std.int(size * 0.75), {label: 'PAD', key: NONE, action: () -> shown = !shown});
+		toggleButton = new VirtualPadButton(margin, margin, Std.int(size * 0.75), {label: 'PAD', image: 'pad', key: NONE, action: () -> shown = !shown});
 		toggleButton.cameras = [padCamera];
 		add(toggleButton);
 

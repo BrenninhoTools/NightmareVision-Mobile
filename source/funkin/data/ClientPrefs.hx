@@ -66,6 +66,8 @@ class ClientPrefs
 	
 	// mobile ------------------------------------------------------------------------//
 	@saveVar public static var invisibleHitbox:Bool = false;
+	
+	@saveVar public static var invisiblePauseButton:Bool = false;
 
 	@saveVar public static var showRatings:Bool = true;
 	

@@ -54,7 +54,12 @@ class Init extends FlxState
 		FlxG.sound.volumeUpKeys = ClientPrefs.volumeUpKeys;
 		FlxG.keys.preventDefaultKeys = [TAB];
 		FlxG.mouse.visible = false;
-		FlxG.plugins.drawOnTop = true;
+		
+		#if mobile
+		openfl.ui.Mouse.hide();
+		FlxG.signals.preDraw.add(() -> if (FlxG.mouse.visible) FlxG.mouse.visible = false);
+		#end
+FlxG.plugins.drawOnTop = true;
 		
 		step('scale mode');
 		FlxG.scaleMode = new funkin.backend.FunkinRatioScaleMode();

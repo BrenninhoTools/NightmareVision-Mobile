@@ -350,7 +350,7 @@ class FreeplayState extends MusicBeatState
 		{
 			if (turboDown.PRESSED || turboUp.PRESSED)
 			{
-				changeSelection((controls.UI_UP ? -shiftMult : shiftMult));
+				changeSelection((turboUp.PRESSED ? -shiftMult : shiftMult));
 				changeDiff();
 			}
 		}

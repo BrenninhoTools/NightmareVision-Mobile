@@ -31,7 +31,7 @@ concurrency:
 
 env:
     HAXE_VERSION: 4.3.7
-    NDK_VERSION: r25c
+    NDK_VERSION: 25.2.9519653
     ANDROID_PLATFORM: 28
     LIME_HASH: 6421de16b9dfa4fb55c19f12db65d392a57585c8
     LIME_DIR: ${{ github.workspace }}/.lime
@@ -56,16 +56,12 @@ jobs:
                 echo "HXCPP_COMPILE_THREADS=$(nproc)" >> "$GITHUB_ENV"
 
             - name: Setup Android NDK
-              id: setup-ndk
-              uses: nttld/setup-ndk@v1
-              with:
-                ndk-version: ${{ env.NDK_VERSION }}
-                add-to-path: false
-                local-cache: true
-
-            - name: Export NDK path
               run: |
-                NDK="${{ steps.setup-ndk.outputs.ndk-path }}"
+                set -euo pipefail
+                NDK="$ANDROID_HOME/ndk/$NDK_VERSION"
+                if [ ! -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" ]; then
+                  (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+                fi
                 test -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++"
                 echo "ANDROID_NDK_ROOT=$NDK" >> "$GITHUB_ENV"
                 echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"

@@ -211,7 +211,7 @@ class DropShadowShader extends FlxShader
 			altMaskImage = bmp;
 		});
 		#else
-		altMaskImage = BitmapData.fromFile(path);
+		altMaskImage = BitmapData.fromFile(FunkinAssets.nativePath(path));
 		#end
 	}
 	

@@ -140,7 +140,11 @@ class Paths
 	public static function video(key:String, ?ext:String, checkMods:Bool = true):String
 	{
 		final exts = ext != null ? [ext, 'mp4', 'mov', 'webm'] : ['mp4', 'mov', 'webm'];
-		return findFileWithExts('videos/$key', exts, null, checkMods);
+		final path = findFileWithExts('videos/$key', exts, null, checkMods);
+		#if mobile
+		if (FileSystem.exists(path)) return FunkinAssets.nativePath(path);
+		#end
+		return path;
 	}
 	
 	public static function textureAtlas(key:String, ?parentFolder:String, checkMods:Bool = true):String
@@ -273,7 +277,11 @@ class Paths
 	 */
 	public static inline function font(key:String, checkMods:Bool = true):String
 	{
-		return findFileWithExts('fonts/$key', ['ttf', 'otf'], null, checkMods);
+		final path = findFileWithExts('fonts/$key', ['ttf', 'otf'], null, checkMods);
+		#if mobile
+		if (path.startsWith(MODS_DIRECTORY)) return FunkinAssets.nativePath(path);
+		#end
+		return path;
 	}
 	
 	public static function findFileWithExts(key:String, exts:Array<String>, ?parentFolder:String, checkMods:Bool = true):String

@@ -115,10 +115,20 @@ class FunkinAssets
 	 * 
 	 * Will return null in the case it cannot be found.
 	 */
+	public static function nativePath(path:String):String
+	{
+		#if mobile
+		if (path == null || path.length == 0 || haxe.io.Path.isAbsolute(path)) return path;
+		return haxe.io.Path.join([Sys.getCwd(), path]);
+		#else
+		return path;
+		#end
+	}
+	
 	public static function getBitmapData(path:String, useCache:Bool = true):Null<BitmapData>
 	{
 		var bitmap:Null<BitmapData> = null;
-		#if (MODS_ALLOWED || ASSET_REDIRECT) if (FileSystem.exists(path)) bitmap = BitmapData.fromFile(path);
+		#if (MODS_ALLOWED || ASSET_REDIRECT) if (FileSystem.exists(path)) bitmap = BitmapData.fromFile(nativePath(path));
 		else #end if (Assets.exists(path, IMAGE)) bitmap = Assets.getBitmapData(path, useCache);
 		
 		return bitmap;
@@ -249,7 +259,7 @@ class FunkinAssets
 		
 		var sound:Null<Sound> = null;
 		
-		#if (MODS_ALLOWED || ASSET_REDIRECT) if (FileSystem.exists(key)) sound = Sound.fromFile(key);
+		#if (MODS_ALLOWED || ASSET_REDIRECT) if (FileSystem.exists(key)) sound = Sound.fromFile(nativePath(key));
 		else #end if (Assets.exists(key, SOUND)) sound = Assets.getSound(key, true);
 		
 		if (sound != null)
@@ -273,7 +283,7 @@ class FunkinAssets
 		// trace('gulp');
 		return null;
 		#else
-		final vorbisFile = lime.media.vorbis.VorbisFile.fromFile(key);
+		final vorbisFile = lime.media.vorbis.VorbisFile.fromFile(nativePath(key));
 		
 		if (vorbisFile == null) return null;
 		

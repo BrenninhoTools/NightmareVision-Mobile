@@ -53,6 +53,10 @@ class Main extends Sprite
 		funkin.mobile.StorageUtil.init();
 		#end
 		
+		#if android
+		funkin.mobile.LogcatUtil.init();
+		#end
+		
 		initHaxeUI();
 		
 		#if desktop

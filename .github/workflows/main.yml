@@ -177,8 +177,10 @@ jobs:
             - name: Sign APK
               run: |
                 set -euo pipefail
-                APK_DIR=export/release/android/bin/app/build/outputs/apk/release
-                UNSIGNED=$(find "$APK_DIR" -name "*.apk" | head -n 1)
+                UNSIGNED=$(find export/release/android/bin -path "*/outputs/apk/*" -name "*.apk" | sort | head -n 1)
+                if [ -z "$UNSIGNED" ]; then UNSIGNED=$(find export/release/android/bin -name "*.apk" | sort | head -n 1); fi
+                echo "$UNSIGNED"
+                test -n "$UNSIGNED"
                 BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
                 keytool -genkeypair -keystore release.keystore -alias nightmarevision -keyalg RSA -keysize 2048 -validity 10000 \
                   -storepass android -keypass android -dname "CN=NightmareVision, OU=Mobile, O=nmvTeam, C=BR"

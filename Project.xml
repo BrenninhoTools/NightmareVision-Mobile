@@ -26,6 +26,7 @@
     <!-- PATH SETTINGS -->
 
     <classpath name="source"/>
+    <classpath name="." if="ios"/>
 
     <!--Fixes hxvlc using global rather than local. you will need to use hmm / hxpkg to compile this project though-->
     <setenv name="HAXEPATH" value="./"/>

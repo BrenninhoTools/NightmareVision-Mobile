@@ -76,14 +76,43 @@ class MacroUtil
 	public static macro function getPrecompliedContent(path:String)
 	{
 		#if !display
-		if (!sys.FileSystem.exists(path))
+		final resolved = resolveProjectPath(path);
+		if (resolved == null)
 		{
 			Context.fatalError('could not find content at $path', Context.currentPos());
 		}
 		
-		final ret = sys.io.File.getContent(path);
+		final ret = sys.io.File.getContent(resolved);
 		
 		return macro $v{ret};
 		#end
 	}
+	
+	#if macro
+	static function resolveProjectPath(path:String):Null<String>
+	{
+		if (sys.FileSystem.exists(path)) return path;
+		
+		try
+		{
+			final resolved = Context.resolvePath(path);
+			if (sys.FileSystem.exists(resolved)) return resolved;
+		}
+		catch (e:Dynamic) {}
+		
+		var directory = haxe.io.Path.removeTrailingSlashes(sys.FileSystem.absolutePath(Sys.getCwd()));
+		
+		for (_ in 0...10)
+		{
+			final candidate = haxe.io.Path.join([directory, path]);
+			if (sys.FileSystem.exists(candidate)) return candidate;
+			
+			final parent = haxe.io.Path.directory(directory);
+			if (parent == directory || parent.length == 0) break;
+			directory = parent;
+		}
+		
+		return null;
+	}
+	#end
 }

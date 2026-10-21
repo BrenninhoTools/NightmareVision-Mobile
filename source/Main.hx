@@ -93,10 +93,18 @@ class Main extends Sprite
 		if (funkin.mobile.StorageUtil.waitForNativeCopy())
 		{
 			funkin.mobile.LogcatUtil.mark('native copy finished: ' + funkin.mobile.StorageUtil.readNativeStatus());
+			funkin.mobile.StorageUtil.cleanLegacyCopy();
 		}
 		else
 		{
-			funkin.mobile.LogcatUtil.mark('native copy unavailable: ' + funkin.mobile.StorageUtil.readNativeStatus());
+			final status = funkin.mobile.StorageUtil.readNativeStatus();
+			funkin.mobile.LogcatUtil.mark('native copy unavailable: ' + status);
+			
+			if (status != null && status.startsWith('error'))
+			{
+				lime.app.Application.current?.window?.alert('Could not copy the game files:\n' + status.substr(6) + '\n\nFree space: ' + funkin.mobile.StorageUtil.getFreeSpaceMB() + ' MB', 'Storage');
+			}
+			
 			firstState = funkin.mobile.CopyState;
 		}
 		#elseif mobile

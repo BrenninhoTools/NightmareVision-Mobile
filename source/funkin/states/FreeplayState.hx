@@ -181,7 +181,7 @@ class FreeplayState extends MusicBeatState
 		curDifficulty = Math.round(Math.max(0, Difficulty.defaultDifficulties.indexOf(lastDifficultyName)));
 		
 		#if mobile
-		add(funkin.mobile.MobileUtil.createBackButton());
+		createMobileControls();
 		#end
 		
 		super.create();
@@ -261,6 +261,40 @@ class FreeplayState extends MusicBeatState
 	
 	var instPlaying:Int = -1;
 	
+	#if mobile
+	var tabLeftButton:Null<funkin.mobile.TouchButton> = null;
+	
+	var tabRightButton:Null<funkin.mobile.TouchButton> = null;
+	
+	function createMobileControls():Void
+	{
+		final camera = funkin.mobile.MobileUtil.createCamera();
+		
+		final back = funkin.mobile.MobileUtil.createBackButton(camera);
+		add(back);
+		
+		if (freeplayTabs.length > 1)
+		{
+			final arrows = funkin.mobile.MobileUtil.createArrowButtons(camera, back.x - funkin.mobile.MobileUtil.BUTTON_SPACING, back.y + back.height);
+			tabLeftButton = arrows.left;
+			tabRightButton = arrows.right;
+			add(tabLeftButton);
+			add(tabRightButton);
+			
+			tabHint.text = "Tap the arrows to switch tabs.";
+		}
+	}
+	
+	function getTouchTabChange():Int
+	{
+		funkin.mobile.TouchInput.poll();
+		
+		if (tabLeftButton != null && tabLeftButton.touchJustPressed) return -1;
+		if (tabRightButton != null && tabRightButton.touchJustPressed) return 1;
+		return 0;
+	}
+	#end
+	
 	override function update(elapsed:Float)
 	{
 		if (FlxG.sound.music != null && FlxG.sound.music.volume < 0.7)
@@ -295,10 +329,17 @@ class FreeplayState extends MusicBeatState
 		
 		if (freeplayTabs.length > 1)
 		{
-			if (FlxG.keys.justPressed.TAB)
+			var tabChange = 0;
+			
+			if (FlxG.keys.justPressed.TAB) tabChange = FlxG.keys.pressed.SHIFT ? -1 : 1;
+			
+			#if mobile
+			if (tabChange == 0) tabChange = getTouchTabChange();
+			#end
+			
+			if (tabChange != 0)
 			{
-				if (FlxG.keys.pressed.SHIFT) changeTab(-1);
-				else changeTab(1);
+				changeTab(tabChange);
 				
 				changeDiff();
 				changeSelection();

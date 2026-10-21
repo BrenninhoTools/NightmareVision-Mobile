@@ -47,6 +47,8 @@ public class AssetExtractor extends Extension
 
 	private static final int MAX_THREADS = 4;
 
+	private static final long MIN_FREE_BYTES = 64L * 1024L * 1024L;
+
 	private static volatile String status = "idle";
 
 	private static volatile int total = 0;
@@ -220,7 +222,11 @@ public class AssetExtractor extends Extension
 			return;
 		}
 
-		createDirectories(pending);
+		long freeBytes = gameDirectory.getUsableSpace();
+		if (freeBytes > 0 && freeBytes < MIN_FREE_BYTES)
+			throw new Exception("not enough free storage (" + (freeBytes / (1024L * 1024L)) + " MB available)");
+
+				createDirectories(pending);
 		showOverlay();
 
 		final AtomicInteger cursor = new AtomicInteger(0);

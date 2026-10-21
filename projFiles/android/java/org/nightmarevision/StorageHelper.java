@@ -174,6 +174,22 @@ public class StorageHelper
 		}
 	}
 
+	public static int getFreeSpaceMB(String path)
+	{
+		try
+		{
+			File file = new File(path);
+			while (file != null && !file.exists()) file = file.getParentFile();
+			if (file == null) return -1;
+			long bytes = file.getUsableSpace();
+			return (int) Math.min(Integer.MAX_VALUE, bytes / (1024L * 1024L));
+		}
+		catch (Throwable e)
+		{
+			return -1;
+		}
+	}
+
 	public static int getSdkVersion()
 	{
 		return Build.VERSION.SDK_INT;

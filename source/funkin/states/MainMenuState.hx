@@ -34,6 +34,22 @@ class MainMenuState extends MusicBeatState
 	var menuItems:Null<FlxTypedGroup<FlxSprite>> = null;
 	
 	var magenta:Null<FlxSprite> = null;
+	
+	#if mobile
+	var editorButton:Null<funkin.mobile.TouchButton> = null;
+	
+	function getTouchedItem():Int
+	{
+		if (menuItems == null || !funkin.mobile.TouchUtil.tapped) return -2;
+		
+		for (item in menuItems.members)
+		{
+			if (item != null && item.visible && funkin.mobile.TouchUtil.tappedOn(item)) return item.ID;
+		}
+		
+		return -1;
+	}
+	#end
 	var camFollow:Null<FlxObject> = null;
 	
 	override function create()
@@ -110,7 +126,18 @@ class MainMenuState extends MusicBeatState
 		changeSelection();
 		
 		#if mobile
-		add(funkin.mobile.MobileUtil.createBackButton());
+		final mobileCamera = funkin.mobile.MobileUtil.createCamera();
+		final backButton = funkin.mobile.MobileUtil.createBackButton(mobileCamera);
+		add(backButton);
+		
+		editorButton = new funkin.mobile.TouchButton(0, 0, [], 2);
+		editorButton.loadGraphic(Paths.image('mobile/editorButton'));
+		editorButton.setGraphicSize(Std.int(backButton.height * 0.8));
+		editorButton.updateHitbox();
+		editorButton.setPosition(backButton.x - editorButton.width - funkin.mobile.MobileUtil.BUTTON_SPACING, backButton.y + backButton.height - editorButton.height);
+		editorButton.alpha = funkin.mobile.MobileUtil.buttonAlpha;
+		editorButton.cameras = [mobileCamera];
+		add(editorButton);
 		#end
 		
 		super.create();
@@ -148,7 +175,33 @@ class MainMenuState extends MusicBeatState
 			
 			scriptGroup.set('curSelected', curSelected);
 			
-			if (controls.ACCEPT)
+			var touchBlocksAccept = false;
+			
+			#if mobile
+			final touched = getTouchedItem();
+			if (touched != -2)
+			{
+				touchBlocksAccept = touched != curSelected;
+				
+				if (touched >= 0 && touched != curSelected)
+				{
+					FunkinSound.play(Paths.sound('scrollMenu'));
+					changeSelection(touched - curSelected);
+				}
+			}
+			
+			funkin.mobile.TouchInput.poll();
+			
+			if (editorButton != null && editorButton.touchJustPressed)
+			{
+				canInteract = true;
+				FlxG.switchState(MasterEditorMenu.new);
+				super.update(elapsed);
+				return;
+			}
+			#end
+			
+			if (controls.ACCEPT && !touchBlocksAccept)
 			{
 				if (scriptGroup.call('onSelect', [optionShit[curSelected]]) != ScriptConstants.STOP_FUNC)
 				{

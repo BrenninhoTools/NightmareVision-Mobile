@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="arrowRightButton.png">
+	<SubTexture name="arrowRight0000" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0001" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0002" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0003" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0004" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0005" x="266" y="275" width="255" height="232" frameX="-21" frameY="-19" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0006" x="0" y="0" width="297" height="270"/>
+	<SubTexture name="arrowRight0007" x="302" y="0" width="285" height="259" frameX="-6" frameY="-6" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0008" x="592" y="0" width="275" height="250" frameX="-11" frameY="-10" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0009" x="0" y="275" width="261" height="237" frameX="-18" frameY="-16" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0010" x="0" y="517" width="215" height="195" frameX="-41" frameY="-38" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0011" x="0" y="517" width="215" height="195" frameX="-41" frameY="-38" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0012" x="758" y="275" width="221" height="201" frameX="-38" frameY="-34" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0013" x="758" y="275" width="221" height="201" frameX="-38" frameY="-34" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0014" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0015" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0016" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0017" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0018" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0019" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0020" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0021" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+	<SubTexture name="arrowRight0022" x="526" y="275" width="227" height="206" frameX="-35" frameY="-32" frameWidth="297" frameHeight="270"/>
+</TextureAtlas>

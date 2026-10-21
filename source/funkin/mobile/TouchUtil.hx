@@ -21,6 +21,52 @@ class TouchUtil
 	public static var tapped(get, never):Bool;
 
 	public static var swipe(get, never):SwipeDirection;
+	
+	public static var doubleTapped(get, never):Bool;
+	
+	public static var longPressed(get, never):Bool;
+	
+	public static var dragging(get, never):Bool;
+	
+	public static var dragX(get, never):Float;
+	
+	public static var dragY(get, never):Float;
+	
+	public static var holdTime(get, never):Float;
+	
+	public static var count(get, never):Int;
+	
+	public static function holding(object:FlxBasic, minTime:Float = 0, ?camera:FlxCamera):Bool
+	{
+		TouchInput.poll();
+		return TouchInput.holdTime >= minTime && overlaps(object, camera);
+	}
+	
+	public static function longPressedOn(object:FlxBasic, ?camera:FlxCamera):Bool
+	{
+		TouchInput.poll();
+		return TouchInput.justLongPressed && pointOverlaps(TouchInput.touchPosition.x, TouchInput.touchPosition.y, object, camera);
+	}
+	
+	public static function doubleTappedOn(object:FlxBasic, ?camera:FlxCamera):Bool
+	{
+		TouchInput.poll();
+		return TouchInput.justDoubleTapped && pointOverlaps(TouchInput.tapPosition.x, TouchInput.tapPosition.y, object, camera);
+	}
+	
+	public static function pointOverlaps(gameX:Float, gameY:Float, object:FlxBasic, ?camera:FlxCamera):Bool
+	{
+		if (object == null || !Std.isOfType(object, FlxObject)) return false;
+		
+		final cam = camera ?? getCamera(object);
+		if (cam == null) return false;
+		
+		final target:FlxObject = cast object;
+		final x = (gameX - cam.x) / cam.zoom + cam.viewMarginX + cam.scroll.x * target.scrollFactor.x;
+		final y = (gameY - cam.y) / cam.zoom + cam.viewMarginY + cam.scroll.y * target.scrollFactor.y;
+		
+		return x >= target.x && x < target.x + target.width && y >= target.y && y < target.y + target.height;
+	}
 
 	public static function overlaps(object:FlxBasic, ?camera:FlxCamera):Bool
 	{
@@ -60,18 +106,10 @@ class TouchUtil
 
 	public static function tappedOn(object:FlxBasic, ?camera:FlxCamera):Bool
 	{
-		if (!TouchInput.justTapped || object == null) return false;
-
-		final cam = camera ?? getCamera(object);
-		if (cam == null || !Std.isOfType(object, FlxObject)) return false;
-
-		final target:FlxObject = cast object;
-		final x = (TouchInput.tapPosition.x - cam.x) / cam.zoom + cam.viewMarginX + cam.scroll.x * target.scrollFactor.x;
-		final y = (TouchInput.tapPosition.y - cam.y) / cam.zoom + cam.viewMarginY + cam.scroll.y * target.scrollFactor.y;
-
-		return x >= target.x && x < target.x + target.width && y >= target.y && y < target.y + target.height;
+		TouchInput.poll();
+		return TouchInput.justTapped && pointOverlaps(TouchInput.tapPosition.x, TouchInput.tapPosition.y, object, camera);
 	}
-
+	
 	#if FLX_TOUCH
 	public static function getFirst():Null<FlxTouch>
 	{
@@ -134,5 +172,47 @@ class TouchUtil
 	{
 		TouchInput.poll();
 		return TouchInput.lastSwipe;
+	}
+	
+	static function get_doubleTapped():Bool
+	{
+		TouchInput.poll();
+		return TouchInput.justDoubleTapped;
+	}
+	
+	static function get_longPressed():Bool
+	{
+		TouchInput.poll();
+		return TouchInput.justLongPressed;
+	}
+	
+	static function get_dragging():Bool
+	{
+		TouchInput.poll();
+		return TouchInput.dragging;
+	}
+	
+	static function get_dragX():Float
+	{
+		TouchInput.poll();
+		return TouchInput.dragX;
+	}
+	
+	static function get_dragY():Float
+	{
+		TouchInput.poll();
+		return TouchInput.dragY;
+	}
+	
+	static function get_holdTime():Float
+	{
+		TouchInput.poll();
+		return TouchInput.holdTime;
+	}
+	
+	static function get_count():Int
+	{
+		TouchInput.poll();
+		return TouchInput.touchCount;
 	}
 }

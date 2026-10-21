@@ -82,6 +82,30 @@ class TouchInput
 	public static var androidBackKey:Bool = true;
 
 	public static var justTapped(default, null):Bool = false;
+	
+	public static var justDoubleTapped(default, null):Bool = false;
+	
+	public static var justLongPressed(default, null):Bool = false;
+	
+	public static var dragging(default, null):Bool = false;
+	
+	public static var dragX(default, null):Float = 0;
+	
+	public static var dragY(default, null):Float = 0;
+	
+	public static var holdTime(default, null):Float = 0;
+	
+	public static var touchCount(default, null):Int = 0;
+	
+	public static var longPressTime:Float = 550;
+	
+	public static var doubleTapTime:Float = 320;
+	
+	public static final touchPosition:FlxPoint = FlxPoint.get();
+	
+	static var lastTapTime:Float = -1;
+	
+	static var longPressFired:Bool = false;
 
 	public static var lastSwipe(default, null):SwipeDirection = NONE;
 
@@ -195,6 +219,10 @@ class TouchInput
 
 	public static function reset():Void
 	{
+		dragging = false;
+		holdTime = 0;
+		longPressFired = false;
+		lastTapTime = -1;
 		gestures.clear();
 		pulses.resize(0);
 		queued.resize(0);
@@ -215,8 +243,11 @@ class TouchInput
 		current.clear();
 
 		justTapped = false;
+		justDoubleTapped = false;
+		justLongPressed = false;
 		lastSwipe = NONE;
-
+		dragX = dragY = 0;
+		
 		var i = queued.length;
 		while (i-- > 0)
 		{
@@ -236,6 +267,8 @@ class TouchInput
 		var activeFingers = 0;
 		for (touch in FlxG.touches.list)
 			if (touch.pressed) activeFingers++;
+		
+		touchCount = activeFingers;
 
 		updateMultiTouch(activeFingers, allowGestures);
 
@@ -330,12 +363,41 @@ class TouchInput
 		final gesture = gestures.get(id);
 		if (gesture == null) return;
 
+		if (gesture.primary)
+		{
+			dragX = touch.gameX - gesture.lastX;
+			dragY = touch.gameY - gesture.lastY;
+			touchPosition.set(touch.gameX, touch.gameY);
+			holdTime = now - gesture.startTime;
+			
+			final moved = Math.abs(touch.gameX - gesture.startX) + Math.abs(touch.gameY - gesture.startY);
+			if (moved > tapDistance) dragging = true;
+			
+			if (!longPressFired && !dragging && !gesture.blocked && touch.pressed && holdTime >= longPressTime)
+			{
+				longPressFired = true;
+				justLongPressed = true;
+			}
+		}
+		
 		trackVelocity(gesture, touch.gameX, touch.gameY, now);
-
+		
 		if (touch.justReleased)
 		{
 			gestures.remove(id);
-			if (id == primaryId) primaryId = -1;
+			
+			if (id == primaryId)
+			{
+				primaryId = -1;
+				dragging = false;
+				holdTime = 0;
+				
+				if (longPressFired)
+				{
+					longPressFired = false;
+					return;
+				}
+			}
 
 			if (!allowGestures || gesture.blocked || !gesture.primary || maxFingers > 1) return;
 
@@ -350,6 +412,17 @@ class TouchInput
 			if (distance <= tapDistance && now - gesture.startTime <= tapTime)
 			{
 				justTapped = true;
+				
+				if (lastTapTime >= 0 && now - lastTapTime <= doubleTapTime && Math.abs(touch.gameX - tapPosition.x) + Math.abs(touch.gameY - tapPosition.y) <= tapDistance * 2)
+				{
+					justDoubleTapped = true;
+					lastTapTime = -1;
+				}
+				else
+				{
+					lastTapTime = now;
+				}
+				
 				tapPosition.set(touch.gameX, touch.gameY);
 				pulse('accept');
 			}

@@ -78,6 +78,95 @@ class StorageUtil
 		}
 
 		loadManifest();
+		ensureFolders();
+		#end
+	}
+	
+	public static final DEFAULT_FOLDERS:Array<String> = ['assets', 'content', 'logcat', 'crash'];
+	
+	public static function ensureFolders():Void
+	{
+		#if sys
+		for (folder in DEFAULT_FOLDERS)
+		{
+			try
+			{
+				if (!FileSystem.exists(folder)) FileSystem.createDirectory(folder);
+			}
+			catch (e:Dynamic) {}
+		}
+		#end
+	}
+	
+	public static function getPath(relative:String):String
+	{
+		return Path.join([directory, relative]);
+	}
+	
+	public static function exists(relative:String):Bool
+	{
+		#if sys
+		try
+		{
+			return FileSystem.exists(getPath(relative));
+		}
+		catch (e:Dynamic) {}
+		#end
+		
+		return false;
+	}
+	
+	public static function getFreeSpaceMB():Int
+	{
+		#if android
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'getFreeSpaceMB', '(Ljava/lang/String;)I');
+			if (func != null) return func(directory);
+		}
+		catch (e:Dynamic) {}
+		#end
+		
+		return -1;
+	}
+	
+	public static function cleanLegacyCopy():Void
+	{
+		#if android
+		final legacy = callString('getExternalFilesDirectory');
+		if (legacy == null || legacy.length == 0) return;
+		
+		final legacyPath = Path.removeTrailingSlashes(Path.normalize(legacy));
+		if (legacyPath == Path.removeTrailingSlashes(Path.normalize(directory))) return;
+		
+		final targets = [Path.join([legacyPath, 'assets']), Path.join([legacyPath, MANIFEST_FILE]), Path.join([legacyPath, '.storage-version'])];
+		
+		sys.thread.Thread.create(() -> {
+			for (target in targets)
+				deleteRecursive(target);
+		});
+		#end
+	}
+	
+	public static function deleteRecursive(path:String):Void
+	{
+		#if sys
+		try
+		{
+			if (!FileSystem.exists(path)) return;
+			
+			if (FileSystem.isDirectory(path))
+			{
+				for (entry in FileSystem.readDirectory(path))
+					deleteRecursive(Path.join([path, entry]));
+				FileSystem.deleteDirectory(path);
+			}
+			else
+			{
+				FileSystem.deleteFile(path);
+			}
+		}
+		catch (e:Dynamic) {}
 		#end
 	}
 

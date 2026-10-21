@@ -10,12 +10,6 @@ import sys.FileSystem;
 import sys.io.File;
 #end
 
-typedef CopyResult =
-{
-	var copied:Int;
-	var failed:Array<String>;
-}
-
 class StorageUtil
 {
 	public static final COPY_FOLDERS:Array<String> = ['assets/', 'content/'];
@@ -28,13 +22,27 @@ class StorageUtil
 
 	public static final TEMP_SUFFIX:String = '.copying';
 
+	public static var saveInterval:Float = 1.5;
+
 	public static var directory(default, null):String = '';
 
 	public static var ready(default, null):Bool = false;
 
 	static var manifest:Map<String, Int> = [];
 
+	static var refresh:Map<String, Bool> = [];
+
 	static var manifestVersion:String = '';
+
+	static var dirty:Bool = false;
+
+	static var lastSave:Float = 0;
+
+	#if android
+	static var javaCopy:Null<Dynamic> = null;
+
+	static var javaChecked:Bool = false;
+	#end
 
 	public static function init():Void
 	{
@@ -161,18 +169,16 @@ class StorageUtil
 		#if sys
 		if (!ready) return files;
 
-		final updated = manifestVersion != getVersion();
-
 		for (id in getCopyableAssets())
 		{
-			if (needsCopy(id, updated)) files.push(id);
+			if (needsCopy(id)) files.push(id);
 		}
 		#end
 
 		return files;
 	}
 
-	static function needsCopy(id:String, updated:Bool):Bool
+	static function needsCopy(id:String):Bool
 	{
 		#if sys
 		final target = normalizeId(id);
@@ -185,18 +191,13 @@ class StorageUtil
 			final size = FileSystem.stat(target).size;
 			if (size == 0) return true;
 
+			if (refresh.exists(target)) return true;
+
 			final recorded = manifest.get(target);
 
-			if (recorded != null && recorded != size)
-			{
-				return isAlwaysUpdated(target);
-			}
+			if (isAlwaysUpdated(target)) return recorded == null || recorded != size;
 
-			if (updated)
-			{
-				if (isAlwaysUpdated(target)) return true;
-				return recorded != null && recorded == size;
-			}
+			if (recorded == null) manifest.set(target, size);
 		}
 		catch (e:Dynamic)
 		{
@@ -213,8 +214,66 @@ class StorageUtil
 		final target = normalizeId(id);
 		if (target == null) return false;
 
+		var size = -1;
+
+		#if android
+		size = copyWithJava(id, target);
+		#end
+
+		if (size < 0) size = copyWithBytes(id, target);
+
+		if (size < 0) return false;
+
+		manifest.set(target, size);
+		refresh.remove(target);
+		dirty = true;
+
+		final now = haxe.Timer.stamp();
+		if (now - lastSave >= saveInterval) flush();
+
+		return true;
+		#else
+		return false;
+		#end
+	}
+
+	#if android
+	static function copyWithJava(id:String, target:String):Int
+	{
+		if (!javaChecked)
+		{
+			javaChecked = true;
+
+			try
+			{
+				javaCopy = lime.system.JNI.createStaticMethod('org/nightmarevision/StorageHelper', 'copyAsset', '(Ljava/lang/String;Ljava/lang/String;)I');
+			}
+			catch (e:Dynamic)
+			{
+				javaCopy = null;
+			}
+		}
+
+		if (javaCopy == null) return -1;
+
+		try
+		{
+			final assetPath = LimeAssets.getPath(id) ?? target;
+			final result:Int = javaCopy(assetPath, Path.join([directory, target]));
+
+			if (result >= 0 && FileSystem.exists(target) && FileSystem.stat(target).size == result) return result;
+		}
+		catch (e:Dynamic) {}
+
+		return -1;
+	}
+	#end
+
+	static function copyWithBytes(id:String, target:String):Int
+	{
+		#if sys
 		final bytes = readAssetBytes(id);
-		if (bytes == null) return false;
+		if (bytes == null) return -1;
 
 		final temp = target + TEMP_SUFFIX;
 
@@ -228,16 +287,13 @@ class StorageUtil
 			if (FileSystem.stat(temp).size != bytes.length)
 			{
 				deleteQuietly(temp);
-				return false;
+				return -1;
 			}
 
 			if (FileSystem.exists(target)) FileSystem.deleteFile(target);
 			FileSystem.rename(temp, target);
 
-			if (!FileSystem.exists(target) || FileSystem.stat(target).size != bytes.length) return false;
-
-			manifest.set(target, bytes.length);
-			return true;
+			if (FileSystem.exists(target) && FileSystem.stat(target).size == bytes.length) return bytes.length;
 		}
 		catch (e:Dynamic)
 		{
@@ -245,7 +301,7 @@ class StorageUtil
 		}
 		#end
 
-		return false;
+		return -1;
 	}
 
 	static function readAssetBytes(id:String):Null<Bytes>
@@ -273,20 +329,6 @@ class StorageUtil
 		return null;
 	}
 
-	public static function copyAll(files:Array<String>):CopyResult
-	{
-		final failed:Array<String> = [];
-		var copied = 0;
-
-		for (id in files)
-		{
-			if (copyAsset(id) || copyAsset(id)) copied++;
-			else failed.push(id);
-		}
-
-		return {copied: copied, failed: failed};
-	}
-
 	public static function finishCopy(failed:Array<String>):Array<String>
 	{
 		#if sys
@@ -296,8 +338,7 @@ class StorageUtil
 
 		try
 		{
-			if (stillFailed.length == 0) manifestVersion = getVersion();
-			saveManifest();
+			flush();
 
 			if (stillFailed.length > 0) File.saveContent(ERROR_FILE, stillFailed.join('\n'));
 			else deleteQuietly(ERROR_FILE);
@@ -309,6 +350,29 @@ class StorageUtil
 		return stillFailed;
 		#else
 		return [];
+		#end
+	}
+
+	public static function flush():Void
+	{
+		#if sys
+		if (!ready || !dirty) return;
+
+		try
+		{
+			final files:Dynamic = {};
+			for (key => size in manifest)
+				Reflect.setField(files, key, size);
+
+			final temp = MANIFEST_FILE + TEMP_SUFFIX;
+			File.saveContent(temp, Json.stringify({version: manifestVersion, files: files, refresh: [for (key in refresh.keys()) key]}));
+			if (FileSystem.exists(MANIFEST_FILE)) FileSystem.deleteFile(MANIFEST_FILE);
+			FileSystem.rename(temp, MANIFEST_FILE);
+
+			dirty = false;
+			lastSave = haxe.Timer.stamp();
+		}
+		catch (e:Dynamic) {}
 		#end
 	}
 
@@ -327,43 +391,69 @@ class StorageUtil
 	static function loadManifest():Void
 	{
 		manifest.clear();
+		refresh.clear();
 		manifestVersion = '';
 
 		#if sys
 		try
 		{
-			if (!FileSystem.exists(MANIFEST_FILE)) return;
-
-			final data:Dynamic = Json.parse(File.getContent(MANIFEST_FILE));
-			manifestVersion = Std.string(data.version ?? '');
-
-			final files:Dynamic = data.files;
-			if (files != null)
+			if (FileSystem.exists(MANIFEST_FILE))
 			{
-				for (key in Reflect.fields(files))
+				final data:Dynamic = Json.parse(File.getContent(MANIFEST_FILE));
+				manifestVersion = Std.string(data.version ?? '');
+
+				final files:Dynamic = data.files;
+				if (files != null)
 				{
-					final size:Null<Int> = Reflect.field(files, key);
-					if (size != null) manifest.set(key, size);
+					for (key in Reflect.fields(files))
+					{
+						final size:Null<Int> = Reflect.field(files, key);
+						if (size != null) manifest.set(key, size);
+					}
+				}
+
+				final pending:Null<Array<String>> = data.refresh;
+				if (pending != null)
+				{
+					for (key in pending)
+						refresh.set(key, true);
 				}
 			}
 		}
 		catch (e:Dynamic)
 		{
 			manifest.clear();
+			refresh.clear();
 			manifestVersion = '';
+		}
+
+		final version = getVersion();
+
+		if (manifestVersion != version)
+		{
+			for (path => size in manifest)
+			{
+				if (isAlwaysUpdated(path) || isUnmodified(path, size)) refresh.set(path, true);
+			}
+
+			manifestVersion = version;
+			dirty = true;
+			flush();
 		}
 		#end
 	}
 
-	static function saveManifest():Void
+	static function isUnmodified(path:String, size:Int):Bool
 	{
 		#if sys
-		final files:Dynamic = {};
-		for (key => size in manifest)
-			Reflect.setField(files, key, size);
-
-		File.saveContent(MANIFEST_FILE, Json.stringify({version: manifestVersion, files: files}));
+		try
+		{
+			return FileSystem.exists(path) && FileSystem.stat(path).size == size;
+		}
+		catch (e:Dynamic) {}
 		#end
+
+		return false;
 	}
 
 	static function cleanTempFiles():Void

@@ -74,6 +74,7 @@
 
     <section if="android">
         <config:android extension="org.nightmarevision.CrashLogger"/>
+        <config:android extension="org.nightmarevision.AssetExtractor"/>
         <config:android permission="android.permission.INTERNET"/>
         <config:android permission="android.permission.ACCESS_NETWORK_STATE"/>
         <config:android permission="android.permission.VIBRATE"/>

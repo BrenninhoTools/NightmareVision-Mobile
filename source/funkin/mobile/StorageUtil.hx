@@ -96,6 +96,7 @@ class StorageUtil
 		final candidates:Array<Null<String>> = [];
 
 		#if android
+		candidates.push(callStringFrom(NATIVE_EXTRACTOR, 'getGameDirectory'));
 		candidates.push(callString('getMediaDirectory'));
 		candidates.push(callString('getExternalFilesDirectory'));
 		candidates.push(callString('getInternalFilesDirectory'));
@@ -113,6 +114,74 @@ class StorageUtil
 
 	#if android
 	public static final ANDROID_HELPER:String = 'org/nightmarevision/StorageHelper';
+	
+	public static final NATIVE_EXTRACTOR:String = 'org/nightmarevision/AssetExtractor';
+	
+	public static final NATIVE_STATUS_FILE:String = '.copy-status';
+	
+	public static var nativeCopyTimeout:Float = 900;
+	
+	public static function waitForNativeCopy():Bool
+	{
+		#if sys
+		if (!ready) return false;
+		
+		final start = haxe.Timer.stamp();
+		var lastMark = start;
+		
+		while (true)
+		{
+			final status = readNativeStatus();
+			
+			if (status == null) return false;
+			if (status == 'done') return true;
+			if (status != 'running') return false;
+			
+			final now = haxe.Timer.stamp();
+			if (now - start > nativeCopyTimeout) return false;
+			
+			if (now - lastMark > 2)
+			{
+				lastMark = now;
+				LogcatUtil.mark('native copy running');
+			}
+			
+			Sys.sleep(0.05);
+		}
+		#end
+		
+		return false;
+	}
+	
+	public static function readNativeStatus():Null<String>
+	{
+		#if sys
+		try
+		{
+			if (!FileSystem.exists(NATIVE_STATUS_FILE)) return null;
+			return File.getContent(NATIVE_STATUS_FILE).trim();
+		}
+		catch (e:Dynamic) {}
+		#end
+		
+		return null;
+	}
+	
+	public static function callStringFrom(className:String, method:String):Null<String>
+	{
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(className, method, '()Ljava/lang/String;');
+			if (func != null)
+			{
+				final result:Null<String> = func();
+				if (result != null && result.length > 0) return result;
+			}
+		}
+		catch (e:Dynamic) {}
+		
+		return null;
+	}
 	
 	public static function callString(method:String):Null<String>
 	{

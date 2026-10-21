@@ -87,7 +87,23 @@ class Main extends Sprite
 		funkin.mobile.LogcatUtil.mark('creating game');
 		#end
 		
-		addChild(new funkin.backend.FunkinGame(startMeta.width, startMeta.height, #if mobile funkin.mobile.CopyState #else Init #end, startMeta.fps, startMeta.fps, true, startMeta.startFullScreen));
+		var firstState:Class<flixel.FlxState> = Init;
+		
+		#if android
+		if (funkin.mobile.StorageUtil.waitForNativeCopy())
+		{
+			funkin.mobile.LogcatUtil.mark('native copy finished: ' + funkin.mobile.StorageUtil.readNativeStatus());
+		}
+		else
+		{
+			funkin.mobile.LogcatUtil.mark('native copy unavailable: ' + funkin.mobile.StorageUtil.readNativeStatus());
+			firstState = funkin.mobile.CopyState;
+		}
+		#elseif mobile
+		firstState = funkin.mobile.CopyState;
+		#end
+		
+		addChild(new funkin.backend.FunkinGame(startMeta.width, startMeta.height, firstState, startMeta.fps, startMeta.fps, true, startMeta.startFullScreen));
 		
 		// prevent accept button when alt+enter is pressed
 		FlxG.stage.addEventListener(openfl.events.KeyboardEvent.KEY_DOWN, (e) -> {

@@ -115,6 +115,10 @@ class TouchInput
 
 	static final gestures:Map<Int, TouchGesture> = [];
 
+	static final seenTouches:Map<Int, Bool> = [];
+
+	static var backKeyDown:Bool = false;
+
 	static final pulses:Array<String> = [];
 
 	static final queued:Array<{action:String, frame:Int}> = [];
@@ -274,10 +278,11 @@ class TouchInput
 
 		for (touch in FlxG.touches.list)
 		{
-			final zone = touch.pressed ? findZone(touch) : null;
+			final quick = touch.justReleased && !seenTouches.exists(touch.touchPointID);
+			final zone = touch.pressed || quick ? findZone(touch) : null;
 			if (zone != null) zone.capture();
 
-			handleGesture(touch, zone, allowGestures);
+			handleGesture(touch, zone, allowGestures, quick);
 		}
 		#end
 
@@ -328,12 +333,12 @@ class TouchInput
 		return found;
 	}
 
-	static function handleGesture(touch:FlxTouch, zone:Null<TouchButton>, allowGestures:Bool):Void
+	static function handleGesture(touch:FlxTouch, zone:Null<TouchButton>, allowGestures:Bool, quick:Bool):Void
 	{
 		final id = touch.touchPointID;
 		final now = FlxG.game.ticks;
 
-		if (touch.justPressed)
+		if (touch.justPressed || quick)
 		{
 			final primary = primaryId == -1;
 			if (primary) primaryId = id;
@@ -357,7 +362,12 @@ class TouchInput
 					blocked: zone != null,
 					primary: primary
 				});
-			return;
+
+			if (!quick)
+			{
+				seenTouches.set(id, true);
+				return;
+			}
 		}
 
 		final gesture = gestures.get(id);
@@ -385,6 +395,7 @@ class TouchInput
 		if (touch.justReleased)
 		{
 			gestures.remove(id);
+			seenTouches.remove(id);
 			
 			if (id == primaryId)
 			{
@@ -533,6 +544,9 @@ class TouchInput
 	{
 		if (!androidBackKey || key != lime.ui.KeyCode.APP_CONTROL_BACK) return;
 
+		if (backKeyDown) return;
+		backKeyDown = true;
+
 		pulse('back');
 		pulse('pause');
 	}
@@ -541,6 +555,7 @@ class TouchInput
 	{
 		if (!androidBackKey || key != lime.ui.KeyCode.APP_CONTROL_BACK) return;
 
+		backKeyDown = false;
 		lime.app.Application.current?.window?.onKeyUp.cancel();
 	}
 	#end

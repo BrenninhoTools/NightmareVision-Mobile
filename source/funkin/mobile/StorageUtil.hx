@@ -79,6 +79,10 @@ class StorageUtil
 
 		loadManifest();
 		ensureFolders();
+		
+		#if android
+		startupStorageType = getStorageType();
+		#end
 		#end
 	}
 	
@@ -133,19 +137,115 @@ class StorageUtil
 	public static function cleanLegacyCopy():Void
 	{
 		#if android
-		final legacy = callString('getExternalFilesDirectory');
-		if (legacy == null || legacy.length == 0) return;
-		
-		final legacyPath = Path.removeTrailingSlashes(Path.normalize(legacy));
-		if (legacyPath == Path.removeTrailingSlashes(Path.normalize(directory))) return;
-		
-		final targets = [Path.join([legacyPath, 'assets']), Path.join([legacyPath, MANIFEST_FILE]), Path.join([legacyPath, '.storage-version'])];
-		
-		sys.thread.Thread.create(() -> {
-			for (target in targets)
-				deleteRecursive(target);
-		});
+		callVoid('cleanOtherLocations');
 		#end
+	}
+	
+	public static final STORAGE_TYPES:Array<String> = ['Data', 'External', 'Media', 'Obb'];
+	
+	public static final DEFAULT_STORAGE_TYPE:String = 'Media';
+	
+	public static var startupStorageType(default, null):String = '';
+	
+	public static function getStorageType():String
+	{
+		#if android
+		return toDisplayType(callString('getStorageType'));
+		#else
+		return DEFAULT_STORAGE_TYPE;
+		#end
+	}
+	
+	public static function setStorageType(type:String):Void
+	{
+		#if android
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'setStorageType', '(Ljava/lang/String;)V');
+			if (func != null) func(type.toUpperCase());
+		}
+		catch (e:Dynamic) {}
+		
+		if (type.toUpperCase() == 'EXTERNAL' && !hasAllFilesAccess())
+		{
+			if (getSdkVersion() >= 30) requestAllFilesAccess();
+			else requestPermissions(['android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE']);
+		}
+		#end
+	}
+	
+	public static function getActiveStorageType():String
+	{
+		#if android
+		final active = callString('getActiveStorageType');
+		return active == 'INTERNAL' ? 'Internal' : toDisplayType(active);
+		#elseif ios
+		return 'Documents';
+		#else
+		return DEFAULT_STORAGE_TYPE;
+		#end
+	}
+	
+	public static function isStorageTypeAvailable(type:String):Bool
+	{
+		#if android
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'isStorageTypeAvailable', '(Ljava/lang/String;)Z');
+			if (func != null) return func(type.toUpperCase());
+		}
+		catch (e:Dynamic) {}
+		return false;
+		#else
+		return type == DEFAULT_STORAGE_TYPE;
+		#end
+	}
+	
+	public static function getStorageTypeDirectory(type:String):String
+	{
+		#if android
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'getStorageTypeDirectory', '(Ljava/lang/String;)Ljava/lang/String;');
+			if (func != null)
+			{
+				final result:Null<String> = func(type.toUpperCase());
+				if (result != null) return result;
+			}
+		}
+		catch (e:Dynamic) {}
+		#end
+		
+		return directory;
+	}
+	
+	public static function needsRestart():Bool
+	{
+		#if android
+		return startupStorageType.length > 0 && getStorageType() != startupStorageType;
+		#else
+		return false;
+		#end
+	}
+	
+	public static function restartApp():Void
+	{
+		#if android
+		flush();
+		callVoid('restartApp');
+		#end
+	}
+	
+	static function toDisplayType(type:Null<String>):String
+	{
+		if (type == null || type.length == 0) return DEFAULT_STORAGE_TYPE;
+		
+		for (entry in STORAGE_TYPES)
+		{
+			if (entry.toUpperCase() == type.toUpperCase()) return entry;
+		}
+		
+		return DEFAULT_STORAGE_TYPE;
 	}
 	
 	public static function deleteRecursive(path:String):Void
@@ -194,6 +294,7 @@ class StorageUtil
 		#elseif ios
 		candidates.push(lime.system.System.documentsDirectory);
 		candidates.push(lime.system.System.applicationStorageDirectory);
+		candidates.push(Sys.getCwd());
 		#elseif sys
 		candidates.push(Sys.getCwd());
 		#end
@@ -270,6 +371,16 @@ class StorageUtil
 		catch (e:Dynamic) {}
 		
 		return null;
+	}
+	
+	public static function callVoid(method:String):Void
+	{
+		try
+		{
+			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, method, '()V');
+			if (func != null) func();
+		}
+		catch (e:Dynamic) {}
 	}
 	
 	public static function callString(method:String):Null<String>

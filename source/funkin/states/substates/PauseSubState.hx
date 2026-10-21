@@ -191,9 +191,9 @@ class PauseSubState extends MusicBeatSubstate
 		var touchBlocksAccept:Bool = false;
 		
 		#if mobile
-		if (funkin.mobile.TouchUtil.tapped)
+		final tapped = funkin.mobile.TouchUtil.getMenuTap(cast grpMenuShit.members);
+		if (tapped != funkin.mobile.TouchUtil.NO_TAP)
 		{
-			final tapped = getTappedItem();
 			touchBlocksAccept = tapped != curSelected;
 			
 			if (tapped >= 0 && tapped != curSelected) changeSelection(tapped - curSelected);
@@ -399,18 +399,6 @@ class PauseSubState extends MusicBeatSubstate
 		
 		super.destroy();
 	}
-	
-	#if mobile
-	function getTappedItem():Int
-	{
-		for (idx => item in grpMenuShit.members)
-		{
-			if (item != null && item.visible && funkin.mobile.TouchUtil.tappedOn(item)) return idx;
-		}
-		
-		return -1;
-	}
-	#end
 	
 	function changeSelection(change:Int = 0):Void
 	{

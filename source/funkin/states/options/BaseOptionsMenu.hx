@@ -143,6 +143,19 @@ class BaseOptionsMenu extends MusicBeatSubstate
 	
 	override function update(elapsed:Float)
 	{
+		var touchBlocksAccept = false;
+		var touchCycle = false;
+		
+		#if mobile
+		final tapped = funkin.mobile.TouchUtil.getMenuTap(cast grpOptions.members);
+		if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+		{
+			touchBlocksAccept = tapped != curSelected;
+			if (tapped >= 0 && tapped != curSelected) changeSelection(tapped - curSelected);
+			else if (tapped == curSelected && curOption != null && curOption.type == 'string') touchCycle = true;
+		}
+		#end
+		
 		if (controls.UI_UP_P)
 		{
 			changeSelection(-1);
@@ -168,7 +181,7 @@ class BaseOptionsMenu extends MusicBeatSubstate
 			
 			if (usesCheckbox)
 			{
-				if (controls.ACCEPT)
+				if (controls.ACCEPT && !touchBlocksAccept)
 				{
 					FlxG.sound.play(Paths.sound('scrollMenu'));
 					curOption.setValue((curOption.getValue() == true) ? false : true);
@@ -178,11 +191,19 @@ class BaseOptionsMenu extends MusicBeatSubstate
 			}
 			else if (curOption.type == 'button')
 			{
-				if (controls.ACCEPT) curOption.callback();
+				if (controls.ACCEPT && !touchBlocksAccept) curOption.callback();
 			}
 			else if (curOption.type != 'label')
 			{
-				if (controls.UI_LEFT || controls.UI_RIGHT)
+				if (touchCycle && curOption.options != null && curOption.options.length > 0)
+				{
+					curOption.curOption = FlxMath.wrap(curOption.curOption + 1, 0, curOption.options.length - 1);
+					curOption.setValue(curOption.options[curOption.curOption]);
+					updateTextFrom(curOption);
+					curOption.change();
+					FlxG.sound.play(Paths.sound('scrollMenu'));
+				}
+				else if (controls.UI_LEFT || controls.UI_RIGHT)
 				{
 					var pressed = (controls.UI_LEFT_P || controls.UI_RIGHT_P);
 					if (holdTime > 0.5 || pressed)

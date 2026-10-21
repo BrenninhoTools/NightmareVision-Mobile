@@ -43,6 +43,8 @@ public class AssetExtractor extends Extension
 
 	private static final String[] ALWAYS_UPDATE = {"assets/"};
 
+	private static final String[] MIGRATE_FOLDERS = {"content", "imports", "exports", "crash"};
+
 	private static final int BUFFER_SIZE = 512 * 1024;
 
 	private static final int MAX_THREADS = 4;
@@ -143,45 +145,14 @@ public class AssetExtractor extends Extension
 
 	static File resolveGameDirectory(Context context)
 	{
-		try
-		{
-			File[] media = context.getExternalMediaDirs();
-			if (media != null)
-			{
-				for (File dir : media)
-				{
-					if (dir == null) continue;
-					if (!dir.exists()) dir.mkdirs();
-					if (dir.isDirectory() && dir.canWrite()) return dir;
-				}
-			}
-		}
-		catch (Throwable e) {}
-
-		try
-		{
-			File dir = context.getExternalFilesDir(null);
-			if (dir != null)
-			{
-				if (!dir.exists()) dir.mkdirs();
-				if (dir.isDirectory() && dir.canWrite()) return dir;
-			}
-		}
-		catch (Throwable e) {}
-
-		try
-		{
-			return context.getFilesDir();
-		}
-		catch (Throwable e)
-		{
-			return null;
-		}
+		return StorageHelper.resolveGameDirectory(context);
 	}
 
 	private static void extract(Context context) throws Exception
 	{
 		final AssetManager assets = Extension.assetManager != null ? Extension.assetManager : context.getAssets();
+
+		migrateFrom(StorageHelper.getPreviousDirectory());
 
 		final Map<String, Long> manifest = new ConcurrentHashMap<String, Long>(readManifest());
 		final String version = getVersion(context);
@@ -226,7 +197,7 @@ public class AssetExtractor extends Extension
 		if (freeBytes > 0 && freeBytes < MIN_FREE_BYTES)
 			throw new Exception("not enough free storage (" + (freeBytes / (1024L * 1024L)) + " MB available)");
 
-				createDirectories(pending);
+		createDirectories(pending);
 		showOverlay();
 
 		final AtomicInteger cursor = new AtomicInteger(0);
@@ -295,6 +266,124 @@ public class AssetExtractor extends Extension
 			}
 			writeText(errors, builder.toString());
 		}
+	}
+
+	private static void migrateFrom(String previous)
+	{
+		if (previous == null || previous.length() == 0) return;
+
+		File source = new File(previous);
+		if (!source.isDirectory() || source.getAbsolutePath().equals(gameDirectory.getAbsolutePath())) return;
+
+		boolean shown = false;
+		byte[] buffer = new byte[BUFFER_SIZE];
+		int[] moved = {0};
+
+		for (String folder : MIGRATE_FOLDERS)
+		{
+			File from = new File(source, folder);
+			if (!from.isDirectory()) continue;
+
+			if (!shown)
+			{
+				shown = true;
+				showOverlay();
+				setOverlayText("Moving your files to the new storage...");
+			}
+
+			migrateTree(from, new File(gameDirectory, folder), buffer, moved);
+		}
+	}
+
+	private static void migrateTree(File from, File to, byte[] buffer, int[] moved)
+	{
+		File[] children = from.listFiles();
+		if (children == null) return;
+
+		if (!to.isDirectory()) to.mkdirs();
+
+		for (File child : children)
+		{
+			File target = new File(to, child.getName());
+
+			if (child.isDirectory())
+			{
+				migrateTree(child, target, buffer, moved);
+				continue;
+			}
+
+			if (target.isFile() && target.length() == child.length()) continue;
+
+			if (copyFile(child, target, buffer))
+			{
+				moved[0]++;
+				if (moved[0] % 25 == 0) setOverlayText("Moving your files to the new storage...\n" + moved[0] + " files");
+			}
+		}
+	}
+
+	private static boolean copyFile(File source, File target, byte[] buffer)
+	{
+		File temp = new File(target.getAbsolutePath() + ".copying");
+		InputStream input = null;
+		OutputStream output = null;
+
+		try
+		{
+			input = new FileInputStream(source);
+			output = new FileOutputStream(temp, false);
+
+			int read;
+			while ((read = input.read(buffer)) != -1)
+				output.write(buffer, 0, read);
+
+			output.flush();
+			output.close();
+			output = null;
+
+			if (temp.length() != source.length()) return false;
+			if (target.exists() && !target.delete()) return false;
+			return temp.renameTo(target);
+		}
+		catch (Throwable e)
+		{
+			return false;
+		}
+		finally
+		{
+			try
+			{
+				if (input != null) input.close();
+			}
+			catch (Throwable e) {}
+
+			try
+			{
+				if (output != null) output.close();
+			}
+			catch (Throwable e) {}
+
+			if (temp.exists()) temp.delete();
+		}
+	}
+
+	private static void setOverlayText(final String text)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null) return;
+
+		activity.runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				try
+				{
+					if (overlay != null) overlay.setText(text);
+				}
+				catch (Throwable e) {}
+			}
+		});
 	}
 
 	private static void createDirectories(List<String> paths)
@@ -500,10 +589,13 @@ public class AssetExtractor extends Extension
 		catch (Throwable e) {}
 	}
 
+	private static volatile boolean overlayRequested = false;
+
 	private static void showOverlay()
 	{
 		final Activity activity = Extension.mainActivity;
-		if (activity == null) return;
+		if (activity == null || overlayRequested) return;
+		overlayRequested = true;
 
 		activity.runOnUiThread(new Runnable()
 		{
@@ -559,6 +651,7 @@ public class AssetExtractor extends Extension
 	private static void hideOverlay()
 	{
 		final Activity activity = Extension.mainActivity;
+		overlayRequested = false;
 		if (activity == null) return;
 
 		activity.runOnUiThread(new Runnable()

@@ -111,37 +111,7 @@ public class CrashLogger extends Extension
 
 	private static File resolveDirectory(Context context)
 	{
-		File base = null;
-
-		try
-		{
-			File[] media = context.getExternalMediaDirs();
-			if (media != null)
-			{
-				for (File dir : media)
-				{
-					if (dir == null) continue;
-					if (!dir.exists()) dir.mkdirs();
-					if (dir.exists() && dir.canWrite())
-					{
-						base = dir;
-						break;
-					}
-				}
-			}
-		}
-		catch (Throwable e) {}
-
-		if (base == null)
-		{
-			try
-			{
-				base = context.getExternalFilesDir(null);
-			}
-			catch (Throwable e) {}
-		}
-
-		if (base == null) base = context.getFilesDir();
+		File base = StorageHelper.resolveGameDirectory(context);
 		if (base == null) return null;
 
 		File dir = new File(base, FOLDER);

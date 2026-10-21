@@ -38,6 +38,8 @@ env:
     HXCPP_COMPILE_CACHE: ${{ github.workspace }}/.hxcpp_cache
     BUILD_FLAGS: ${{ inputs.buildFlags }}
     GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.vfs.watch=false
+    ANDROID_GRADLE_TASK: assembleDebug --build-cache --parallel --no-watch-fs
+    CACHE_LIMIT_MB: 3500
 
 jobs:
     Android:
@@ -156,9 +158,26 @@ jobs:
                 key: android-build-v3-${{ github.sha }}
                 restore-keys: android-build-v3-
 
+            - name: Configure Gradle
+              run: |
+                mkdir -p ~/.gradle/init.d
+                cat > ~/.gradle/init.d/fast-build.gradle <<'GRADLE'
+                allprojects {
+                    tasks.configureEach { task ->
+                        def name = task.name.toLowerCase()
+                        if (name.contains('lint') || name.contains('unittest') || name.contains('androidtest')) task.enabled = false
+                    }
+                }
+                GRADLE
+                printf 'org.gradle.jvmargs=-Xmx4g -XX:+UseParallelGC -Dfile.encoding=UTF-8\norg.gradle.parallel=true\norg.gradle.caching=true\norg.gradle.configureondemand=true\n' > ~/.gradle/gradle.properties
+
             - name: Compile build
               timeout-minutes: 75
               run: |
+                if [ -d "$HXCPP_COMPILE_CACHE" ]; then
+                  SIZE=$(du -sm "$HXCPP_COMPILE_CACHE" | cut -f1)
+                  if [ "$SIZE" -gt "$CACHE_LIMIT_MB" ]; then rm -rf "$HXCPP_COMPILE_CACHE"; fi
+                fi
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "$BUILD_FLAGS" ]; then FLAGS="-D $BUILD_FLAGS"; fi
@@ -167,7 +186,7 @@ jobs:
                 haxelib run lime build Project.xml android -release -arm64 $FLAGS < /dev/null
 
             - name: Save build cache
-              if: always()
+              if: ${{ !cancelled() && github.event_name != 'pull_request' }}
               uses: actions/cache/save@v4
               with:
                 path: |
@@ -286,13 +305,24 @@ jobs:
             - name: Compile build
               timeout-minutes: 75
               run: |
+                set -euo pipefail
+                if [ -d "$HXCPP_COMPILE_CACHE" ]; then
+                  SIZE=$(du -sm "$HXCPP_COMPILE_CACHE" | cut -f1)
+                  if [ "$SIZE" -gt "$CACHE_LIMIT_MB" ]; then rm -rf "$HXCPP_COMPILE_CACHE"; fi
+                fi
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
-                if [ -n "$BUILD_FLAGS" ]; then FLAGS="-D $BUILD_FLAGS"; fi
-                haxelib run lime build Project.xml ios -release -nosign $FLAGS < /dev/null
+                if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
+                haxelib run lime update Project.xml ios -release -nosign $FLAGS < /dev/null
+                cd export/release/ios
+                xcodebuild -project NightmareVision.xcodeproj -configuration Release -arch arm64 \
+                  PLATFORM_NAME=iphoneos SDKROOT=iphoneos$IPHONE_VER -jobs "$HXCPP_COMPILE_THREADS" \
+                  CODE_SIGN_IDENTITY= CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CODE_SIGN_ENTITLEMENTS= \
+                  DEBUG_INFORMATION_FORMAT=dwarf GCC_GENERATE_DEBUGGING_SYMBOLS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+                  ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO build -quiet
 
             - name: Save build cache
-              if: always()
+              if: ${{ !cancelled() && github.event_name != 'pull_request' }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}

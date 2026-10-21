@@ -4,6 +4,7 @@ import flixel.FlxBasic;
 import flixel.FlxCamera;
 import flixel.FlxG;
 import flixel.FlxObject;
+import flixel.FlxState;
 #if FLX_TOUCH
 import flixel.input.touch.FlxTouch;
 #end
@@ -59,7 +60,6 @@ class TouchUtil
 		if (object == null || !Std.isOfType(object, FlxObject)) return false;
 		
 		final cam = camera ?? getCamera(object);
-		if (cam == null) return false;
 		
 		final target:FlxObject = cast object;
 		final x = (gameX - cam.x) / cam.zoom + cam.viewMarginX + cam.scroll.x * target.scrollFactor.x;
@@ -128,10 +128,83 @@ class TouchUtil
 	}
 	#end
 
-	static function getCamera(object:FlxBasic):Null<FlxCamera>
+	public static inline final NO_TAP:Int = -1;
+
+	public static inline final MISSED_TAP:Int = -2;
+
+	public static var rowPadding:Float = 14;
+
+	public static function getActiveState():Null<FlxState>
 	{
-		final cameras = object.getCameras();
-		return cameras != null && cameras.length > 0 ? cameras[0] : FlxG.camera;
+		var state:Null<FlxState> = FlxG.state;
+		while (state != null && state.subState != null)
+			state = state.subState;
+		return state;
+	}
+
+	public static function getOwnerState(object:FlxBasic):Null<FlxState>
+	{
+		var current:Null<FlxBasic> = object.container;
+		while (current != null)
+		{
+			if (Std.isOfType(current, FlxState)) return cast current;
+			current = current.container;
+		}
+		return null;
+	}
+
+	public static function getCamera(object:FlxBasic):FlxCamera
+	{
+		@:privateAccess
+		{
+			if (object._cameras != null && object._cameras.length > 0) return object._cameras[0];
+
+			var current:Null<FlxBasic> = object.container;
+			while (current != null)
+			{
+				if (current._cameras != null && current._cameras.length > 0) return current._cameras[0];
+				current = current.container;
+			}
+
+			final active = getActiveState();
+			if (active != null && active._cameras != null && active._cameras.length > 0) return active._cameras[0];
+		}
+
+		@:privateAccess final defaults = FlxCamera._defaultCameras;
+		return defaults != null && defaults.length > 0 ? defaults[0] : FlxG.camera;
+	}
+
+	public static function getMenuTap(items:Array<Dynamic>, ?camera:FlxCamera):Int
+	{
+		TouchInput.poll();
+		if (!TouchInput.justTapped || items == null) return NO_TAP;
+
+		var best = MISSED_TAP;
+		var bestDistance = Math.POSITIVE_INFINITY;
+
+		for (index => entry in items)
+		{
+			if (entry == null || !Std.isOfType(entry, FlxObject)) continue;
+
+			final item:FlxObject = cast entry;
+			if (!item.exists || !item.visible) continue;
+
+			final cam = camera ?? getCamera(item);
+			final y = (TouchInput.tapPosition.y - cam.y) / cam.zoom + cam.viewMarginY + cam.scroll.y * item.scrollFactor.y;
+
+			final top = item.y - rowPadding;
+			final bottom = item.y + item.height + rowPadding;
+			if (y < top || y > bottom) continue;
+
+			final distance = Math.abs(y - (item.y + item.height / 2));
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				best = index;
+			}
+		}
+
+		return best;
 	}
 
 	static function get_pressed():Bool

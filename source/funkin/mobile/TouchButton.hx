@@ -20,6 +20,10 @@ class TouchButton extends FlxSprite
 
 	public var touchEnabled:Bool = true;
 
+	public var persistent:Bool = false;
+
+	public var owner:Null<flixel.FlxState> = null;
+
 	public var touchPressed(default, null):Bool = false;
 
 	public var touchJustPressed(default, null):Bool = false;
@@ -51,13 +55,17 @@ class TouchButton extends FlxSprite
 
 	public function isTouchable():Bool
 	{
-		return touchEnabled && exists && alive && visible;
+		if (!touchEnabled || !exists || !alive || !visible) return false;
+		if (persistent) return true;
+
+		final state = owner ?? TouchUtil.getOwnerState(this);
+		return state == null || state == TouchUtil.getActiveState();
 	}
 
 	#if FLX_TOUCH
 	public function containsTouch(touch:FlxTouch):Bool
 	{
-		touch.getViewPosition(getCameras()[0], touchPoint);
+		touch.getViewPosition(TouchUtil.getCamera(this), touchPoint);
 
 		return touchPoint.x >= x && touchPoint.x < x + width && touchPoint.y >= y && touchPoint.y < y + height;
 	}

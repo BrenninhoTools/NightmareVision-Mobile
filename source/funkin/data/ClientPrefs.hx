@@ -68,6 +68,8 @@ class ClientPrefs
 	@saveVar public static var invisibleHitbox:Bool = false;
 	
 	@saveVar public static var invisiblePauseButton:Bool = false;
+	
+	@saveVar public static var storageType:String = 'Media';
 
 	@saveVar public static var showRatings:Bool = true;
 	

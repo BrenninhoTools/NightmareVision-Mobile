@@ -153,7 +153,18 @@ class OptionsState extends MusicBeatState
 		}
 		#end
 		
-		if (controls.ACCEPT)
+		var touchBlocksAccept = false;
+		
+		#if mobile
+		final tapped = funkin.mobile.TouchUtil.getMenuTap(cast grpOptions.members);
+		if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+		{
+			touchBlocksAccept = tapped != curSelected;
+			if (tapped >= 0 && tapped != curSelected) changeSelection(tapped - curSelected);
+		}
+		#end
+		
+		if (controls.ACCEPT && !touchBlocksAccept)
 		{
 			openSelectedSubstate(options[curSelected]);
 		}

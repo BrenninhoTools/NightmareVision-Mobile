@@ -41,6 +41,7 @@ class MobileUtil
 	public static function createBackButton(?camera:FlxCamera):TouchButton
 	{
 		final button = createButton('backButton', 'back', ['back'], backScale, camera);
+		button.persistent = true;
 		button.setPosition(FlxG.width - button.width - BUTTON_MARGIN, FlxG.height - button.height - BUTTON_MARGIN);
 		return button;
 	}

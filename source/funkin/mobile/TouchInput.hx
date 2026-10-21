@@ -436,6 +436,7 @@ class TouchInput
 				
 				tapPosition.set(touch.gameX, touch.gameY);
 				pulse('accept');
+				Haptics.select();
 			}
 
 			return;
@@ -495,6 +496,7 @@ class TouchInput
 		gesture.steps++;
 		lastSwipe = direction;
 		pulse(actionFor(direction));
+		Haptics.scroll();
 	}
 
 	static function flick(gesture:TouchGesture):Void

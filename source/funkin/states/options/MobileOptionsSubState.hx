@@ -25,12 +25,30 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		var option:Option = new Option('Invisible Pause Button', 'If checked, the pause button is hidden during songs,\nbut tapping its corner still pauses.', 'invisiblePauseButton', BOOL, false);
 		addOption(option);
 		
+		var option:Option = new Option('Haptics', 'If checked, the device vibrates when you hit notes,\ntap menu options and scroll with touch.', 'haptics', BOOL, true);
+		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		addOption(option);
+		
+		var option:Option = new Option('Haptics Intensity', 'How strong the vibration feels.', 'hapticsIntensity', PERCENT, 0.6);
+		option.minValue = 0.1;
+		option.maxValue = 1;
+		option.changeValue = 0.1;
+		option.decimals = 1;
+		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		addOption(option);
+		
 		#if android
 		ClientPrefs.storageType = StorageUtil.getStorageType();
 		
-		var option:Option = new Option('Storage Type', 'Where the game files are kept. Data: Android/data, External: NightmareVision folder,\nMedia: Android/media, Obb: Android/obb. Current: ' + StorageUtil.getActiveStorageType() + '.',
+		var option:Option = new Option('Storage Type', 'Where the game files are kept. Data: Android/data, External: NightmareVision folder,\nMedia: Android/media, Obb: Android/obb. Current: ' + StorageUtil.getInfo() + '.',
 			'storageType', STRING, StorageUtil.DEFAULT_STORAGE_TYPE, StorageUtil.STORAGE_TYPES);
 		option.onChange = onStorageTypeChange;
+		addOption(option);
+		#end
+		
+		#if mobile
+		var option:Option = new Option('Repair Game Files', 'Checks every game file again and copies back anything\nthat is missing or broken. Your mods are kept.', 'storageType', BUTTON);
+		option.callback = funkin.mobile.StorageUtil.repair;
 		addOption(option);
 		#end
 		

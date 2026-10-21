@@ -33,6 +33,7 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 
 			final lane = new TouchButton(laneWidth * i, 0, [action], 0);
 			lane.blocksGestures = true;
+			lane.haptic = false;
 			lane.loadGraphic(createLaneGraphic(width, FlxG.height, COLORS[i % COLORS.length]));
 			lane.alpha = 0;
 

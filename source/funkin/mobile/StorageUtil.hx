@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import flixel.FlxG;
+
 import haxe.Json;
 import haxe.io.Bytes;
 import haxe.io.Path;
@@ -83,6 +85,48 @@ class StorageUtil
 		#if android
 		startupStorageType = getStorageType();
 		#end
+		
+		#if ios
+		for (folder in ['assets', 'logcat', 'crash'])
+			NativeUtil.excludeFromBackup(getPath(folder));
+		#end
+		#end
+	}
+	
+	public static var lowSpaceMB:Int = 150;
+	
+	public static function checkFreeSpace():Void
+	{
+		final free = getFreeSpaceMB();
+		if (free >= 0 && free < lowSpaceMB) NativeUtil.toast('Low storage: only $free MB free.\nThe game may fail to save or load files.', true);
+	}
+	
+	public static function getInfo():String
+	{
+		final free = getFreeSpaceMB();
+		return getActiveStorageType() + (free >= 0 ? ' ($free MB free)' : '');
+	}
+	
+	public static final NATIVE_VERSION_FILE:String = '.copy-version';
+	
+	public static function repair():Void
+	{
+		#if sys
+		if (!ready) return;
+		
+		for (path in manifest.keys())
+			refresh.set(path, true);
+		
+		manifestVersion = 'repair';
+		dirty = true;
+		flush();
+		
+		#if android
+		deleteQuietly(NATIVE_VERSION_FILE);
+		restartApp();
+		#else
+		FlxG.switchState(() -> new CopyState());
+		#end
 		#end
 	}
 	
@@ -122,7 +166,9 @@ class StorageUtil
 	
 	public static function getFreeSpaceMB():Int
 	{
-		#if android
+		#if ios
+		return NativeUtil.getFreeSpaceMB();
+		#elseif android
 		try
 		{
 			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'getFreeSpaceMB', '(Ljava/lang/String;)I');

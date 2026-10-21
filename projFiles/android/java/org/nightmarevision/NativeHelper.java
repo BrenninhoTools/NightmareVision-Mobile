@@ -39,20 +39,58 @@ public class NativeHelper extends Extension
 		return Extension.mainActivity;
 	}
 
-	public static void vibrate(final int milliseconds)
+	private static Vibrator vibrator;
+
+	private static boolean vibratorChecked = false;
+
+	private static Vibrator getVibrator()
 	{
+		if (vibratorChecked) return vibrator;
+		vibratorChecked = true;
+
 		try
 		{
 			Context context = getContext();
-			if (context == null || milliseconds <= 0) return;
+			if (context == null) return null;
 
-			Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
-			if (vibrator == null || !vibrator.hasVibrator()) return;
+			Vibrator found = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+			if (found != null && found.hasVibrator()) vibrator = found;
+		}
+		catch (Throwable e)
+		{
+			vibrator = null;
+		}
+
+		return vibrator;
+	}
+
+	public static boolean hasVibrator()
+	{
+		return getVibrator() != null;
+	}
+
+	public static void vibrate(final int milliseconds)
+	{
+		vibrateWith(milliseconds, -1);
+	}
+
+	public static void vibrateWith(final int milliseconds, final int amplitude)
+	{
+		try
+		{
+			Vibrator target = getVibrator();
+			if (target == null || milliseconds <= 0) return;
 
 			if (Build.VERSION.SDK_INT >= 26)
-				vibrator.vibrate(VibrationEffect.createOneShot(milliseconds, VibrationEffect.DEFAULT_AMPLITUDE));
+			{
+				int strength = VibrationEffect.DEFAULT_AMPLITUDE;
+				if (amplitude > 0 && target.hasAmplitudeControl()) strength = Math.max(1, Math.min(255, amplitude));
+				target.vibrate(VibrationEffect.createOneShot(milliseconds, strength));
+			}
 			else
-				vibrator.vibrate(milliseconds);
+			{
+				target.vibrate(milliseconds);
+			}
 		}
 		catch (Throwable e) {}
 	}

@@ -391,6 +391,14 @@ class PlayField extends FlxTypedContainer<StrumNote>
 			
 			if (ClientPrefs.hitsoundVolume > 0 && !note.hitsoundDisabled) FlxG.sound.play(Paths.sound('hitsound'), ClientPrefs.hitsoundVolume);
 			
+			#if mobile
+			if (!note.isSustainNote && !field.autoPlayed)
+			{
+				if (note.hitCausesMiss) funkin.mobile.Haptics.noteMiss();
+				else funkin.mobile.Haptics.note();
+			}
+			#end
+			
 			if (note.hitCausesMiss)
 			{
 				field.onNoteMiss.dispatch(note, field);

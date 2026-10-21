@@ -22,6 +22,8 @@ class TouchButton extends FlxSprite
 
 	public var persistent:Bool = false;
 
+	public var haptic:Bool = true;
+
 	public var owner:Null<flixel.FlxState> = null;
 
 	public var touchPressed(default, null):Bool = false;
@@ -100,7 +102,11 @@ class TouchButton extends FlxSprite
 		touchJustPressed = touchPressed && !wasPressed;
 		touchJustReleased = !touchPressed && wasPressed;
 
-		if (touchJustPressed) onDown.dispatch();
+		if (touchJustPressed)
+		{
+			if (haptic) Haptics.button();
+			onDown.dispatch();
+		}
 		if (touchJustReleased) onUp.dispatch();
 	}
 

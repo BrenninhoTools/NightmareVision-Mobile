@@ -60,8 +60,6 @@ class VirtualPadButton extends TouchButton
 
 	function press():Void
 	{
-		NativeUtil.vibrate(8);
-
 		if (key.action != null)
 		{
 			key.action();

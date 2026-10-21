@@ -199,6 +199,8 @@ public class StorageHelper
 			previousDirectory = "";
 		}
 
+		ensureNoMedia(dir);
+
 		cachedGameDirectory = dir;
 		return dir;
 	}
@@ -235,6 +237,16 @@ public class StorageHelper
 
 		File dir = locateType(context, type);
 		return isWritable(dir) ? dir : null;
+	}
+
+	static void ensureNoMedia(File dir)
+	{
+		try
+		{
+			File marker = new File(dir, ".nomedia");
+			if (!marker.exists()) new FileOutputStream(marker, false).close();
+		}
+		catch (Throwable e) {}
 	}
 
 	static boolean isWritable(File dir)

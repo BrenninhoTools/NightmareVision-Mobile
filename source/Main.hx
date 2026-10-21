@@ -94,6 +94,7 @@ class Main extends Sprite
 		{
 			funkin.mobile.LogcatUtil.mark('native copy finished: ' + funkin.mobile.StorageUtil.readNativeStatus());
 			funkin.mobile.StorageUtil.cleanLegacyCopy();
+			funkin.mobile.StorageUtil.checkFreeSpace();
 		}
 		else
 		{

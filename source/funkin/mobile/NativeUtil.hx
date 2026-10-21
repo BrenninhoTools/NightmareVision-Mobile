@@ -5,12 +5,15 @@ import flixel.FlxG;
 #if ios
 @:cppFileCode('
 extern "C" void nmv_native_vibrate(int milliseconds);
+extern "C" void nmv_native_vibrate_intensity(int milliseconds, double intensity);
 extern "C" void nmv_native_toast(const char *message, int longDuration);
 extern "C" void nmv_native_pick_files(const char *extensions, int multiple);
 extern "C" const char *nmv_native_pick_state();
 extern "C" const char *nmv_native_picked_files();
 extern "C" void nmv_native_reset_pick();
 extern "C" void nmv_native_share_file(const char *path);
+extern "C" void nmv_native_exclude_from_backup(const char *path);
+extern "C" long long nmv_native_free_space();
 ')
 #end
 @:build(funkin.mobile.NativeMacro.build())
@@ -47,15 +50,17 @@ class NativeUtil
 	
 	static var polling:Bool = false;
 	
-	public static function vibrate(milliseconds:Int = 12):Void
+	public static function vibrate(milliseconds:Int = 12, intensity:Float = 1):Void
 	{
-		if (!hapticsEnabled) return;
+		if (!hapticsEnabled || milliseconds <= 0 || intensity <= 0) return;
+		
+		final clamped = Math.min(1, intensity);
 		
 		#if android
-		final func = jni('vibrate', '(I)V');
-		if (func != null) func(milliseconds);
+		final func = jni('vibrateWith', '(II)V');
+		if (func != null) func(milliseconds, Std.int(Math.max(1, Math.round(clamped * 255))));
 		#elseif ios
-		untyped __cpp__('nmv_native_vibrate({0})', milliseconds);
+		untyped __cpp__('nmv_native_vibrate_intensity({0}, {1})', milliseconds, clamped);
 		#end
 	}
 	
@@ -88,6 +93,23 @@ class NativeUtil
 		#if android
 		final func = jni('hideKeyboard', '()V');
 		if (func != null) func();
+		#end
+	}
+	
+	public static function excludeFromBackup(path:String):Void
+	{
+		#if ios
+		untyped __cpp__('nmv_native_exclude_from_backup({0}.utf8_str())', path);
+		#end
+	}
+	
+	public static function getFreeSpaceMB():Int
+	{
+		#if ios
+		final bytes:Float = untyped __cpp__('(double)nmv_native_free_space()');
+		return bytes < 0 ? -1 : Std.int(bytes / 1048576);
+		#else
+		return -1;
 		#end
 	}
 	

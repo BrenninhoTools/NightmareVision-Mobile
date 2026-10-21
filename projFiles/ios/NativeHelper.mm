@@ -82,14 +82,57 @@ static NSString *nmvImportFolder()
 
 static NMVDocumentPickerDelegate *nmvPickerDelegate = nil;
 
+static UIImpactFeedbackGenerator *nmvImpactGenerators[3];
+
+static UIImpactFeedbackGenerator *nmvImpactGenerator(int milliseconds)
+{
+	int index = milliseconds >= 40 ? 2 : (milliseconds >= 20 ? 1 : 0);
+	if (nmvImpactGenerators[index] == nil)
+	{
+		UIImpactFeedbackStyle style = index == 2 ? UIImpactFeedbackStyleHeavy : (index == 1 ? UIImpactFeedbackStyleMedium : UIImpactFeedbackStyleLight);
+		nmvImpactGenerators[index] = [[UIImpactFeedbackGenerator alloc] initWithStyle:style];
+	}
+	return nmvImpactGenerators[index];
+}
+
+extern "C" void nmv_native_vibrate_intensity(int milliseconds, double intensity)
+{
+	if (milliseconds <= 0 || intensity <= 0) return;
+
+	CGFloat value = (CGFloat)(intensity > 1 ? 1 : intensity);
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		UIImpactFeedbackGenerator *generator = nmvImpactGenerator(milliseconds);
+		[generator impactOccurredWithIntensity:value];
+		[generator prepare];
+	});
+}
+
+extern "C" void nmv_native_exclude_from_backup(const char *path)
+{
+	if (path == NULL) return;
+
+	@autoreleasepool
+	{
+		NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
+		if (url == nil || ![[NSFileManager defaultManager] fileExistsAtPath:url.path]) return;
+		[url setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:nil];
+	}
+}
+
+extern "C" long long nmv_native_free_space()
+{
+	@autoreleasepool
+	{
+		NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfFileSystemForPath:NSHomeDirectory() error:nil];
+		NSNumber *free = attributes[NSFileSystemFreeSize];
+		return free != nil ? [free longLongValue] : -1;
+	}
+}
+
 extern "C" void nmv_native_vibrate(int milliseconds)
 {
-	dispatch_async(dispatch_get_main_queue(), ^{
-		UIImpactFeedbackStyle style = milliseconds >= 40 ? UIImpactFeedbackStyleHeavy : (milliseconds >= 20 ? UIImpactFeedbackStyleMedium : UIImpactFeedbackStyleLight);
-		UIImpactFeedbackGenerator *generator = [[UIImpactFeedbackGenerator alloc] initWithStyle:style];
-		[generator prepare];
-		[generator impactOccurred];
-	});
+	nmv_native_vibrate_intensity(milliseconds, 1.0);
 }
 
 extern "C" void nmv_native_toast(const char *message, int longDuration)

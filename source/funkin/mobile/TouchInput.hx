@@ -221,6 +221,19 @@ class TouchInput
 		return true;
 	}
 
+	public static function releaseAll():Void
+	{
+		for (zone in zones)
+		{
+			zone.beginPoll();
+			zone.endPoll();
+		}
+
+		current.clear();
+		previous.clear();
+		reset();
+	}
+
 	public static function reset():Void
 	{
 		dragging = false;

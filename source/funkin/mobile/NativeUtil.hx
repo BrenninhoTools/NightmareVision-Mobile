@@ -18,6 +18,7 @@ extern "C" const char *nmv_native_save_state();
 extern "C" const char *nmv_native_saved_name();
 extern "C" void nmv_native_reset_save();
 extern "C" long long nmv_native_free_space();
+extern "C" int nmv_native_external_input();
 ')
 #end
 @:build(funkin.mobile.NativeMacro.build())
@@ -104,6 +105,18 @@ class NativeUtil
 	{
 		#if ios
 		untyped __cpp__('nmv_native_exclude_from_backup({0}.utf8_str())', path);
+		#end
+	}
+	
+	public static function getExternalInput():Int
+	{
+		#if android
+		final func = jni('getExternalInput', '()I');
+		return func != null ? func() : 0;
+		#elseif ios
+		return untyped __cpp__('nmv_native_external_input()');
+		#else
+		return 0;
 		#end
 	}
 	

@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#import <GameController/GameController.h>
 
 #include <string>
 
@@ -199,6 +200,30 @@ extern "C" void nmv_native_vibrate_intensity(int milliseconds, double intensity)
 		[generator impactOccurredWithIntensity:value];
 		[generator prepare];
 	});
+}
+
+extern "C" int nmv_native_external_input()
+{
+	int result = 0;
+
+	@autoreleasepool
+	{
+		if (@available(iOS 14.0, *))
+		{
+			if (GCKeyboard.coalescedKeyboard != nil) result |= 1;
+		}
+
+		for (GCController *controller in [GCController controllers])
+		{
+			if (controller.extendedGamepad != nil || controller.microGamepad != nil)
+			{
+				result |= 2;
+				break;
+			}
+		}
+	}
+
+	return result;
 }
 
 extern "C" void nmv_native_exclude_from_backup(const char *path)

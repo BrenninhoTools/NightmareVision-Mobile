@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.OpenableColumns;
+import android.view.InputDevice;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
@@ -102,6 +103,31 @@ public class NativeHelper extends Extension
 			}
 		}
 		catch (Throwable e) {}
+	}
+
+	public static int getExternalInput()
+	{
+		int result = 0;
+
+		try
+		{
+			for (int id : InputDevice.getDeviceIds())
+			{
+				InputDevice device = InputDevice.getDevice(id);
+				if (device == null || device.isVirtual()) continue;
+				if (Build.VERSION.SDK_INT >= 29 && !device.isExternal()) continue;
+
+				int sources = device.getSources();
+
+				if ((sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD || (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK)
+					result |= 2;
+				else if ((sources & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD && device.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC)
+					result |= 1;
+			}
+		}
+		catch (Throwable e) {}
+
+		return result;
 	}
 
 	public static void toast(final String message, final boolean longDuration)

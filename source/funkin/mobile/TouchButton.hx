@@ -57,7 +57,7 @@ class TouchButton extends FlxSprite
 
 	public function isTouchable():Bool
 	{
-		if (!touchEnabled || !exists || !alive || !visible) return false;
+		if (ExternalInput.active || !touchEnabled || !exists || !alive || !visible) return false;
 		if (persistent) return true;
 
 		final state = owner ?? TouchUtil.getOwnerState(this);
@@ -121,6 +121,12 @@ class TouchButton extends FlxSprite
 		onDown.add(() -> animation.play('press', true));
 
 		return this;
+	}
+
+	override function draw():Void
+	{
+		if (ExternalInput.active) return;
+		super.draw();
 	}
 
 	override function destroy():Void

@@ -75,6 +75,7 @@
     <section if="ios">
         <config:ios deployment="14.0"/>
         <dependency name="UniformTypeIdentifiers.framework"/>
+        <dependency name="GameController.framework"/>
     </section>
 
     <section if="android">

@@ -382,7 +382,7 @@ class StorageUtil
 				LogcatUtil.mark('native copy running');
 			}
 			
-			Sys.sleep(0.05);
+			Sys.sleep(0.02);
 		}
 		#end
 		
@@ -557,6 +557,39 @@ class StorageUtil
 		return ids;
 	}
 
+	public static function isUpToDate():Bool
+	{
+		#if sys
+		if (!ready || manifestVersion != getVersion() || refresh.keys().hasNext() || FileSystem.exists(ERROR_FILE)) return false;
+		
+		final keys = [for (key in manifest.keys()) key];
+		if (keys.length == 0) return false;
+		
+		final step = Std.int(Math.max(1, keys.length / 64));
+		var index = 0;
+		
+		while (index < keys.length)
+		{
+			final path = keys[index];
+			
+			try
+			{
+				if (!FileSystem.exists(path) || FileSystem.stat(path).size != manifest.get(path)) return false;
+			}
+			catch (e:Dynamic)
+			{
+				return false;
+			}
+			
+			index += step;
+		}
+		
+		return true;
+		#else
+		return false;
+		#end
+	}
+	
 	public static function getPendingFiles():Array<String>
 	{
 		final files:Array<String> = [];
@@ -615,6 +648,7 @@ class StorageUtil
 		size = copyWithJava(id, target);
 		#end
 
+		if (size < 0) size = copyWithPath(id, target);
 		if (size < 0) size = copyWithBytes(id, target);
 
 		if (size < 0) return false;
@@ -664,6 +698,42 @@ class StorageUtil
 	}
 	#end
 
+	static function copyWithPath(id:String, target:String):Int
+	{
+		#if (sys && !android)
+		final source:Null<String> = try LimeAssets.getPath(id) catch (e:Dynamic) null;
+		if (source == null || !FileSystem.exists(source) || FileSystem.isDirectory(source)) return -1;
+		
+		final temp = target + TEMP_SUFFIX;
+		
+		try
+		{
+			final folder = Path.directory(target);
+			if (folder.length > 0 && !FileSystem.exists(folder)) FileSystem.createDirectory(folder);
+			
+			File.copy(source, temp);
+			
+			final size = FileSystem.stat(temp).size;
+			if (size != FileSystem.stat(source).size)
+			{
+				deleteQuietly(temp);
+				return -1;
+			}
+			
+			if (FileSystem.exists(target)) FileSystem.deleteFile(target);
+			FileSystem.rename(temp, target);
+			
+			return size;
+		}
+		catch (e:Dynamic)
+		{
+			deleteQuietly(temp);
+		}
+		#end
+		
+		return -1;
+	}
+	
 	static function copyWithBytes(id:String, target:String):Int
 	{
 		#if sys

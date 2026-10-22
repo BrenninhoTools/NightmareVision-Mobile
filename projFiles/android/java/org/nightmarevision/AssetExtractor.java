@@ -47,7 +47,7 @@ public class AssetExtractor extends Extension
 
 	private static final int BUFFER_SIZE = 512 * 1024;
 
-	private static final int MAX_THREADS = 4;
+	private static final int MAX_THREADS = 6;
 
 	private static final long MIN_FREE_BYTES = 64L * 1024L * 1024L;
 
@@ -158,6 +158,9 @@ public class AssetExtractor extends Extension
 		final String version = getVersion(context);
 		final File versionFile = new File(gameDirectory, VERSION_FILE);
 		final boolean updated = !version.equals(readText(versionFile));
+
+		if (!updated && !manifest.isEmpty() && !new File(gameDirectory, ERROR_FILE).exists() && quickCheck(manifest))
+			return;
 
 		List<String> files;
 
@@ -386,6 +389,81 @@ public class AssetExtractor extends Extension
 		});
 	}
 
+	private static boolean quickCheck(Map<String, Long> manifest)
+	{
+		for (String root : ROOTS)
+			if (!new File(gameDirectory, root).isDirectory()) return false;
+
+		List<String> keys = new ArrayList<String>(manifest.keySet());
+		if (keys.isEmpty()) return false;
+
+		int step = Math.max(1, keys.size() / 64);
+
+		for (int i = 0; i < keys.size(); i += step)
+		{
+			String path = keys.get(i);
+			Long size = manifest.get(path);
+			File file = new File(gameDirectory, path);
+
+			if (size == null || !file.isFile() || file.length() != size) return false;
+		}
+
+		return true;
+	}
+
+	private static long copyDirect(AssetManager assets, String path, File temp)
+	{
+		android.content.res.AssetFileDescriptor descriptor = null;
+		java.nio.channels.FileChannel input = null;
+		java.nio.channels.FileChannel output = null;
+
+		try
+		{
+			descriptor = assets.openFd(path);
+			long length = descriptor.getLength();
+			if (length < 0) return -1;
+
+			input = new FileInputStream(descriptor.getFileDescriptor()).getChannel();
+			output = new FileOutputStream(temp, false).getChannel();
+
+			long start = descriptor.getStartOffset();
+			long copied = 0;
+
+			while (copied < length)
+			{
+				long moved = input.transferTo(start + copied, length - copied, output);
+				if (moved <= 0) break;
+				copied += moved;
+			}
+
+			return copied == length ? length : -1;
+		}
+		catch (Throwable e)
+		{
+			return -1;
+		}
+		finally
+		{
+			try
+			{
+				if (input != null) input.close();
+			}
+			catch (Throwable e) {}
+
+			try
+			{
+				if (output != null) output.close();
+			}
+			catch (Throwable e) {}
+
+			try
+			{
+				if (descriptor != null) descriptor.close();
+			}
+			catch (Throwable e) {}
+		}
+	}
+
 	private static void createDirectories(List<String> paths)
 	{
 		java.util.HashSet<String> created = new java.util.HashSet<String>();
@@ -461,6 +539,14 @@ public class AssetExtractor extends Extension
 		{
 			File parent = target.getParentFile();
 			if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) return -1;
+
+			long direct = copyDirect(assets, path, temp);
+			if (direct >= 0 && temp.length() == direct)
+			{
+				if (target.exists() && !target.delete()) return -1;
+				if (!temp.renameTo(target)) return -1;
+				return direct;
+			}
 
 			input = assets.open(path, AssetManager.ACCESS_STREAMING);
 			output = new FileOutputStream(temp, false);

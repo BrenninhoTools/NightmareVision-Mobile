@@ -586,7 +586,7 @@ class PlayState extends MusicBeatState
 	
 	public var arrowsMode(default, null):Bool = false;
 	
-	public static var arrowsScale:Float = 1;
+	public static var arrowsScale:Float = 1.12;
 	
 	static var savedDownScroll:Null<Bool> = null;
 	

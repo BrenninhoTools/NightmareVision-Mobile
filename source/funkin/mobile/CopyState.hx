@@ -37,7 +37,7 @@ class CopyState extends FlxState
 
 		FlxG.mouse.visible = false;
 
-		if (!StorageUtil.ready)
+		if (!StorageUtil.ready || StorageUtil.isUpToDate())
 		{
 			finish();
 			return;

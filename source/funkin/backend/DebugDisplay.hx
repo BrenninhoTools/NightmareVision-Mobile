@@ -174,6 +174,12 @@ class DebugDisplay extends Sprite
 		
 		final stage = this.stage;
 		if (stage != null) stage.addEventListener(openfl.events.Event.RESIZE, onResize);
+		FlxG.signals.gameResized.add((_, _) -> onResize(null));
+		onResize(null);
+	}
+	
+	public function reposition():Void
+	{
 		onResize(null);
 	}
 	
@@ -197,8 +203,9 @@ class DebugDisplay extends Sprite
 		final offsetY = (stage.stageHeight - FlxG.height * ratio) / 2;
 		
 		final insetX = funkin.mobile.ScreenStyle.safeLeft * (stage.stageWidth / FlxG.width);
+		final insetY = funkin.mobile.ScreenStyle.safeTop * (stage.stageHeight / FlxG.height);
 		x = Math.max(0, offsetX) + margin * scale + insetX;
-		y = Math.max(0, offsetY) + baseY * scale;
+		y = Math.max(0, offsetY) + baseY * scale + insetY;
 		#else
 		x = baseX;
 		y = baseY;

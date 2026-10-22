@@ -312,7 +312,7 @@ class Alphabet extends FlxSpriteGroup
 			}
 			else
 			{
-				if (changeAxis.x) x = FlxMath.lerp(x, (targetY * 20) + 90 + xAdd, lerpRate);
+				if (changeAxis.x) x = FlxMath.lerp(x, (targetY * 20) + 90 + xAdd + funkin.mobile.ScreenStyle.contentOffset, lerpRate);
 			}
 		}
 		
@@ -332,7 +332,7 @@ class Alphabet extends FlxSpriteGroup
 			}
 			else
 			{
-				x = (targetY * 20) + 90 + xAdd;
+				x = (targetY * 20) + 90 + xAdd + funkin.mobile.ScreenStyle.contentOffset;
 			}
 		}
 	}

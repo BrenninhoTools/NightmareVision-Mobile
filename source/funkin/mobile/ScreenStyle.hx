@@ -23,6 +23,8 @@ class ScreenStyle
 
 	public static var isFull(get, never):Bool;
 
+	public static var contentOffset(get, never):Float;
+
 	public static function init():Void
 	{
 		#if mobile
@@ -30,7 +32,8 @@ class ScreenStyle
 		initialized = true;
 
 		FlxG.signals.postStateSwitch.add(onStateSwitch);
-		FlxG.stage.addEventListener(openfl.events.Event.RESIZE, (_) -> refreshInsets());
+		FlxG.stage.addEventListener(openfl.events.Event.RESIZE, (_) -> refreshLayout());
+		FlxG.signals.gameResized.add((_, _) -> refreshLayout());
 
 		apply(false);
 		#end
@@ -42,7 +45,8 @@ class ScreenStyle
 		NativeUtil.setScreenStyle(isFull);
 
 		@:privateAccess FlxG.game.onResize(null);
-		refreshInsets();
+		refreshLayout();
+		haxe.Timer.delay(refreshLayout, 300);
 
 		if (resetState && FlxG.state != null) FlxG.resetState();
 		#end
@@ -76,6 +80,12 @@ class ScreenStyle
 		safeRight = insets[2] * scale;
 		safeBottom = insets[3] * scale;
 		#end
+	}
+
+	public static function refreshLayout():Void
+	{
+		refreshInsets();
+		funkin.backend.DebugDisplay.instance?.reposition();
 	}
 
 	public static function fitBackgrounds(group:FlxTypedGroup<FlxBasic>):Void
@@ -122,8 +132,17 @@ class ScreenStyle
 
 	static function onStateSwitch():Void
 	{
-		refreshInsets();
+		refreshLayout();
 		if (FlxG.state != null) fitBackgrounds(cast FlxG.state);
+	}
+
+	static function get_contentOffset():Float
+	{
+		#if mobile
+		return Math.max(0, (FlxG.width - FlxG.initialWidth) / 2);
+		#else
+		return 0;
+		#end
 	}
 
 	static function get_isFull():Bool

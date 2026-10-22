@@ -258,7 +258,7 @@ class CreditsState extends MusicBeatState
 			{
 				if (item.isBold) continue;
 				
-				final expectedX = (item.targetY == 0 ? ((FlxG.width - item.width) / 2) - 65 : 200 + -80 * Math.abs(item.targetY));
+				final expectedX = (item.targetY == 0 ? ((FlxG.width - item.width) / 2) - 65 : 200 + -80 * Math.abs(item.targetY) + funkin.mobile.ScreenStyle.contentOffset);
 				item.x = FlxMath.lerp(item.x, expectedX, lerpRate);
 				
 				item.alpha = item.targetY == 0 ? 1 : 0.6;

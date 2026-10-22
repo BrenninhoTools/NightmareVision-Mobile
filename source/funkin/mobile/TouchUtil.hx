@@ -36,6 +36,95 @@ class TouchUtil
 	public static var holdTime(get, never):Float;
 	
 	public static var count(get, never):Int;
+
+	public static var pinching(get, never):Bool;
+
+	public static var pinchDelta(get, never):Float;
+
+	public static var pinchScale(get, never):Float;
+
+	public static function overlapsPadded(object:FlxBasic, padding:Float, ?camera:FlxCamera):Bool
+	{
+		#if FLX_TOUCH
+		for (touch in FlxG.touches.list)
+			if (touch.pressed && pointOverlaps(touch.gameX, touch.gameY, object, camera, padding)) return true;
+		#end
+
+		return false;
+	}
+
+	public static function pressedCount(object:FlxBasic, ?camera:FlxCamera):Int
+	{
+		var total = 0;
+
+		#if FLX_TOUCH
+		for (touch in FlxG.touches.list)
+			if (touch.pressed && pointOverlaps(touch.gameX, touch.gameY, object, camera)) total++;
+		#end
+
+		return total;
+	}
+
+	public static function tappedOnAny(objects:Array<FlxBasic>, ?camera:FlxCamera):Int
+	{
+		TouchInput.poll();
+		if (!TouchInput.justTapped || objects == null) return -1;
+
+		for (index => object in objects)
+			if (object != null && object.exists && pointOverlaps(TouchInput.tapPosition.x, TouchInput.tapPosition.y, object, camera)) return index;
+
+		return -1;
+	}
+
+	public static function justPressedOnAny(objects:Array<FlxBasic>, ?camera:FlxCamera):Int
+	{
+		if (objects == null) return -1;
+
+		for (index => object in objects)
+			if (object != null && object.exists && justPressedOn(object, camera)) return index;
+
+		return -1;
+	}
+
+	public static function pressedOnAny(objects:Array<FlxBasic>, ?camera:FlxCamera):Int
+	{
+		if (objects == null) return -1;
+
+		for (index => object in objects)
+			if (object != null && object.exists && overlaps(object, camera)) return index;
+
+		return -1;
+	}
+
+	public static function swipedOn(object:FlxBasic, ?direction:SwipeDirection, ?camera:FlxCamera):Bool
+	{
+		TouchInput.poll();
+		if (TouchInput.lastSwipe == NONE) return false;
+		if (direction != null && direction != NONE && TouchInput.lastSwipe != direction) return false;
+
+		return pointOverlaps(TouchInput.touchPosition.x, TouchInput.touchPosition.y, object, camera);
+	}
+
+	public static function getWorldPosition(?camera:FlxCamera, ?point:flixel.math.FlxPoint):flixel.math.FlxPoint
+	{
+		TouchInput.poll();
+		point ??= flixel.math.FlxPoint.get();
+
+		final cam = camera ?? FlxG.camera;
+		point.set((TouchInput.touchPosition.x - cam.x) / cam.zoom + cam.viewMarginX + cam.scroll.x, (TouchInput.touchPosition.y - cam.y) / cam.zoom + cam.viewMarginY + cam.scroll.y);
+
+		return point;
+	}
+
+	#if FLX_TOUCH
+	public static function getTouchById(id:Int):Null<FlxTouch>
+	{
+		for (touch in FlxG.touches.list)
+			if (touch.touchPointID == id) return touch;
+
+		return null;
+	}
+	#end
 	
 	public static function holding(object:FlxBasic, minTime:Float = 0, ?camera:FlxCamera):Bool
 	{
@@ -55,17 +144,33 @@ class TouchUtil
 		return TouchInput.justDoubleTapped && pointOverlaps(TouchInput.tapPosition.x, TouchInput.tapPosition.y, object, camera);
 	}
 	
-	public static function pointOverlaps(gameX:Float, gameY:Float, object:FlxBasic, ?camera:FlxCamera):Bool
+	public static function pointOverlaps(gameX:Float, gameY:Float, object:FlxBasic, ?camera:FlxCamera, padding:Float = 0):Bool
 	{
 		if (object == null || !Std.isOfType(object, FlxObject)) return false;
 		
+		final target:FlxObject = cast object;
+		if (!target.exists || !target.visible) return false;
+		
 		final cam = camera ?? getCamera(object);
 		
-		final target:FlxObject = cast object;
-		final x = (gameX - cam.x) / cam.zoom + cam.viewMarginX + cam.scroll.x * target.scrollFactor.x;
-		final y = (gameY - cam.y) / cam.zoom + cam.viewMarginY + cam.scroll.y * target.scrollFactor.y;
+		var x = (gameX - cam.x) / cam.zoom + cam.viewMarginX;
+		var y = (gameY - cam.y) / cam.zoom + cam.viewMarginY;
 		
-		return x >= target.x && x < target.x + target.width && y >= target.y && y < target.y + target.height;
+		if (cam.angle != 0)
+		{
+			final radians = -cam.angle * Math.PI / 180;
+			final centerX = cam.viewMarginX + cam.width / cam.zoom / 2;
+			final centerY = cam.viewMarginY + cam.height / cam.zoom / 2;
+			final dx = x - centerX;
+			final dy = y - centerY;
+			x = centerX + dx * Math.cos(radians) - dy * Math.sin(radians);
+			y = centerY + dx * Math.sin(radians) + dy * Math.cos(radians);
+		}
+		
+		x += cam.scroll.x * target.scrollFactor.x;
+		y += cam.scroll.y * target.scrollFactor.y;
+		
+		return x >= target.x - padding && x < target.x + target.width + padding && y >= target.y - padding && y < target.y + target.height + padding;
 	}
 
 	public static function overlaps(object:FlxBasic, ?camera:FlxCamera):Bool
@@ -283,6 +388,25 @@ class TouchUtil
 		return TouchInput.holdTime;
 	}
 	
+	static function get_pinching():Bool
+	{
+		TouchInput.poll();
+		return TouchInput.pinching;
+	}
+
+	static function get_pinchDelta():Float
+	{
+		TouchInput.poll();
+		return TouchInput.pinchDelta;
+	}
+
+	static function get_pinchScale():Float
+	{
+		TouchInput.poll();
+		final previous = TouchInput.pinchDistance - TouchInput.pinchDelta;
+		return TouchInput.pinching && previous > 0 ? TouchInput.pinchDistance / previous : 1;
+	}
+
 	static function get_count():Int
 	{
 		TouchInput.poll();

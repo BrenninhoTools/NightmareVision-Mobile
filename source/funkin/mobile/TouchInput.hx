@@ -96,6 +96,14 @@ class TouchInput
 	public static var holdTime(default, null):Float = 0;
 	
 	public static var touchCount(default, null):Int = 0;
+
+	public static var pinching(default, null):Bool = false;
+
+	public static var pinchDistance(default, null):Float = 0;
+
+	public static var pinchDelta(default, null):Float = 0;
+
+	public static final pinchCenter:FlxPoint = FlxPoint.get();
 	
 	public static var longPressTime:Float = 550;
 	
@@ -287,6 +295,8 @@ class TouchInput
 		
 		touchCount = activeFingers;
 
+		updatePinch();
+
 		updateMultiTouch(activeFingers, allowGestures);
 
 		for (touch in FlxG.touches.list)
@@ -313,6 +323,36 @@ class TouchInput
 		for (action in pulses)
 			current.set(action, true);
 		pulses.resize(0);
+	}
+
+	static function updatePinch():Void
+	{
+		pinchDelta = 0;
+
+		var first:Null<FlxTouch> = null;
+		var second:Null<FlxTouch> = null;
+
+		for (touch in FlxG.touches.list)
+		{
+			if (!touch.pressed) continue;
+			if (first == null) first = touch;
+			else if (second == null) second = touch;
+		}
+
+		if (first == null || second == null)
+		{
+			pinching = false;
+			pinchDistance = 0;
+			return;
+		}
+
+		final distance = Math.sqrt(Math.pow(first.gameX - second.gameX, 2) + Math.pow(first.gameY - second.gameY, 2));
+		pinchCenter.set((first.gameX + second.gameX) / 2, (first.gameY + second.gameY) / 2);
+
+		if (pinching) pinchDelta = distance - pinchDistance;
+
+		pinching = true;
+		pinchDistance = distance;
 	}
 
 	static function updateMultiTouch(activeFingers:Int, allowGestures:Bool):Void

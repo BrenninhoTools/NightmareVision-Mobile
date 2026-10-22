@@ -124,6 +124,7 @@ class ExternalInput
 		}
 
 		banner.show(message);
+		TouchCursor.bringToFront();
 	}
 }
 

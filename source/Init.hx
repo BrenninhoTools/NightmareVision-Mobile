@@ -26,6 +26,7 @@ class Init extends FlxState
 		funkin.mobile.TouchInput.init();
 		funkin.mobile.EditorTouchSupport.init();
 		funkin.mobile.ExternalInput.init();
+		funkin.mobile.TouchCursor.init();
 		#end
 		
 		step('prefs');

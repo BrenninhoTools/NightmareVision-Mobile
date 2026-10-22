@@ -224,7 +224,7 @@ class ModManager implements IFlxDestroyable
 		return (getCenterX(player, keys) + getStrumX(direction, keys));
 	}
 	
-	public static var arrowsSpread:Float = 0.6;
+	public static var arrowsSpread:Float = 0.72;
 	
 	public static function getArrowsX(direction:Int, keys:Int):Float
 	{

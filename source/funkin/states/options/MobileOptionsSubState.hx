@@ -42,6 +42,9 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		var option:Option = new Option('Invisible Pause Button', 'If checked, the pause button is hidden during songs,\nbut tapping its corner still pauses.', 'invisiblePauseButton', BOOL, false);
 		addOption(option);
 		
+		var option:Option = new Option('Touch Cursor', 'If checked, a red cursor shows where your fingers\ntouch the screen.', 'touchCursor', BOOL, false);
+		addOption(option);
+		
 		var option:Option = new Option('Haptics', 'If checked, the device vibrates when you hit notes,\ntap menu options and scroll with touch.', 'haptics', BOOL, true);
 		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);

@@ -216,9 +216,19 @@ class ModManager implements IFlxDestroyable
 	
 	public function updateTimeline(curStep:Float) timeline.update(curStep);
 	
-	public inline function getBaseX(direction:Int, player:Int):Float
+	public var arrowsLayout:Bool = false;
+	
+	public function getBaseX(direction:Int, player:Int):Float
 	{
+		if (arrowsLayout && player == 0) return getArrowsX(direction, keys);
 		return (getCenterX(player, keys) + getStrumX(direction, keys));
+	}
+	
+	public static function getArrowsX(direction:Int, keys:Int):Float
+	{
+		final left = funkin.mobile.ScreenStyle.safeLeft;
+		final usable = FlxG.width - left - funkin.mobile.ScreenStyle.safeRight;
+		return left + usable * (direction + 0.5) / Math.max(1, keys);
 	}
 	
 	public static inline function getCenterX(player:Int, keys:Int):Float

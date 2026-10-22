@@ -584,6 +584,81 @@ class PlayState extends MusicBeatState
 		add(pauseButton);
 	}
 	
+	public var arrowsMode(default, null):Bool = false;
+	
+	public static var arrowsScale:Float = 1.3;
+	
+	static var savedDownScroll:Null<Bool> = null;
+	
+	final arrowsLaneCache:Array<Float> = [];
+	
+	function setupArrowsMode():Void
+	{
+		arrowsMode = ClientPrefs.hitboxMode == 'Arrows';
+		if (!arrowsMode) return;
+		
+		if (savedDownScroll == null) savedDownScroll = ClientPrefs.downScroll;
+		ClientPrefs.downScroll = true;
+	}
+	
+	function restoreArrowsMode():Void
+	{
+		if (savedDownScroll == null) return;
+		
+		ClientPrefs.downScroll = savedDownScroll;
+		savedDownScroll = null;
+	}
+	
+	function applyArrowsModifiers():Void
+	{
+		if (!arrowsMode || modManager == null) return;
+		
+		modManager.setValue('mini', 1 - arrowsScale, 0);
+		for (lane in 1...SONG.lanes)
+			modManager.setValue('alpha', 1, lane);
+	}
+	
+	function updateArrowsHitbox():Void
+	{
+		if (!arrowsMode || hitbox == null || playFields == null || playFields.members.length == 0) return;
+		
+		final field = playFields.members[0];
+		if (field == null || field.members.length == 0) return;
+		
+		hitbox.forceVisible = false;
+		
+		final count = Std.int(Math.min(field.members.length, hitbox.members.length));
+		var changed = arrowsLaneCache.length != count * 2;
+		
+		for (index in 0...count)
+		{
+			final strum = field.members[index];
+			if (strum == null) continue;
+			
+			final center = strum.x + strum.width / 2;
+			final top = strum.y - strum.height * 0.75;
+			
+			if (changed || Math.abs(arrowsLaneCache[index * 2] - center) > 4 || Math.abs(arrowsLaneCache[index * 2 + 1] - top) > 4)
+			{
+				arrowsLaneCache[index * 2] = center;
+				arrowsLaneCache[index * 2 + 1] = top;
+				changed = true;
+			}
+		}
+		
+		if (!changed) return;
+		
+		for (index in 0...count)
+		{
+			final center = arrowsLaneCache[index * 2];
+			final left = index == 0 ? 0 : (arrowsLaneCache[(index - 1) * 2] + center) / 2;
+			final right = index == count - 1 ? FlxG.width : (center + arrowsLaneCache[(index + 1) * 2]) / 2;
+			final top = Math.max(0, Math.min(arrowsLaneCache[index * 2 + 1], FlxG.height - 120));
+			
+			hitbox.setLaneBounds(index, left, top, right - left, FlxG.height - top);
+		}
+	}
+	
 	public function setMobileControlsEnabled(value:Bool):Void
 	{
 		if (hitbox != null) hitbox.enabled = value;
@@ -611,6 +686,10 @@ class PlayState extends MusicBeatState
 		countdownSounds = true;
 		
 		instance = this;
+		
+		#if mobile
+		setupArrowsMode();
+		#end
 		
 		traceCheck = #if debug true #else false #end || #if VERBOSE_LOGS true #else false #end || ClientPrefs.inDevMode;
 		
@@ -769,6 +848,9 @@ class PlayState extends MusicBeatState
 		meta = SongMeta.getFromSong();
 		
 		modManager = new ModManager(this);
+		#if mobile
+		modManager.arrowsLayout = arrowsMode;
+		#end
 		
 		camFollow = new FlxObject(camPos.x, camPos.y, 1, 1);
 		add(camFollow);
@@ -1023,6 +1105,10 @@ class PlayState extends MusicBeatState
 		modManager.registerDefaultModifiers();
 		modManager.registerScriptedModifiers();
 		modifiersRegistered = true;
+		
+		#if mobile
+		applyArrowsModifiers();
+		#end
 		
 		scripts.call('postModifierRegister');
 	}
@@ -1757,6 +1843,10 @@ class PlayState extends MusicBeatState
 	
 	override public function update(elapsed:Float):Void
 	{
+		#if mobile
+		updateArrowsHitbox();
+		#end
+
 		if (cameraLerping && !inCutscene) FlxG.camera.followLerp = (.04 * cameraSpeed);
 		
 		if (generatedMusic && !endingSong && !isCameraOnForcedPos) moveCameraSection();
@@ -2958,6 +3048,10 @@ class PlayState extends MusicBeatState
 	override function destroy()
 	{
 		instance = null;
+		
+		#if mobile
+		restoreArrowsMode();
+		#end
 		
 		scripts.call('onDestroy', [], true);
 		

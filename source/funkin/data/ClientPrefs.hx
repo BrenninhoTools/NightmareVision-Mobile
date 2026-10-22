@@ -65,6 +65,8 @@ class ClientPrefs
 	@saveVar public static var hideHud:Bool = false;
 	
 	// mobile ------------------------------------------------------------------------//
+	@saveVar public static var hitboxMode:String = 'Four Lanes';
+	
 	@saveVar public static var invisibleHitbox:Bool = false;
 	
 	@saveVar public static var invisiblePauseButton:Bool = false;

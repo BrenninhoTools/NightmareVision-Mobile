@@ -71,6 +71,8 @@ class ClientPrefs
 	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
+	@saveVar public static var chartEditorInPause:Bool = true;
+	
 	@saveVar public static var touchCursor:Bool = false;
 	
 	@saveVar public static var haptics:Bool = true;

@@ -86,8 +86,19 @@ class ChartConverterState extends MusicBeatState
 		
 		if (canSelect)
 		{
+			var touchBlocksAccept = false;
+			
+			#if mobile
+			final tapped = funkin.mobile.TouchUtil.getMenuTap(cast txtGroup.members);
+			if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+			{
+				touchBlocksAccept = tapped != curSelection;
+				if (tapped >= 0 && tapped != curSelection) changeSel(tapped - curSelection);
+			}
+			#end
+			
 			if (controls.UI_DOWN_P || controls.UI_UP_P) changeSel(controls.UI_DOWN_P ? 1 : -1);
-			if (controls.ACCEPT) accept();
+			if (controls.ACCEPT && !touchBlocksAccept) accept();
 			if (controls.BACK)
 			{
 				canSelect = false;
@@ -280,6 +291,11 @@ class ChartConverterState extends MusicBeatState
 		final saveResult = nmvChart.save(path.replace('.json', '-converted.json'));
 		if (saveResult == null) throw "failed to save.";
 		Logger.log('Successfuly saved chart at ${saveResult.dataPath}', NOTICE, true);
+		
+		#if mobile
+		final savedPath:String = saveResult.dataPath;
+		if (savedPath != null && FileSystem.exists(savedPath)) FileUtil.saveFile(File.getContent(savedPath), haxe.io.Path.withoutDirectory(savedPath));
+		#end
 	}
 	
 	override function destroy()

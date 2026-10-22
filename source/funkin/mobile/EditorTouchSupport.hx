@@ -7,7 +7,7 @@ class EditorTouchSupport
 {
 	public static final EDITOR_PACKAGE:String = 'funkin.states.editors.';
 	
-	public static final MENU_ONLY:Array<String> = ['funkin.states.editors.MasterEditorMenu'];
+	public static final MENU_ONLY:Array<String> = ['funkin.states.editors.MasterEditorMenu', 'funkin.states.editors.ChartConverterState'];
 	
 	public static var enabled:Bool = true;
 	

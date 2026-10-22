@@ -77,6 +77,10 @@ class PauseSubState extends MusicBeatSubstate
 			menuItemsOG.insert(shit + num, 'Toggle Botplay');
 			// menuItemsOG.insert(shit + num, 'Hawk Tuah Respect Button -->');
 		}
+		#if mobile
+		if (ClientPrefs.chartEditorInPause && !menuItemsOG.contains('Chart Editor')) menuItemsOG.insert(menuItemsOG.indexOf('Restart Song') + 1, 'Chart Editor');
+		#end
+		
 		menuItems = menuItemsOG;
 		
 		for (i in 0...Difficulty.difficulties.length)
@@ -307,6 +311,8 @@ class PauseSubState extends MusicBeatSubstate
 					practiceText.visible = PlayState.instance.practiceMode;
 				case "Restart Song":
 					restartSong();
+				case "Chart Editor":
+					openChartEditor();
 				case "Leave Charting Mode":
 					restartSong();
 					PlayState.chartingMode = false;
@@ -353,6 +359,15 @@ class PauseSubState extends MusicBeatSubstate
 			PlayState.changedDifficulty = false;
 			PlayState.chartingMode = false;
 		}
+	}
+	
+	public function openChartEditor()
+	{
+		if (scriptGroup.call('onChartEditor', []) == ScriptConstants.STOP_FUNC) return;
+		
+		PlayState.instance.audio.volume = 0;
+		FlxG.sound.music.volume = 0;
+		@:privateAccess PlayState.instance.openChartEditor();
 	}
 	
 	public function toOptions()

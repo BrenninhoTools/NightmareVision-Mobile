@@ -42,6 +42,9 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		var option:Option = new Option('Invisible Pause Button', 'If checked, the pause button is hidden during songs,\nbut tapping its corner still pauses.', 'invisiblePauseButton', BOOL, false);
 		addOption(option);
 		
+		var option:Option = new Option('Chart Editor in Pause', 'If checked, the pause menu shows a Chart Editor option\nthat opens the current song in the chart editor.', 'chartEditorInPause', BOOL, true);
+		addOption(option);
+		
 		var option:Option = new Option('Touch Cursor', 'If checked, a red cursor shows where your fingers\ntouch the screen.', 'touchCursor', BOOL, false);
 		addOption(option);
 		

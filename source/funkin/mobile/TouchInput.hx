@@ -59,9 +59,9 @@ class TouchInput
 
 	public static var swipeDistance:Float = 95;
 
-	public static var tapDistance:Float = 28;
+	public static var tapDistance:Float = 36;
 
-	public static var tapTime:Float = 300;
+	public static var tapTime:Float = 450;
 
 	public static var holdRepeat:Bool = true;
 

@@ -377,6 +377,11 @@ class FunkinScript extends IrisEx implements IFlxDestroyable
 		
 		set('inGameOver', false);
 		
+		set('Mobile', funkin.mobile.MobileScript);
+		set('TouchButton', funkin.mobile.TouchButton);
+		set('Hitbox', funkin.mobile.Hitbox);
+		set('VirtualPad', funkin.mobile.VirtualPad);
+		
 		set("game", FlxG.state);
 		
 		if ((FlxG.state is PlayState))

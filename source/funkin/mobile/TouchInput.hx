@@ -341,7 +341,11 @@ class TouchInput
 		if (touch.justPressed || quick)
 		{
 			final primary = primaryId == -1;
-			if (primary) primaryId = id;
+			if (primary)
+			{
+				primaryId = id;
+				touchPosition.set(touch.gameX, touch.gameY);
+			}
 
 			gestures.set(id,
 				{

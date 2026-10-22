@@ -8,6 +8,7 @@ import flixel.FlxCamera;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.tweens.FlxTween;
 import flixel.util.FlxColor;
+import flixel.util.FlxSignal.FlxTypedSignal;
 
 class Hitbox extends FlxTypedGroup<TouchButton>
 {
@@ -19,11 +20,28 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 
 	public var enabled(default, set):Bool = true;
 
+	public var colors(default, null):Array<FlxColor>;
+
+	public var lanePressedAlpha:Float = pressedAlpha;
+
+	public var idleAlpha(default, set):Float = 0;
+
+	public var forceVisible:Null<Bool> = null;
+
+	public final onLaneDown:FlxTypedSignal<Int->Void> = new FlxTypedSignal<Int->Void>();
+
+	public final onLaneUp:FlxTypedSignal<Int->Void> = new FlxTypedSignal<Int->Void>();
+
 	final fades:Map<TouchButton, FlxTween> = [];
 
-	public function new(actions:Array<String>)
+	final actions:Array<String>;
+
+	public function new(actions:Array<String>, ?colors:Array<FlxColor>)
 	{
 		super();
+
+		this.actions = actions;
+		this.colors = colors != null && colors.length > 0 ? colors.copy() : COLORS.copy();
 
 		final laneWidth = Math.floor(FlxG.width / actions.length);
 
@@ -34,21 +52,29 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 			final lane = new TouchButton(laneWidth * i, 0, [action], 0);
 			lane.blocksGestures = true;
 			lane.haptic = false;
-			lane.loadGraphic(createLaneGraphic(width, FlxG.height, COLORS[i % COLORS.length]));
+			lane.ID = i;
+			lane.loadGraphic(createLaneGraphic(width, FlxG.height, getColor(i)));
 			lane.alpha = 0;
 
 			lane.onDown.add(() -> {
 				fades.get(lane)?.cancel();
-				lane.alpha = ClientPrefs.invisibleHitbox ? 0 : pressedAlpha;
+				lane.alpha = isHidden() ? 0 : lanePressedAlpha;
+				onLaneDown.dispatch(lane.ID);
 			});
 
 			lane.onUp.add(() -> {
 				fades.get(lane)?.cancel();
-				fades.set(lane, FlxTween.tween(lane, {alpha: 0}, releaseDuration));
+				fades.set(lane, FlxTween.tween(lane, {alpha: isHidden() ? 0 : idleAlpha}, releaseDuration));
+				onLaneUp.dispatch(lane.ID);
 			});
 
 			add(lane);
 		}
+	}
+
+	public function isHidden():Bool
+	{
+		return forceVisible != null ? !forceVisible : ClientPrefs.invisibleHitbox;
 	}
 
 	public function setCamera(camera:FlxCamera):Hitbox
@@ -57,6 +83,77 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 			lane.cameras = [camera];
 
 		return this;
+	}
+
+	public function getLane(index:Int):Null<TouchButton>
+	{
+		return index >= 0 && index < members.length ? members[index] : null;
+	}
+
+	public function setLaneColor(index:Int, color:FlxColor):Void
+	{
+		final lane = getLane(index);
+		if (lane == null) return;
+
+		while (colors.length <= index)
+			colors.push(COLORS[colors.length % COLORS.length]);
+		colors[index] = color;
+
+		lane.loadGraphic(createLaneGraphic(Std.int(lane.width), Std.int(lane.height), color));
+	}
+
+	public function setColors(newColors:Array<FlxColor>):Void
+	{
+		for (index in 0...members.length)
+			if (index < newColors.length) setLaneColor(index, newColors[index]);
+	}
+
+	public function setLaneBounds(index:Int, x:Float, y:Float, width:Float, height:Float):Void
+	{
+		final lane = getLane(index);
+		if (lane == null || width < 1 || height < 1) return;
+
+		lane.loadGraphic(createLaneGraphic(Std.int(width), Std.int(height), getColor(index)));
+		lane.setPosition(x, y);
+		lane.updateHitbox();
+	}
+
+	public function setLaneActions(index:Int, laneActions:Array<String>):Void
+	{
+		final lane = getLane(index);
+		if (lane != null) lane.actions = laneActions;
+	}
+
+	public function resetLayout():Void
+	{
+		final laneWidth = Math.floor(FlxG.width / members.length);
+
+		for (index => lane in members)
+		{
+			final width = index == members.length - 1 ? FlxG.width - laneWidth * index : laneWidth;
+			setLaneBounds(index, laneWidth * index, 0, width, FlxG.height);
+			lane.actions = [actions[index]];
+		}
+	}
+
+	public function isLanePressed(index:Int):Bool
+	{
+		return getLane(index)?.touchPressed ?? false;
+	}
+
+	function getColor(index:Int):FlxColor
+	{
+		return colors[index % colors.length];
+	}
+
+	function set_idleAlpha(value:Float):Float
+	{
+		idleAlpha = Math.max(0, Math.min(1, value));
+
+		for (lane in members)
+			if (!lane.touchPressed) lane.alpha = isHidden() ? 0 : idleAlpha;
+
+		return idleAlpha;
 	}
 
 	function set_enabled(value:Bool):Bool
@@ -69,6 +166,10 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 			{
 				fades.get(lane)?.cancel();
 				lane.alpha = 0;
+			}
+			else if (!lane.touchPressed)
+			{
+				lane.alpha = isHidden() ? 0 : idleAlpha;
 			}
 		}
 
@@ -102,6 +203,9 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		for (tween in fades)
 			tween?.cancel();
 		fades.clear();
+
+		onLaneDown.removeAll();
+		onLaneUp.removeAll();
 
 		super.destroy();
 	}

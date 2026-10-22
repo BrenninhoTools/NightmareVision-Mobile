@@ -134,6 +134,16 @@ class MusicBeatState extends FlxUIState
 		}
 		else if (PlayState.SONG != null) rollbackSection();
 		
+		#if mobile
+		funkin.mobile.MobileScript.dispatch(scriptGroup);
+		if (Std.isOfType(this, PlayState))
+		{
+			final playState:PlayState = cast this;
+			if (playState.scripts != scriptGroup) funkin.mobile.MobileScript.dispatch(playState.scripts);
+		}
+		funkin.mobile.MobileScript.endDispatch();
+		#end
+		
 		final scriptArgs = [elapsed];
 		scriptGroup.call('onUpdate', scriptArgs);
 		super.update(elapsed);

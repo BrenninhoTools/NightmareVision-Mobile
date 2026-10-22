@@ -147,10 +147,14 @@ class FreeplayState extends MusicBeatState
 		textBG.alpha = 0.6;
 		add(textBG);
 		
+		#if mobile
+		final leText:String = "Tap a song to select it, tap it again to play / Swipe up or down to scroll / Swipe left or right to change difficulty.";
+		#else
 		final leText:String = "Press SPACE to listen to the Song / Press CTRL to open the Gameplay Changers Menu / Press RESET to Reset your Score and Accuracy.";
+		#end
 		final size:Int = 16;
 		
-		var text:FlxText = new FlxText(textBG.x, textBG.y + 4, FlxG.width - funkin.mobile.ScreenStyle.safeRight, leText, size);
+		var text:FlxText = new FlxText(textBG.x, textBG.y + 4, FlxG.width - 6, leText, size);
 		text.setFormat(Paths.DEFAULT_FONT, size, FlxColor.WHITE, RIGHT);
 		text.scrollFactor.set();
 		add(text);
@@ -769,8 +773,7 @@ class FreeplayState extends MusicBeatState
 	private function positionHighscore()
 	{
 		scoreBG.scale.x = scoreText.textField.textWidth + 12 + 6;
-		scoreText.x = -funkin.mobile.ScreenStyle.safeRight;
-		scoreBG.x = FlxG.width - funkin.mobile.ScreenStyle.safeRight - (scoreBG.scale.x / 2);
+		scoreBG.x = FlxG.width - (scoreBG.scale.x / 2);
 		diffText.x = Std.int(scoreBG.x + (scoreBG.width / 2));
 		diffText.x -= diffText.textField.textWidth / 2;
 		tabText.x = Std.int(scoreBG.x + (scoreBG.width / 2));

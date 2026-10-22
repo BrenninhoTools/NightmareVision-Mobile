@@ -21,6 +21,8 @@ class ScreenStyle
 
 	static var initialized:Bool = false;
 
+	static final covered:Array<FlxSprite> = [];
+
 	public static var isFull(get, never):Bool;
 
 	public static var contentOffset(get, never):Float;
@@ -32,6 +34,8 @@ class ScreenStyle
 		initialized = true;
 
 		FlxG.signals.postStateSwitch.add(onStateSwitch);
+		FlxG.signals.preStateSwitch.add(() -> covered.resize(0));
+		FlxG.signals.postUpdate.add(keepCovered);
 		FlxG.stage.addEventListener(openfl.events.Event.RESIZE, (_) -> refreshLayout());
 		FlxG.signals.gameResized.add((_, _) -> refreshLayout());
 
@@ -99,7 +103,11 @@ class ScreenStyle
 			if (Std.isOfType(member, FlxSprite))
 			{
 				final sprite:FlxSprite = cast member;
-				if (isBackground(sprite)) cover(sprite);
+				if (isBackground(sprite))
+				{
+					cover(sprite);
+					if (!covered.contains(sprite)) covered.push(sprite);
+				}
 			}
 		}
 	}
@@ -109,11 +117,40 @@ class ScreenStyle
 		if (sprite == null || sprite.width <= 0) return;
 
 		final factor = Math.max(FlxG.width / sprite.width, FlxG.height / sprite.height);
-		if (factor <= 1) return;
 
-		sprite.scale.set(sprite.scale.x * factor, sprite.scale.y * factor);
-		sprite.updateHitbox();
-		sprite.screenCenter();
+		if (factor > 1)
+		{
+			sprite.scale.set(sprite.scale.x * factor, sprite.scale.y * factor);
+			sprite.updateHitbox();
+			sprite.screenCenter();
+			return;
+		}
+
+		if (sprite.x > 0 || sprite.x + sprite.width < FlxG.width) sprite.screenCenter(X);
+	}
+
+	static function keepCovered():Void
+	{
+		if (covered.length == 0) return;
+
+		if (!isFull || FlxG.width <= FlxG.initialWidth)
+		{
+			covered.resize(0);
+			return;
+		}
+
+		var index = covered.length;
+		while (index-- > 0)
+		{
+			final sprite = covered[index];
+			if (sprite == null || !sprite.exists || sprite.graphic == null)
+			{
+				covered.splice(index, 1);
+				continue;
+			}
+
+			if (sprite.width < FlxG.width - 1 || sprite.x > 0.5 || sprite.x + sprite.width < FlxG.width - 0.5) cover(sprite);
+		}
 	}
 
 	static function isBackground(sprite:FlxSprite):Bool
@@ -125,9 +162,12 @@ class ScreenStyle
 
 		if (sprite.width < initialWidth * 0.95 || sprite.width >= FlxG.width) return false;
 		if (sprite.height < initialHeight * 0.9) return false;
-		if (sprite.x > initialWidth * 0.05 || sprite.x + sprite.width < initialWidth * 0.95) return false;
 
-		return true;
+		final tolerance = initialWidth * 0.05;
+		final leftAligned = sprite.x <= tolerance && sprite.x + sprite.width >= initialWidth - tolerance;
+		final centered = Math.abs(sprite.x + sprite.width / 2 - FlxG.width / 2) <= tolerance;
+
+		return leftAligned || centered;
 	}
 
 	static function onStateSwitch():Void

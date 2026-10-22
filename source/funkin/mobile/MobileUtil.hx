@@ -20,6 +20,26 @@ class MobileUtil
 	
 	public static var optionsScale:Float = 0.55;
 
+	public static function leftEdge():Float
+	{
+		return BUTTON_MARGIN + ScreenStyle.safeLeft;
+	}
+	
+	public static function rightEdge():Float
+	{
+		return FlxG.width - BUTTON_MARGIN - ScreenStyle.safeRight;
+	}
+	
+	public static function topEdge():Float
+	{
+		return BUTTON_MARGIN + ScreenStyle.safeTop;
+	}
+	
+	public static function bottomEdge():Float
+	{
+		return FlxG.height - BUTTON_MARGIN - ScreenStyle.safeBottom;
+	}
+	
 	public static function createCamera():FlxCamera
 	{
 		final camera = new FlxCamera();
@@ -42,14 +62,14 @@ class MobileUtil
 	{
 		final button = createButton('backButton', 'back', ['back'], backScale, camera);
 		button.persistent = true;
-		button.setPosition(FlxG.width - button.width - BUTTON_MARGIN, FlxG.height - button.height - BUTTON_MARGIN);
+		button.setPosition(rightEdge() - button.width, bottomEdge() - button.height);
 		return button;
 	}
 
 	public static function createPauseButton(?camera:FlxCamera):TouchButton
 	{
 		final button = createButton('pauseButton', 'pause', ['pause'], pauseScale, camera);
-		button.setPosition(FlxG.width - button.width - BUTTON_MARGIN, BUTTON_MARGIN);
+		button.setPosition(rightEdge() - button.width, topEdge());
 		return button;
 	}
 
@@ -60,8 +80,8 @@ class MobileUtil
 		final left = createButton('arrowLeftButton', 'arrowLeft', [], arrowScale, camera);
 		final right = createButton('arrowRightButton', 'arrowRight', [], arrowScale, camera);
 
-		final edge = rightEdge ?? FlxG.width - BUTTON_MARGIN;
-		final base = bottom ?? FlxG.height - BUTTON_MARGIN;
+		final edge = rightEdge ?? MobileUtil.rightEdge();
+		final base = bottom ?? bottomEdge();
 
 		right.setPosition(edge - right.width, base - right.height);
 		left.setPosition(right.x - BUTTON_SPACING - left.width, base - left.height);

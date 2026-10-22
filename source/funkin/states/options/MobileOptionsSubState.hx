@@ -8,6 +8,20 @@ import funkin.mobile.RestartPrompt;
 
 class MobileOptionsSubState extends BaseOptionsMenu
 {
+	#if mobile
+	var startScreenStyle:String = '';
+	
+	function applyScreenStyle():Bool
+	{
+		if (ClientPrefs.screenStyle == startScreenStyle) return false;
+		
+		startScreenStyle = ClientPrefs.screenStyle;
+		ClientPrefs.flush();
+		funkin.mobile.ScreenStyle.apply(true);
+		return true;
+	}
+	#end
+	
 	#if android
 	var closeAfterPrompt:Bool = false;
 	
@@ -36,6 +50,13 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.decimals = 1;
 		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
+		
+		#if mobile
+		startScreenStyle = ClientPrefs.screenStyle;
+		
+		var option:Option = new Option('Screen Style', 'Original: the classic 16:9 screen with black bars.\nFull: uses the whole screen without stretching. Applies when you leave this menu.', 'screenStyle', STRING, 'Original', funkin.mobile.ScreenStyle.STYLES);
+		addOption(option);
+		#end
 		
 		#if android
 		ClientPrefs.storageType = StorageUtil.getStorageType();
@@ -66,7 +87,7 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		if (closeAfterPrompt && subState == null)
 		{
 			closeAfterPrompt = false;
-			super.close();
+			finishClose();
 			return;
 		}
 		
@@ -77,7 +98,7 @@ class MobileOptionsSubState extends BaseOptionsMenu
 	{
 		if (prompted || !StorageUtil.needsRestart())
 		{
-			super.close();
+			finishClose();
 			return;
 		}
 		
@@ -88,6 +109,19 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		final text = available ? 'Restart now to move the game\nfiles to $type storage?' : '$type storage is not available yet.\nGrant the storage permission and restart,\nor the game will keep using ${StorageUtil.getActiveStorageType()}.';
 		
 		openSubState(new RestartPrompt(text, StorageUtil.restartApp, () -> closeAfterPrompt = true));
+	}
+	#elseif mobile
+	override function close()
+	{
+		finishClose();
+	}
+	#end
+	
+	#if mobile
+	function finishClose():Void
+	{
+		super.close();
+		applyScreenStyle();
 	}
 	#end
 }

@@ -49,6 +49,9 @@ class BaseOptionsMenu extends MusicBeatSubstate
 		bg = new FlxSprite().loadGraphic(Paths.image('menus/menuDesat'));
 		bg.color = 0xFFea71fd;
 		bg.screenCenter();
+		#if mobile
+		funkin.mobile.ScreenStyle.cover(bg);
+		#end
 		add(bg);
 		
 		// avoids lagspikes while scrolling through menus!
@@ -71,7 +74,7 @@ class BaseOptionsMenu extends MusicBeatSubstate
 		titleText.alpha = 0.4;
 		add(titleText);
 		
-		descText = new FlxText(50, 600, 1180, "", 32);
+		descText = new FlxText(50, 600, FlxG.width - 100, "", 32);
 		descText.setFormat(Paths.DEFAULT_FONT, 32, FlxColor.WHITE, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		descText.scrollFactor.set();
 		descText.borderSize = 2.4;

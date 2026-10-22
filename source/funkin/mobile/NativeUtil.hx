@@ -19,6 +19,7 @@ extern "C" const char *nmv_native_saved_name();
 extern "C" void nmv_native_reset_save();
 extern "C" long long nmv_native_free_space();
 extern "C" int nmv_native_external_input();
+extern "C" const char *nmv_native_safe_insets();
 ')
 #end
 @:build(funkin.mobile.NativeMacro.build())
@@ -106,6 +107,33 @@ class NativeUtil
 		#if ios
 		untyped __cpp__('nmv_native_exclude_from_backup({0}.utf8_str())', path);
 		#end
+	}
+	
+	public static function setScreenStyle(full:Bool):Void
+	{
+		#if android
+		final func = jni('setScreenStyle', '(Z)V');
+		if (func != null) func(full);
+		#end
+	}
+	
+	public static function getSafeInsets():Array<Float>
+	{
+		#if android
+		final func = jni('getSafeInsets', '()Ljava/lang/String;');
+		final raw:Null<String> = func != null ? func() : null;
+		#elseif ios
+		final raw:String = untyped __cpp__('::String::create(nmv_native_safe_insets())');
+		#else
+		final raw:Null<String> = null;
+		#end
+		
+		if (raw == null) return [0, 0, 0, 0];
+		
+		final parts = raw.split(',');
+		if (parts.length < 4) return [0, 0, 0, 0];
+		
+		return [for (part in parts.slice(0, 4)) Math.max(0, Std.parseFloat(part))];
 	}
 	
 	public static function getExternalInput():Int

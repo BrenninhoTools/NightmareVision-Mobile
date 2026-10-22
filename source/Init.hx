@@ -67,6 +67,10 @@ FlxG.plugins.drawOnTop = true;
 		FlxG.scaleMode = new funkin.backend.FunkinRatioScaleMode();
 		FlxG.signals.preStateSwitch.add((cast FlxG.scaleMode : funkin.backend.FunkinRatioScaleMode).resetSize);
 		
+		#if mobile
+		funkin.mobile.ScreenStyle.init();
+		#end
+		
 		step('music');
 		FlxG.sound.music = new extensions.flixel.FlxSoundEx();
 		FlxG.sound.music.persist = true;

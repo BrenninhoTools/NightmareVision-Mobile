@@ -1,5 +1,6 @@
 package funkin.states;
 
+import flixel.FlxObject;
 import flixel.text.FlxText;
 
 import funkin.scripting.ScriptedState;
@@ -91,6 +92,13 @@ class ModsState extends MusicBeatState
 		
 		add(new FlxSprite().loadGraphic(Paths.image("menus/mods/menuborder1")));
 		add(new FlxSprite(685, 645).loadGraphic(Paths.image("menus/mods/menuborder2")));
+		
+		final pad = (FlxG.width - FlxG.initialWidth) / 2;
+		if (pad > 0)
+		{
+			for (member in members)
+				if (member != bg && Std.isOfType(member, FlxObject)) (cast member : FlxObject).x += pad;
+		}
 		
 		#if mobile
 		hintText = new FlxText(txtbox.x + txtbox.width + 20, FlxG.height - 110, FlxG.width - txtbox.x - txtbox.width - 220, '', 18);

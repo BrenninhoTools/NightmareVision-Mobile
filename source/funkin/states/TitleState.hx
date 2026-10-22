@@ -81,20 +81,20 @@ class TitleState extends MusicBeatState
 		{
 			swagShader = new ColorSwap();
 			
-			logo = new FlxSprite(-150, -100).loadAtlasFrames(Paths.getAtlasFrames('menus/title/logoBumpin'));
+			logo = new FlxSprite(-150 + (FlxG.width - FlxG.initialWidth) / 2, -100).loadAtlasFrames(Paths.getAtlasFrames('menus/title/logoBumpin'));
 			logo.animation.addByPrefix('bump', 'logo bumpin', 24, false);
 			logo.animation.play('bump');
 			logo.updateHitbox();
 			add(logo);
 			logo.shader = swagShader.shader;
 			
-			gfDance = new FlxSprite(512, 40).loadAtlasFrames(Paths.getAtlasFrames('menus/title/gfDanceTitle'));
+			gfDance = new FlxSprite(512 + (FlxG.width - FlxG.initialWidth) / 2, 40).loadAtlasFrames(Paths.getAtlasFrames('menus/title/gfDanceTitle'));
 			gfDance.animation.addByIndices('danceLeft', 'gfDance', [30, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14], "", 24, false);
 			gfDance.animation.addByIndices('danceRight', 'gfDance', [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29], "", 24, false);
 			add(gfDance);
 			gfDance.shader = swagShader.shader;
 			
-			titleText = new FlxSprite(100, 576).loadAtlasFrames(Paths.getAtlasFrames('menus/title/titleEnter'));
+			titleText = new FlxSprite(100 + (FlxG.width - FlxG.initialWidth) / 2, 576).loadAtlasFrames(Paths.getAtlasFrames('menus/title/titleEnter'));
 			titleText.animation.addByPrefix('idle', "Press Enter to Begin", 24);
 			titleText.animation.addByPrefix('press', "ENTER PRESSED", 24);
 			titleText.animation.play('idle');

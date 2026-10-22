@@ -226,9 +226,9 @@ class ModManager implements IFlxDestroyable
 		return switch (player)
 		{
 			case 0:
-				(FlxG.width - Note.swagWidth * (keys / 2) - 100 - 3);
+				(FlxG.width - Note.swagWidth * (keys / 2) - 100 - 3 - funkin.mobile.ScreenStyle.safeRight);
 			case 1:
-				(Note.swagWidth * (keys / 2) + 100 - 3);
+				(Note.swagWidth * (keys / 2) + 100 - 3 + funkin.mobile.ScreenStyle.safeLeft);
 			default:
 				(FlxG.width * 0.5 - 3);
 		}

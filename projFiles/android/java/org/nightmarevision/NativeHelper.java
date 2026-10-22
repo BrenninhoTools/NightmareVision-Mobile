@@ -10,7 +10,11 @@ import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.OpenableColumns;
+import android.util.DisplayMetrics;
+import android.view.DisplayCutout;
 import android.view.InputDevice;
+import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
@@ -103,6 +107,103 @@ public class NativeHelper extends Extension
 			}
 		}
 		catch (Throwable e) {}
+	}
+
+	private static volatile String safeInsets = "0,0,0,0";
+
+	public static void setScreenStyle(final boolean full)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null) return;
+
+		activity.runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				try
+				{
+					if (Build.VERSION.SDK_INT >= 28)
+					{
+						WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+						params.layoutInDisplayCutoutMode = full ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER;
+						activity.getWindow().setAttributes(params);
+					}
+
+					View decor = activity.getWindow().getDecorView();
+					decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+						| View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+
+					updateSafeInsets(activity);
+					decor.post(new Runnable()
+					{
+						@Override
+						public void run()
+						{
+							updateSafeInsets(activity);
+						}
+					});
+				}
+				catch (Throwable e) {}
+			}
+		});
+	}
+
+	private static void updateSafeInsets(Activity activity)
+	{
+		try
+		{
+			if (Build.VERSION.SDK_INT < 28)
+			{
+				safeInsets = "0,0,0,0";
+				return;
+			}
+
+			WindowInsets insets = activity.getWindow().getDecorView().getRootWindowInsets();
+			DisplayCutout cutout = insets != null ? insets.getDisplayCutout() : null;
+
+			if (cutout == null) safeInsets = "0,0,0,0";
+			else safeInsets = cutout.getSafeInsetLeft() + "," + cutout.getSafeInsetTop() + "," + cutout.getSafeInsetRight() + "," + cutout.getSafeInsetBottom();
+		}
+		catch (Throwable e)
+		{
+			safeInsets = "0,0,0,0";
+		}
+	}
+
+	public static String getSafeInsets()
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity != null)
+		{
+			activity.runOnUiThread(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					updateSafeInsets(activity);
+				}
+			});
+		}
+
+		return safeInsets;
+	}
+
+	public static String getDisplaySize()
+	{
+		try
+		{
+			Activity activity = Extension.mainActivity;
+			if (activity == null) return "0,0";
+
+			DisplayMetrics metrics = new DisplayMetrics();
+			activity.getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+			return metrics.widthPixels + "," + metrics.heightPixels;
+		}
+		catch (Throwable e)
+		{
+			return "0,0";
+		}
 	}
 
 	public static int getExternalInput()

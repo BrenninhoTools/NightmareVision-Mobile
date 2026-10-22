@@ -9,6 +9,11 @@ class FunkinRatioScaleMode extends RatioScaleMode
 	
 	public override function updateGameSize(Width:Int, Height:Int):Void
 	{
+		#if mobile
+		lastWindowWidth = Width;
+		lastWindowHeight = Height;
+		#end
+		
 		var ratio:Float = width / height;
 		var realRatio:Float = Width / Height;
 		
@@ -50,7 +55,21 @@ class FunkinRatioScaleMode extends RatioScaleMode
 		height = null;
 	}
 	
-	private inline function get_width():Null<Int> return this.width == null ? FlxG.initialWidth : this.width;
+	#if mobile
+	var lastWindowWidth:Int = 0;
+	
+	var lastWindowHeight:Int = 0;
+	#end
+	
+	private function get_width():Null<Int>
+	{
+		if (this.width != null) return this.width;
+		#if mobile
+		final stage = FlxG.stage;
+		if (stage != null) return funkin.mobile.ScreenStyle.getGameWidth(lastWindowWidth > 0 ? lastWindowWidth : stage.stageWidth, lastWindowHeight > 0 ? lastWindowHeight : stage.stageHeight);
+		#end
+		return FlxG.initialWidth;
+	}
 	
 	private inline function get_height():Null<Int> return this.height == null ? FlxG.initialHeight : this.height;
 	

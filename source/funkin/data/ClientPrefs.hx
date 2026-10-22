@@ -73,6 +73,8 @@ class ClientPrefs
 	
 	@saveVar public static var hapticsIntensity:Float = 0.6;
 	
+	@saveVar public static var screenStyle:String = 'Original';
+	
 	@saveVar public static var storageType:String = 'Media';
 
 	@saveVar public static var showRatings:Bool = true;

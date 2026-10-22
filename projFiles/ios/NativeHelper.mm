@@ -202,6 +202,27 @@ extern "C" void nmv_native_vibrate_intensity(int milliseconds, double intensity)
 	});
 }
 
+static std::string nmvInsetsBuffer;
+
+extern "C" const char *nmv_native_safe_insets()
+{
+	__block UIEdgeInsets insets = UIEdgeInsetsZero;
+	__block CGFloat scale = 1;
+
+	void (^read)(void) = ^{
+		UIViewController *controller = nmvTopController();
+		UIView *view = controller.view.window != nil ? (UIView *)controller.view.window : controller.view;
+		if (view != nil) insets = view.safeAreaInsets;
+		scale = [UIScreen mainScreen].nativeScale;
+	};
+
+	if ([NSThread isMainThread]) read();
+	else dispatch_sync(dispatch_get_main_queue(), read);
+
+	nmvInsetsBuffer = std::to_string((int)(insets.left * scale)) + "," + std::to_string((int)(insets.top * scale)) + "," + std::to_string((int)(insets.right * scale)) + "," + std::to_string((int)(insets.bottom * scale));
+	return nmvInsetsBuffer.c_str();
+}
+
 extern "C" int nmv_native_external_input()
 {
 	int result = 0;

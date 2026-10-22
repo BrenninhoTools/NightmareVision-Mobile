@@ -99,7 +99,7 @@ class OptionsState extends MusicBeatState
 		add(funkin.mobile.MobileUtil.createBackButton(mobileCamera));
 		
 		mobileOptionsButton = funkin.mobile.MobileUtil.createButton('mobileOptionsButton', 'mobileOptions', [], funkin.mobile.MobileUtil.optionsScale, mobileCamera);
-		mobileOptionsButton.setPosition(FlxG.width - mobileOptionsButton.width - funkin.mobile.MobileUtil.BUTTON_MARGIN, funkin.mobile.MobileUtil.BUTTON_MARGIN);
+		mobileOptionsButton.setPosition(funkin.mobile.MobileUtil.rightEdge() - mobileOptionsButton.width, funkin.mobile.MobileUtil.topEdge());
 		add(mobileOptionsButton);
 		#end
 		

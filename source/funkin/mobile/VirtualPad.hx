@@ -208,14 +208,16 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 
 		final size = buttonSize;
 		final step = size + gap;
-		final bottom = FlxG.height - margin - size;
+		final bottom = FlxG.height - margin - size - ScreenStyle.safeBottom;
+		final left = margin + ScreenStyle.safeLeft;
+		final right = FlxG.width - margin - ScreenStyle.safeRight;
 
 		if (dpad.length >= 4)
 		{
-			addButton(margin + step, bottom - step * 2, dpad[0]);
-			addButton(margin, bottom - step, dpad[1]);
-			addButton(margin + step * 2, bottom - step, dpad[2]);
-			addButton(margin + step, bottom, dpad[3]);
+			addButton(left + step, bottom - step * 2, dpad[0]);
+			addButton(left, bottom - step, dpad[1]);
+			addButton(left + step * 2, bottom - step, dpad[2]);
+			addButton(left + step, bottom, dpad[3]);
 		}
 
 		for (rowIndex => row in actions)
@@ -223,12 +225,12 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 			final y = bottom - step * (actions.length - 1 - rowIndex);
 			for (columnIndex => key in row)
 			{
-				final x = FlxG.width - margin - size - step * (row.length - 1 - columnIndex);
+				final x = right - size - step * (row.length - 1 - columnIndex);
 				addButton(x, y, key);
 			}
 		}
 
-		toggleButton = new VirtualPadButton(margin, margin, Std.int(size * 0.75), {label: 'PAD', image: 'pad', key: NONE, action: () -> shown = !shown});
+		toggleButton = new VirtualPadButton(left, margin + ScreenStyle.safeTop, Std.int(size * 0.75), {label: 'PAD', image: 'pad', key: NONE, action: () -> shown = !shown});
 		toggleButton.cameras = [padCamera];
 		add(toggleButton);
 

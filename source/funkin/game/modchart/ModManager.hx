@@ -224,11 +224,15 @@ class ModManager implements IFlxDestroyable
 		return (getCenterX(player, keys) + getStrumX(direction, keys));
 	}
 	
+	public static var arrowsSpread:Float = 0.6;
+	
 	public static function getArrowsX(direction:Int, keys:Int):Float
 	{
-		final left = funkin.mobile.ScreenStyle.safeLeft;
-		final usable = FlxG.width - left - funkin.mobile.ScreenStyle.safeRight;
-		return left + usable * (direction + 0.5) / Math.max(1, keys);
+		final safeLeft = funkin.mobile.ScreenStyle.safeLeft;
+		final usable = FlxG.width - safeLeft - funkin.mobile.ScreenStyle.safeRight;
+		final span = usable * arrowsSpread;
+		final left = safeLeft + (usable - span) / 2;
+		return left + span * (direction + 0.5) / Math.max(1, keys);
 	}
 	
 	public static inline function getCenterX(player:Int, keys:Int):Float

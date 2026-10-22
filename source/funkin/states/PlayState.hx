@@ -586,7 +586,7 @@ class PlayState extends MusicBeatState
 	
 	public var arrowsMode(default, null):Bool = false;
 	
-	public static var arrowsScale:Float = 1.3;
+	public static var arrowsScale:Float = 1;
 	
 	static var savedDownScroll:Null<Bool> = null;
 	
@@ -613,7 +613,7 @@ class PlayState extends MusicBeatState
 	{
 		if (!arrowsMode || modManager == null) return;
 		
-		modManager.setValue('mini', 1 - arrowsScale, 0);
+		if (arrowsScale != 1) modManager.setValue('mini', 1 - arrowsScale, 0);
 		for (lane in 1...SONG.lanes)
 			modManager.setValue('alpha', 1, lane);
 	}

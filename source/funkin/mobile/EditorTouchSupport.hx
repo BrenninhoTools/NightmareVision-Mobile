@@ -26,6 +26,7 @@ class EditorTouchSupport
 		
 		FlxG.signals.preStateSwitch.add(onPreSwitch);
 		FlxG.signals.postStateSwitch.add(onPostSwitch);
+		FlxG.signals.postUpdate.add(onUpdate);
 	}
 	
 	public static function isEditor(state:Null<FlxState>):Bool
@@ -36,6 +37,55 @@ class EditorTouchSupport
 		return name != null && name.startsWith(EDITOR_PACKAGE);
 	}
 	
+	public static var scrollStep:Float = 28;
+
+	static var scrollAccumulator:Float = 0;
+
+	static var lastCenterY:Float = 0;
+
+	static var twoFingers:Bool = false;
+
+	static function onUpdate():Void
+	{
+		if (!inEditor || current == null || ExternalInput.active) return;
+
+		TouchInput.poll();
+
+		if (!TouchInput.pinching)
+		{
+			twoFingers = false;
+			scrollAccumulator = 0;
+			return;
+		}
+
+		final centerY = TouchInput.pinchCenter.y;
+
+		if (!twoFingers)
+		{
+			twoFingers = true;
+			lastCenterY = centerY;
+			return;
+		}
+
+		scrollAccumulator += centerY - lastCenterY;
+		lastCenterY = centerY;
+
+		while (Math.abs(scrollAccumulator) >= scrollStep)
+		{
+			final direction = scrollAccumulator > 0 ? 1 : -1;
+			scrollAccumulator -= direction * scrollStep;
+			dispatchWheel(direction);
+		}
+	}
+
+	static function dispatchWheel(delta:Int):Void
+	{
+		final stage = FlxG.stage;
+		if (stage == null) return;
+
+		stage.dispatchEvent(new openfl.events.MouseEvent(openfl.events.MouseEvent.MOUSE_WHEEL, true, false, stage.mouseX, stage.mouseY, null, false, false, false, false, delta));
+	}
+
 	static function onPreSwitch():Void
 	{
 		current = null;

@@ -371,6 +371,35 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		if (shown && pageLabel.visible) pageLabel.draw();
 	}
 
+	public var suspended(default, set):Bool = false;
+
+	function set_suspended(value:Bool):Bool
+	{
+		suspended = value;
+
+		if (value)
+		{
+			for (button in members)
+			{
+				if (button == null) continue;
+				if (button.key.toggle != true) button.releaseAll();
+				button.visible = false;
+				button.touchEnabled = false;
+			}
+			pageLabel.visible = false;
+		}
+		else
+		{
+			for (button in members)
+				if (button != null) button.touchEnabled = true;
+
+			toolbar[0].visible = true;
+			shown = shown;
+		}
+
+		return value;
+	}
+
 	public function setPage(index:Int):Void
 	{
 		page = pages.length > 0 ? FlxMath.wrap(index, 0, pages.length - 1) : 0;

@@ -2828,7 +2828,7 @@ class ChartingOptionsSubmenu extends MusicBeatSubstate
 	{
 		super();
 		
-		var bg:FlxSprite = new FlxSprite().makeGraphic(1280, 720, FlxColor.BLACK);
+		var bg:FlxSprite = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
 		bg.scrollFactor.set();
 		bg.alpha = 0.6;
 		add(bg);
@@ -2850,17 +2850,45 @@ class ChartingOptionsSubmenu extends MusicBeatSubstate
 		});
 		changeSelection();
 		cameras = [FlxG.cameras.list[FlxG.cameras.list.length - 1]];
+		
+		#if mobile
+		funkin.mobile.EditorTouchSupport.suspend();
+		add(funkin.mobile.MobileUtil.createBackButton());
+		#end
+	}
+	
+	override function destroy()
+	{
+		#if mobile
+		funkin.mobile.EditorTouchSupport.resume();
+		#end
+		
+		super.destroy();
 	}
 	
 	override public function update(elapsed:Float)
 	{
 		super.update(elapsed);
 		
-		if (FlxG.keys.justPressed.ESCAPE && canexit) close();
+		if ((FlxG.keys.justPressed.ESCAPE || controls.BACK) && canexit)
+		{
+			close();
+			return;
+		}
+		
+		var touchBlocksAccept = false;
+		#if mobile
+		final tapped = funkin.mobile.TouchUtil.getMenuTap(cast grpMenuShit.members);
+		if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+		{
+			touchBlocksAccept = tapped != curSelected;
+			if (tapped >= 0 && tapped != curSelected) changeSelection(tapped - curSelected);
+		}
+		#end
 		
 		var upP = controls.UI_UP_P;
 		var downP = controls.UI_DOWN_P;
-		var accepted = controls.ACCEPT;
+		var accepted = controls.ACCEPT && !touchBlocksAccept;
 		
 		if (upP) changeSelection(-1);
 		if (downP) changeSelection(1);

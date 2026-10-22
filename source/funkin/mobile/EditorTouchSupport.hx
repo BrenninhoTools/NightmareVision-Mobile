@@ -86,8 +86,37 @@ class EditorTouchSupport
 		stage.dispatchEvent(new openfl.events.MouseEvent(openfl.events.MouseEvent.MOUSE_WHEEL, true, false, stage.mouseX, stage.mouseY, null, false, false, false, false, delta));
 	}
 
+	static var suspendCount:Int = 0;
+
+	static var gesturesBeforeSuspend:Bool = false;
+
+	public static function suspend():Void
+	{
+		if (!inEditor) return;
+
+		if (suspendCount++ > 0) return;
+
+		gesturesBeforeSuspend = TouchInput.gesturesEnabled;
+		TouchInput.gesturesEnabled = true;
+		if (current != null) current.suspended = true;
+	}
+
+	public static function resume():Void
+	{
+		if (suspendCount <= 0) return;
+		if (--suspendCount > 0) return;
+
+		TouchInput.gesturesEnabled = gesturesBeforeSuspend;
+		if (current != null) current.suspended = false;
+	}
+
 	static function onPreSwitch():Void
 	{
+		if (suspendCount > 0)
+		{
+			suspendCount = 0;
+			TouchInput.gesturesEnabled = gesturesBeforeSuspend;
+		}
 		current = null;
 	}
 	

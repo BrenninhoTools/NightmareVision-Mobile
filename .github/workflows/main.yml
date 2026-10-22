@@ -31,6 +31,7 @@ concurrency:
 
 env:
     HAXE_VERSION: 4.3.7
+    NDK_MAJOR: 27
     NDK_VERSION: 27.2.12479018
     ANDROID_PLATFORM: 28
     LIME_HASH: 6421de16b9dfa4fb55c19f12db65d392a57585c8
@@ -44,52 +45,60 @@ env:
 jobs:
     Android:
         runs-on: ubuntu-24.04
-        timeout-minutes: 120
+        timeout-minutes: 75
 
         steps:
             - uses: actions/checkout@v7
               with:
                 submodules: true
+                fetch-depth: 1
 
             - name: Setup environment
+              timeout-minutes: 10
               run: |
+                set -euo pipefail
                 echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
                 echo "ANDROID_SDK=$ANDROID_HOME" >> "$GITHUB_ENV"
                 echo "ANDROID_SETUP=true" >> "$GITHUB_ENV"
-                echo "HXCPP_COMPILE_THREADS=$(nproc)" >> "$GITHUB_ENV"
-
-            - name: Setup Android NDK
-              run: |
-                set -euo pipefail
-                NDK="$ANDROID_HOME/ndk/$NDK_VERSION"
-                if [ ! -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" ]; then
-                  (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+                echo "HXCPP_COMPILE_THREADS=$(( $(nproc) + 1 ))" >> "$GITHUB_ENV"
+                NDK=""
+                for candidate in $(ls -d "$ANDROID_HOME"/ndk/"$NDK_MAJOR".* 2>/dev/null | sort -V -r); do
+                  if [ -x "$candidate/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" ]; then NDK="$candidate"; break; fi
+                done
+                if [ -z "$NDK" ]; then
+                  (yes || true) | timeout 600 "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+                  NDK="$ANDROID_HOME/ndk/$NDK_VERSION"
                 fi
                 test -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++"
+                echo "Using NDK $(basename "$NDK")"
+                echo "NDK_RESOLVED=$(basename "$NDK")" >> "$GITHUB_ENV"
                 echo "ANDROID_NDK_ROOT=$NDK" >> "$GITHUB_ENV"
                 echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
                 echo "ANDROID_NDK_LATEST_HOME=$NDK" >> "$GITHUB_ENV"
 
             - uses: krdlab/setup-haxe@v2.1.0
+              timeout-minutes: 10
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
 
             - name: Setup haxelib
-              run: haxelib setup ~/haxelib
+              timeout-minutes: 5
+              run: haxelib setup ~/haxelib < /dev/null
 
             - name: Restore libs
               id: libs
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
-                key: android-hxpkg-v3-${{ hashFiles('.hxpkg') }}
+                key: android-hxpkg-v4-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
               if: steps.libs.outputs.cache-hit != 'true'
+              timeout-minutes: 20
               run: |
                 set -euo pipefail
-                haxelib install hxpkg --quiet
-                haxelib run hxpkg install
+                haxelib install hxpkg --quiet --always < /dev/null
+                haxelib run hxpkg install < /dev/null
 
             - name: Save libs
               if: steps.libs.outputs.cache-hit != 'true'
@@ -103,13 +112,14 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.LIME_DIR }}
-                key: android-lime-v3-${{ env.LIME_HASH }}-${{ env.NDK_VERSION }}-${{ env.ANDROID_PLATFORM }}
+                key: android-lime-v4-${{ env.LIME_HASH }}-${{ env.NDK_RESOLVED }}-${{ env.ANDROID_PLATFORM }}
 
             - name: Install Linux dependencies
               if: steps.lime.outputs.cache-hit != 'true'
+              timeout-minutes: 10
               run: |
-                sudo apt-get update
-                sudo apt-get install -y --no-install-recommends \
+                sudo apt-get update -qq
+                sudo apt-get install -y -qq --no-install-recommends \
                   build-essential pkg-config \
                   libwayland-dev libwayland-bin wayland-protocols libxkbcommon-dev libdecor-0-dev \
                   libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev libgbm-dev libdrm-dev libvulkan-dev \
@@ -120,23 +130,25 @@ jobs:
 
             - name: Build Lime
               if: steps.lime.outputs.cache-hit != 'true'
-              timeout-minutes: 45
+              timeout-minutes: 40
               run: |
                 set -euo pipefail
                 rm -rf "$LIME_DIR"
-                git clone https://github.com/FunkinCrew/lime "$LIME_DIR"
-                git -C "$LIME_DIR" checkout "$LIME_HASH"
-                git -C "$LIME_DIR" submodule update --init --recursive --force --depth 1
-                haxelib dev lime "$LIME_DIR"
+                git init -q "$LIME_DIR"
+                git -C "$LIME_DIR" remote add origin https://github.com/FunkinCrew/lime
+                git -C "$LIME_DIR" fetch -q --depth 1 origin "$LIME_HASH"
+                git -C "$LIME_DIR" checkout -q FETCH_HEAD
+                git -C "$LIME_DIR" submodule update -q --init --recursive --force --depth 1 --jobs 8
+                haxelib dev lime "$LIME_DIR" < /dev/null
                 CC=gcc CXX=g++ haxelib run lime rebuild linux -64 -release < /dev/null
                 test -f "$LIME_DIR/ndll/Linux64/lime.ndll"
                 cd "$LIME_DIR/project"
                 unset CC CXX
                 export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
-                clang++ --version | head -n 1
                 haxelib run hxcpp Build.xml -Dandroid -DHXCPP_ARM64 -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
                   -DPLATFORM=android-$ANDROID_PLATFORM -DHXCPP_ANDROID_PLATFORM=$ANDROID_PLATFORM < /dev/null
                 ls "$LIME_DIR/ndll/Android"
+                rm -rf "$LIME_DIR/.git" "$LIME_DIR/project/obj"
 
             - name: Save Lime
               if: steps.lime.outputs.cache-hit != 'true'
@@ -146,17 +158,25 @@ jobs:
                 key: ${{ steps.lime.outputs.cache-primary-key }}
 
             - name: Link Lime
-              run: haxelib dev lime "$LIME_DIR"
+              run: haxelib dev lime "$LIME_DIR" < /dev/null
 
-            - name: Restore build cache
+            - name: Restore hxcpp cache
+              id: hxcpp
+              uses: actions/cache/restore@v4
+              with:
+                path: ${{ env.HXCPP_COMPILE_CACHE }}
+                key: android-hxcpp-v4-${{ hashFiles('source/**', 'Project.xml', '.hxpkg') }}
+                restore-keys: android-hxcpp-v4-
+
+            - name: Restore Gradle cache
+              id: gradle
               uses: actions/cache/restore@v4
               with:
                 path: |
-                  ${{ env.HXCPP_COMPILE_CACHE }}
                   ~/.gradle/caches
                   ~/.gradle/wrapper
-                key: android-build-v3-${{ github.sha }}
-                restore-keys: android-build-v3-
+                key: android-gradle-v4-${{ hashFiles('Project.xml', '.hxpkg', 'projFiles/android/**') }}
+                restore-keys: android-gradle-v4-
 
             - name: Configure Gradle
               run: |
@@ -172,30 +192,38 @@ jobs:
                 printf 'org.gradle.jvmargs=-Xmx4g -XX:+UseParallelGC -Dfile.encoding=UTF-8\norg.gradle.parallel=true\norg.gradle.caching=true\norg.gradle.configureondemand=true\n' > ~/.gradle/gradle.properties
 
             - name: Compile build
-              timeout-minutes: 75
+              timeout-minutes: 50
               run: |
+                set -euo pipefail
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then
                   SIZE=$(du -sm "$HXCPP_COMPILE_CACHE" | cut -f1)
                   if [ "$SIZE" -gt "$CACHE_LIMIT_MB" ]; then rm -rf "$HXCPP_COMPILE_CACHE"; fi
                 fi
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
-                if [ -n "$BUILD_FLAGS" ]; then FLAGS="-D $BUILD_FLAGS"; fi
+                if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
                 unset CC CXX
                 export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
                 haxelib run lime build Project.xml android -release -arm64 $FLAGS < /dev/null
 
-            - name: Save build cache
-              if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+            - name: Save hxcpp cache
+              if: ${{ !cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              uses: actions/cache/save@v4
+              with:
+                path: ${{ env.HXCPP_COMPILE_CACHE }}
+                key: ${{ steps.hxcpp.outputs.cache-primary-key }}
+
+            - name: Save Gradle cache
+              if: ${{ !cancelled() && steps.gradle.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
               uses: actions/cache/save@v4
               with:
                 path: |
-                  ${{ env.HXCPP_COMPILE_CACHE }}
                   ~/.gradle/caches
                   ~/.gradle/wrapper
-                key: android-build-v3-${{ github.sha }}
+                key: ${{ steps.gradle.outputs.cache-primary-key }}
 
             - name: Sign APK
+              timeout-minutes: 10
               run: |
                 set -euo pipefail
                 UNSIGNED=$(find export/release/android/bin -path "*/outputs/apk/*" -name "*.apk" | sort | head -n 1)
@@ -220,38 +248,43 @@ jobs:
 
     iOS:
         runs-on: macos-latest
-        timeout-minutes: 120
+        timeout-minutes: 90
 
         steps:
             - uses: actions/checkout@v7
               with:
                 submodules: true
+                fetch-depth: 1
 
             - name: Setup environment
+              timeout-minutes: 5
               run: |
-                echo "HXCPP_COMPILE_THREADS=$(sysctl -n hw.ncpu)" >> "$GITHUB_ENV"
+                echo "HXCPP_COMPILE_THREADS=$(( $(sysctl -n hw.ncpu) + 1 ))" >> "$GITHUB_ENV"
                 echo "IPHONE_VER=$(xcrun --sdk iphoneos --show-sdk-version)" >> "$GITHUB_ENV"
 
             - uses: krdlab/setup-haxe@v2.1.0
+              timeout-minutes: 10
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
 
             - name: Setup haxelib
-              run: haxelib setup ~/haxelib
+              timeout-minutes: 5
+              run: haxelib setup ~/haxelib < /dev/null
 
             - name: Restore libs
               id: libs
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
-                key: ios-hxpkg-v3-${{ hashFiles('.hxpkg') }}
+                key: ios-hxpkg-v4-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
               if: steps.libs.outputs.cache-hit != 'true'
+              timeout-minutes: 20
               run: |
                 set -euo pipefail
-                haxelib install hxpkg --quiet
-                haxelib run hxpkg install
+                haxelib install hxpkg --quiet --always < /dev/null
+                haxelib run hxpkg install < /dev/null
 
             - name: Save libs
               if: steps.libs.outputs.cache-hit != 'true'
@@ -265,18 +298,20 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.LIME_DIR }}
-                key: ios-lime-v3-${{ env.LIME_HASH }}-${{ env.IPHONE_VER }}
+                key: ios-lime-v4-${{ env.LIME_HASH }}-${{ env.IPHONE_VER }}
 
             - name: Build Lime
               if: steps.lime.outputs.cache-hit != 'true'
-              timeout-minutes: 45
+              timeout-minutes: 40
               run: |
                 set -euo pipefail
                 rm -rf "$LIME_DIR"
-                git clone https://github.com/FunkinCrew/lime "$LIME_DIR"
-                git -C "$LIME_DIR" checkout "$LIME_HASH"
-                git -C "$LIME_DIR" submodule update --init --recursive --force --depth 1
-                haxelib dev lime "$LIME_DIR"
+                git init -q "$LIME_DIR"
+                git -C "$LIME_DIR" remote add origin https://github.com/FunkinCrew/lime
+                git -C "$LIME_DIR" fetch -q --depth 1 origin "$LIME_HASH"
+                git -C "$LIME_DIR" checkout -q FETCH_HEAD
+                git -C "$LIME_DIR" submodule update -q --init --recursive --force --depth 1 --jobs 8
+                haxelib dev lime "$LIME_DIR" < /dev/null
                 haxelib run lime rebuild mac -release < /dev/null
                 ls "$LIME_DIR"/ndll/Mac*/lime.ndll
                 sed -i '' 's/return \[\[\[UIDevice currentDevice\] systemVersion\] UTF8String\];/return (char*)[[[UIDevice currentDevice] systemVersion] UTF8String];/' "$LIME_DIR/project/src/system/ios/System.mm"
@@ -284,6 +319,7 @@ jobs:
                 cd "$LIME_DIR/project"
                 haxelib run hxcpp Build.xml -Dios -DHXCPP_ARM64 -DIPHONE_VER=$IPHONE_VER < /dev/null
                 ls "$LIME_DIR/ndll/iPhone"
+                rm -rf "$LIME_DIR/.git" "$LIME_DIR/project/obj"
 
             - name: Save Lime
               if: steps.lime.outputs.cache-hit != 'true'
@@ -293,17 +329,18 @@ jobs:
                 key: ${{ steps.lime.outputs.cache-primary-key }}
 
             - name: Link Lime
-              run: haxelib dev lime "$LIME_DIR"
+              run: haxelib dev lime "$LIME_DIR" < /dev/null
 
-            - name: Restore build cache
+            - name: Restore hxcpp cache
+              id: hxcpp
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
-                key: ios-build-v3-${{ github.sha }}
-                restore-keys: ios-build-v3-
+                key: ios-hxcpp-v4-${{ hashFiles('source/**', 'Project.xml', '.hxpkg', 'projFiles/ios/**') }}
+                restore-keys: ios-hxcpp-v4-
 
             - name: Compile build
-              timeout-minutes: 75
+              timeout-minutes: 60
               run: |
                 set -euo pipefail
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then
@@ -319,16 +356,17 @@ jobs:
                   PLATFORM_NAME=iphoneos SDKROOT=iphoneos$IPHONE_VER -jobs "$HXCPP_COMPILE_THREADS" \
                   CODE_SIGN_IDENTITY= CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CODE_SIGN_ENTITLEMENTS= \
                   DEBUG_INFORMATION_FORMAT=dwarf GCC_GENERATE_DEBUGGING_SYMBOLS=NO COMPILER_INDEX_STORE_ENABLE=NO \
-                  ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO build -quiet
+                  ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO build -quiet < /dev/null
 
-            - name: Save build cache
-              if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+            - name: Save hxcpp cache
+              if: ${{ !cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
-                key: ios-build-v3-${{ github.sha }}
+                key: ${{ steps.hxcpp.outputs.cache-primary-key }}
 
             - name: Package IPA
+              timeout-minutes: 10
               run: |
                 set -euo pipefail
                 cd export/release/ios/build/Release-iphoneos

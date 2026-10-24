@@ -171,7 +171,7 @@ class StorageUtil
 		#elseif android
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'getFreeSpaceMB', '(Ljava/lang/String;)I');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'getFreeSpaceMB', '(Ljava/lang/String;)I');
 			if (func != null) return func(directory);
 		}
 		catch (e:Dynamic) {}
@@ -207,7 +207,7 @@ class StorageUtil
 		#if android
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'setStorageType', '(Ljava/lang/String;)V');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'setStorageType', '(Ljava/lang/String;)V');
 			if (func != null) func(type.toUpperCase());
 		}
 		catch (e:Dynamic) {}
@@ -220,11 +220,17 @@ class StorageUtil
 		#end
 	}
 	
+	static var cachedActiveType:Null<String> = null;
+	
 	public static function getActiveStorageType():String
 	{
 		#if android
+		if (cachedActiveType != null) return cachedActiveType;
+		
 		final active = callString('getActiveStorageType');
-		return active == 'INTERNAL' ? 'Internal' : toDisplayType(active);
+		if (active == null || active.length == 0) return DEFAULT_STORAGE_TYPE;
+		
+		return cachedActiveType = active == 'INTERNAL' ? 'Internal' : toDisplayType(active);
 		#elseif ios
 		return 'Documents';
 		#else
@@ -237,7 +243,7 @@ class StorageUtil
 		#if android
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'isStorageTypeAvailable', '(Ljava/lang/String;)Z');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'isStorageTypeAvailable', '(Ljava/lang/String;)Z');
 			if (func != null) return func(type.toUpperCase());
 		}
 		catch (e:Dynamic) {}
@@ -252,7 +258,7 @@ class StorageUtil
 		#if android
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'getStorageTypeDirectory', '(Ljava/lang/String;)Ljava/lang/String;');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'getStorageTypeDirectory', '(Ljava/lang/String;)Ljava/lang/String;');
 			if (func != null)
 			{
 				final result:Null<String> = func(type.toUpperCase());
@@ -407,7 +413,7 @@ class StorageUtil
 	{
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(className, method, '()Ljava/lang/String;');
+			final func:Null<Dynamic> = jniMethod(className, method, '()Ljava/lang/String;');
 			if (func != null)
 			{
 				final result:Null<String> = func();
@@ -423,7 +429,7 @@ class StorageUtil
 	{
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, method, '()V');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, method, '()V');
 			if (func != null) func();
 		}
 		catch (e:Dynamic) {}
@@ -433,7 +439,7 @@ class StorageUtil
 	{
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, method, '()Ljava/lang/String;');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, method, '()Ljava/lang/String;');
 			if (func != null)
 			{
 				final result:Null<String> = func();
@@ -445,12 +451,35 @@ class StorageUtil
 		return null;
 	}
 	
-	public static function getSdkVersion():Int
+	static var cachedSdkVersion:Int = -1;
+	
+	static final jniCache:Map<String, Null<Dynamic>> = [];
+	
+	static function jniMethod(className:String, method:String, signature:String):Null<Dynamic>
 	{
+		final key = className + '.' + method + signature;
+		if (jniCache.exists(key)) return jniCache.get(key);
+		
+		var func:Null<Dynamic> = null;
+		
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'getSdkVersion', '()I');
-			if (func != null) return func();
+			func = lime.system.JNI.createStaticMethod(className, method, signature);
+		}
+		catch (e:Dynamic) {}
+		
+		jniCache.set(key, func);
+		return func;
+	}
+	
+	public static function getSdkVersion():Int
+	{
+		if (cachedSdkVersion >= 0) return cachedSdkVersion;
+		
+		try
+		{
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'getSdkVersion', '()I');
+			if (func != null) return cachedSdkVersion = func();
 		}
 		catch (e:Dynamic) {}
 		
@@ -461,7 +490,7 @@ class StorageUtil
 	{
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'hasPermission', '(Ljava/lang/String;)Z');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'hasPermission', '(Ljava/lang/String;)Z');
 			if (func != null) return func(permission);
 		}
 		catch (e:Dynamic) {}
@@ -473,7 +502,7 @@ class StorageUtil
 	{
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'hasAllFilesAccess', '()Z');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'hasAllFilesAccess', '()Z');
 			if (func != null) return func();
 		}
 		catch (e:Dynamic) {}
@@ -497,7 +526,7 @@ class StorageUtil
 		
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'requestPermissions', '(Ljava/lang/String;)V');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'requestPermissions', '(Ljava/lang/String;)V');
 			if (func != null) func(permissions.join(','));
 		}
 		catch (e:Dynamic) {}
@@ -507,7 +536,7 @@ class StorageUtil
 	{
 		try
 		{
-			final func:Null<Dynamic> = lime.system.JNI.createStaticMethod(ANDROID_HELPER, 'requestAllFilesAccess', '()V');
+			final func:Null<Dynamic> = jniMethod(ANDROID_HELPER, 'requestAllFilesAccess', '()V');
 			if (func != null) func();
 		}
 		catch (e:Dynamic) {}
@@ -653,13 +682,70 @@ class StorageUtil
 
 		if (size < 0) return false;
 
-		manifest.set(target, size);
-		refresh.remove(target);
-		dirty = true;
+		recordCopy(target, size);
 
 		final now = haxe.Timer.stamp();
 		if (now - lastSave >= saveInterval) flush();
 
+		return true;
+		#else
+		return false;
+		#end
+	}
+
+	#if target.threaded
+	static final bookkeeping:sys.thread.Mutex = new sys.thread.Mutex();
+	#end
+
+	static function recordCopy(target:String, size:Int):Void
+	{
+		#if target.threaded
+		bookkeeping.acquire();
+		#end
+
+		manifest.set(target, size);
+		refresh.remove(target);
+		dirty = true;
+
+		#if target.threaded
+		bookkeeping.release();
+		#end
+	}
+
+	public static var copyThreads:Int = 4;
+
+	public static var supportsThreadedCopy(get, never):Bool;
+
+	static inline function get_supportsThreadedCopy():Bool
+	{
+		return #if (target.threaded && sys && !android) true #else false #end;
+	}
+
+	public static function startCopyJob(files:Array<String>):CopyJob
+	{
+		final job = new CopyJob(files);
+
+		#if (target.threaded && sys && !android)
+		final workers = Std.int(Math.max(1, Math.min(copyThreads, files.length)));
+		for (_ in 0...workers)
+			sys.thread.Thread.create(() -> job.work(copyFast));
+		#else
+		job.cancelAll();
+		#end
+
+		return job;
+	}
+
+	static function copyFast(id:String):Bool
+	{
+		#if sys
+		final target = normalizeId(id);
+		if (target == null) return false;
+
+		final size = copyWithPath(id, target);
+		if (size < 0) return false;
+
+		recordCopy(target, size);
 		return true;
 		#else
 		return false;
@@ -675,7 +761,7 @@ class StorageUtil
 
 			try
 			{
-				javaCopy = lime.system.JNI.createStaticMethod('org/nightmarevision/StorageHelper', 'copyAsset', '(Ljava/lang/String;Ljava/lang/String;)I');
+				javaCopy = jniMethod('org/nightmarevision/StorageHelper', 'copyAsset', '(Ljava/lang/String;Ljava/lang/String;)I');
 			}
 			catch (e:Dynamic)
 			{
@@ -826,18 +912,28 @@ class StorageUtil
 		try
 		{
 			final files:Dynamic = {};
+			#if target.threaded
+			bookkeeping.acquire();
+			#end
 			for (key => size in manifest)
 				Reflect.setField(files, key, size);
+			final pendingRefresh = [for (key in refresh.keys()) key];
+			dirty = false;
+			#if target.threaded
+			bookkeeping.release();
+			#end
 
 			final temp = MANIFEST_FILE + TEMP_SUFFIX;
-			File.saveContent(temp, Json.stringify({version: manifestVersion, files: files, refresh: [for (key in refresh.keys()) key]}));
+			File.saveContent(temp, Json.stringify({version: manifestVersion, files: files, refresh: pendingRefresh}));
 			if (FileSystem.exists(MANIFEST_FILE)) FileSystem.deleteFile(MANIFEST_FILE);
 			FileSystem.rename(temp, MANIFEST_FILE);
 
-			dirty = false;
 			lastSave = haxe.Timer.stamp();
 		}
-		catch (e:Dynamic) {}
+		catch (e:Dynamic)
+		{
+			dirty = true;
+		}
 		#end
 	}
 
@@ -1005,5 +1101,96 @@ class StorageUtil
 			lime.app.Application.current?.window?.alert(message, 'Storage Error');
 		}
 		catch (e:Dynamic) {}
+	}
+}
+
+class CopyJob
+{
+	public final files:Array<String>;
+
+	public final failed:Array<String> = [];
+
+	public var done(default, null):Int = 0;
+
+	public var current(default, null):String = '';
+
+	public var finished(get, never):Bool;
+
+	var next:Int = 0;
+
+	var completed:Int = 0;
+
+	#if target.threaded
+	final lock:sys.thread.Mutex = new sys.thread.Mutex();
+	#end
+
+	public function new(files:Array<String>)
+	{
+		this.files = files.copy();
+	}
+
+	public function work(copy:String->Bool):Void
+	{
+		while (true)
+		{
+			final id = take();
+			if (id == null) return;
+
+			var success = false;
+
+			try
+			{
+				success = copy(id);
+			}
+			catch (e:Dynamic) {}
+
+			finishOne(id, success);
+		}
+	}
+
+	public function cancelAll():Void
+	{
+		while (true)
+		{
+			final id = take();
+			if (id == null) return;
+			finishOne(id, false);
+		}
+	}
+
+	function take():Null<String>
+	{
+		#if target.threaded
+		lock.acquire();
+		#end
+
+		final id = next < files.length ? files[next++] : null;
+		if (id != null) current = id;
+
+		#if target.threaded
+		lock.release();
+		#end
+
+		return id;
+	}
+
+	function finishOne(id:String, success:Bool):Void
+	{
+		#if target.threaded
+		lock.acquire();
+		#end
+
+		if (!success) failed.push(id);
+		completed++;
+		done = completed;
+
+		#if target.threaded
+		lock.release();
+		#end
+	}
+
+	function get_finished():Bool
+	{
+		return done >= files.length;
 	}
 }

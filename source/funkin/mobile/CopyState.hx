@@ -98,8 +98,11 @@ class CopyState extends FlxState
 		}
 
 		copying = true;
+		job = StorageUtil.supportsThreadedCopy ? StorageUtil.startCopyJob(files) : null;
 		updateLabel();
 	}
+
+	var job:Null<StorageUtil.CopyJob> = null;
 
 	override function update(elapsed:Float):Void
 	{
@@ -112,6 +115,21 @@ class CopyState extends FlxState
 		}
 
 		if (!copying) return;
+
+		if (job != null)
+		{
+			index = job.done;
+			updateLabel();
+			StorageUtil.flush();
+
+			if (job.finished)
+			{
+				failed = job.failed.copy();
+				job = null;
+				complete();
+			}
+			return;
+		}
 
 		final start = Sys.time();
 
@@ -182,7 +200,7 @@ class CopyState extends FlxState
 		final progress = files.length > 0 ? index / files.length : 1;
 
 		label.text = 'Copying files to storage...\n$index / ${files.length}';
-		fileLabel.text = index > 0 && index <= files.length ? files[index - 1] : '';
+		fileLabel.text = job != null ? job.current : (index > 0 && index <= files.length ? files[index - 1] : '');
 		bar.scale.x = progress;
 	}
 

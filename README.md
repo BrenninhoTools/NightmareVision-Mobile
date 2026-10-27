@@ -1,3 +1,6 @@
+> [!WARNING]
+> **This mobile port (Android and iOS) is vibe coded.** Most of the mobile code was written with AI assistance and has not been fully reviewed or tested on every device. Expect bugs, rough edges and unfinished features. Please report problems instead of assuming they come from the original NightmareVision engine.
+
 helloe we hit single
 
 Havee fun with NightmareVision V1! (***[follow me on twitter](https://twitter.com/DuskieWhy)***)

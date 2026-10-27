@@ -7,6 +7,8 @@ class EditorTouchSupport
 {
 	public static final EDITOR_PACKAGE:String = 'funkin.states.editors.';
 	
+	public static final CHART_EDITORS:Array<String> = ['funkin.states.editors.ChartEditorState', 'funkin.states.editors.OLDChartEditorState'];
+	
 	public static final MENU_ONLY:Array<String> = ['funkin.states.editors.MasterEditorMenu', 'funkin.states.editors.ChartConverterState'];
 	
 	public static var enabled:Bool = true;
@@ -118,6 +120,7 @@ class EditorTouchSupport
 			TouchInput.gesturesEnabled = gesturesBeforeSuspend;
 		}
 		current = null;
+		ChartTouchControls.detach();
 	}
 	
 	static function onPostSwitch():Void
@@ -132,6 +135,13 @@ class EditorTouchSupport
 		if (!editor) return;
 		
 		final name = Type.getClassName(Type.getClass(state));
+		if (CHART_EDITORS.contains(name))
+		{
+			TouchInput.gesturesEnabled = false;
+			ChartTouchControls.attach(state);
+			return;
+		}
+		
 		final camera = MobileUtil.createCamera();
 		
 		if (MENU_ONLY.contains(name))

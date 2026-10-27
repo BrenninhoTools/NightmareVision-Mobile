@@ -14,7 +14,7 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 {
 	public static final COLORS:Array<FlxColor> = [0xFFC24B99, 0xFF00FFFF, 0xFF12FA05, 0xFFF9393F];
 
-	public static var pressedAlpha:Float = 0.6;
+	public static var pressedAlpha:Float = 0.9;
 
 	public static var releaseDuration:Float = 0.15;
 
@@ -176,24 +176,24 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		return enabled = value;
 	}
 
+	public static var fillAlpha:Float = 0.25;
+
+	public static var borderSize:Int = 3;
+
 	static function createLaneGraphic(width:Int, height:Int, color:FlxColor):BitmapData
 	{
 		final bitmap = new BitmapData(width, height, true, FlxColor.TRANSPARENT);
-		final half = width / 2;
-		final border = 4;
-		final rect = new Rectangle(0, 0, 1, height);
 
-		for (column in 0...width)
-		{
-			final distance = Math.min(column, width - 1 - column);
-			final ratio = 1 - Math.min(distance / half, 1);
+		var fill:FlxColor = color;
+		fill.alphaFloat = fillAlpha;
+		bitmap.fillRect(new Rectangle(0, 0, width, height), fill);
 
-			var fill:FlxColor = color;
-			fill.alphaFloat = column < border || column >= width - border ? 1 : ratio * ratio * 0.75;
-
-			rect.x = column;
-			bitmap.fillRect(rect, fill);
-		}
+		var border:FlxColor = color;
+		border.alphaFloat = 1;
+		bitmap.fillRect(new Rectangle(0, 0, width, borderSize), border);
+		bitmap.fillRect(new Rectangle(0, height - borderSize, width, borderSize), border);
+		bitmap.fillRect(new Rectangle(0, 0, borderSize, height), border);
+		bitmap.fillRect(new Rectangle(width - borderSize, 0, borderSize, height), border);
 
 		return bitmap;
 	}

@@ -40,6 +40,12 @@ class TouchButton extends FlxSprite
 
 	var held:Bool = false;
 
+	var captureTime:Float = -1;
+
+	public var pressTime(default, null):Float = 0;
+
+	public var releaseTime(default, null):Float = 0;
+
 	var armed:Bool = false;
 
 	public function new(x:Float = 0, y:Float = 0, ?actions:Array<String>, priority:Int = 1)
@@ -77,12 +83,14 @@ class TouchButton extends FlxSprite
 	function beginPoll():Void
 	{
 		held = false;
+		captureTime = -1;
 	}
 
 	@:allow(funkin.mobile.TouchInput)
-	function capture():Void
+	function capture(time:Float = -1):Void
 	{
 		held = true;
+		if (time >= 0 && (captureTime < 0 || time < captureTime)) captureTime = time;
 	}
 
 	@:allow(funkin.mobile.TouchInput)
@@ -101,6 +109,9 @@ class TouchButton extends FlxSprite
 		touchPressed = held;
 		touchJustPressed = touchPressed && !wasPressed;
 		touchJustReleased = !touchPressed && wasPressed;
+
+		if (touchJustPressed) pressTime = captureTime >= 0 ? captureTime : TouchInput.now();
+		if (touchJustReleased) releaseTime = TouchInput.lastReleaseTime >= 0 ? TouchInput.lastReleaseTime : TouchInput.now();
 
 		if (touchJustPressed)
 		{

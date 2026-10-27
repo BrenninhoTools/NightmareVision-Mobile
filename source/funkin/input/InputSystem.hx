@@ -183,12 +183,12 @@ class InputSystem extends EventDispatcher implements flixel.util.IFlxDestroyable
 		{
 			for (noteData => action in justPressedActions)
 			{
-				if (TouchInput.check(action.name)) awaitingEvents.push(new InputEvent(InputEvent.INPUT_PRESSED, false, true, noteData, Keys, -1, System.getTimer()));
+				if (TouchInput.check(action.name)) awaitingEvents.push(new InputEvent(InputEvent.INPUT_PRESSED, false, true, noteData, Keys, -1, TouchInput.getPressTime(pressedActions[noteData].name)));
 			}
 			
 			for (noteData => action in justReleasedActions)
 			{
-				if (TouchInput.check(action.name)) awaitingEvents.push(new InputEvent(InputEvent.INPUT_RELEASED, false, true, noteData, Keys, -1, System.getTimer()));
+				if (TouchInput.check(action.name)) awaitingEvents.push(new InputEvent(InputEvent.INPUT_RELEASED, false, true, noteData, Keys, -1, TouchInput.getReleaseTime(pressedActions[noteData].name)));
 			}
 		}
 		

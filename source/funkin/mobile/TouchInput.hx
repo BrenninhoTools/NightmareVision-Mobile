@@ -125,6 +125,45 @@ class TouchInput
 
 	static final seenTouches:Map<Int, Bool> = [];
 
+	static final beginTimes:Map<Int, Float> = [];
+
+	public static var lastReleaseTime(default, null):Float = -1;
+
+	public static var swipeAxisRatio:Float = 1.25;
+
+	public static inline function now():Float
+	{
+		return lime.system.System.getTimer();
+	}
+
+	public static function getPressTime(action:String):Float
+	{
+		var time = -1.0;
+
+		for (zone in zones)
+			if (zone.touchJustPressed && zone.actions.contains(action) && (time < 0 || zone.pressTime < time)) time = zone.pressTime;
+
+		return time >= 0 ? time : now();
+	}
+
+	public static function getReleaseTime(action:String):Float
+	{
+		for (zone in zones)
+			if (zone.touchJustReleased && zone.actions.contains(action)) return zone.releaseTime;
+
+		return now();
+	}
+
+	static function onStageTouchBegin(event:openfl.events.TouchEvent):Void
+	{
+		beginTimes.set(event.touchPointID, now());
+	}
+
+	static function onStageTouchEnd(event:openfl.events.TouchEvent):Void
+	{
+		lastReleaseTime = now();
+	}
+
 	static var backKeyDown:Bool = false;
 
 	static final pulses:Array<String> = [];
@@ -153,6 +192,8 @@ class TouchInput
 		initialized = true;
 
 		FlxG.signals.preUpdate.add(onPreUpdate);
+		FlxG.stage.addEventListener(openfl.events.TouchEvent.TOUCH_BEGIN, onStageTouchBegin, false, 40000);
+		FlxG.stage.addEventListener(openfl.events.TouchEvent.TOUCH_END, onStageTouchEnd, false, 40000);
 		FlxG.signals.postUpdate.add(poll);
 		FlxG.signals.preStateSwitch.add(reset);
 
@@ -303,7 +344,8 @@ class TouchInput
 		{
 			final quick = touch.justReleased && !seenTouches.exists(touch.touchPointID);
 			final zone = touch.pressed || quick ? findZone(touch) : null;
-			if (zone != null) zone.capture();
+			if (zone != null) zone.capture(touch.justPressed || quick ? beginTimes.get(touch.touchPointID) ?? -1 : -1);
+			if (touch.justReleased) beginTimes.remove(touch.touchPointID);
 
 			handleGesture(touch, zone, allowGestures, quick);
 		}
@@ -506,11 +548,11 @@ class TouchInput
 
 		var direction:SwipeDirection = NONE;
 
-		if (Math.abs(deltaY) >= swipeDistance && Math.abs(deltaY) >= Math.abs(deltaX))
+		if (Math.abs(deltaY) >= swipeDistance && Math.abs(deltaY) >= Math.abs(deltaX) * swipeAxisRatio)
 		{
 			direction = resolveDirection(0, deltaY);
 		}
-		else if (Math.abs(deltaX) >= swipeDistance)
+		else if (Math.abs(deltaX) >= swipeDistance && Math.abs(deltaX) >= Math.abs(deltaY) * swipeAxisRatio)
 		{
 			direction = resolveDirection(deltaX, 0);
 		}

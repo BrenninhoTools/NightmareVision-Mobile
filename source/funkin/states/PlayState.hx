@@ -577,6 +577,7 @@ class PlayState extends MusicBeatState
 		hitbox = new funkin.mobile.Hitbox([for (action in InputSystem.ACTION_LIST) (action : String)]).setCamera(camMobile);
 		hitbox.onLaneDown.add((lane) -> scripts?.call('onHitboxPress', [lane]));
 		hitbox.onLaneUp.add((lane) -> scripts?.call('onHitboxRelease', [lane]));
+		if (ClientPrefs.hitboxMode == 'D-Pad Left' || ClientPrefs.hitboxMode == 'D-Pad Right') hitbox.applyDPad(ClientPrefs.hitboxMode == 'D-Pad Right');
 		add(hitbox);
 		
 		pauseButton = funkin.mobile.MobileUtil.createPauseButton(camMobile);

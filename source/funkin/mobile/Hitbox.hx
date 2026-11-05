@@ -72,6 +72,116 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		}
 	}
 
+	public static final DPAD_NOTES:Array<String> = ['purple', 'blue', 'green', 'red'];
+
+	public static var dpadSize:Int = 124;
+
+	public static var dpadGap:Float = 6;
+
+	public static var dpadIdleAlpha:Float = 0.6;
+
+	public var dpad(default, null):Bool = false;
+
+	public function applyDPad(onRight:Bool):Void
+	{
+		if (members.length < 4) return;
+
+		dpad = true;
+
+		final size = dpadSize;
+		final step = size + dpadGap;
+		final width = size * 3 + dpadGap * 2;
+		final left = onRight ? MobileUtil.rightEdge() - width : MobileUtil.leftEdge();
+		final bottom = MobileUtil.bottomEdge() - size;
+
+		final positions:Array<Array<Float>> = [[left, bottom - step], [left + step, bottom], [left + step, bottom - step * 2], [left + step * 2, bottom - step]];
+
+		final atlas = loadNoteAtlas();
+
+		for (index in 0...4)
+		{
+			final lane = members[index];
+			if (lane == null) continue;
+
+			lane.loadGraphic(createDPadGraphic(size, getColor(index), atlas, DPAD_NOTES[index]));
+			lane.setPosition(positions[index][0], positions[index][1]);
+			lane.updateHitbox();
+		}
+
+		if (atlas != null) atlas.parent.destroy();
+
+		lanePressedAlpha = 1;
+		idleAlpha = dpadIdleAlpha;
+	}
+
+	static function loadNoteAtlas():Null<flixel.graphics.frames.FlxAtlasFrames>
+	{
+		try
+		{
+			final bitmap = FunkinAssets.getBitmapData(Paths.getPath('images/UI/notes/NOTE_assets.png', null, true), false);
+			final xmlPath = Paths.getPath('images/UI/notes/NOTE_assets.xml', null, true);
+			if (bitmap == null || !FunkinAssets.exists(xmlPath)) return null;
+
+			final graphic = flixel.graphics.FlxGraphic.fromBitmapData(bitmap, false, null, false);
+			return flixel.graphics.frames.FlxAtlasFrames.fromSparrow(graphic, FunkinAssets.getContent(xmlPath, false));
+		}
+		catch (e:Dynamic) {}
+
+		return null;
+	}
+
+	static function createDPadGraphic(size:Int, color:FlxColor, atlas:Null<flixel.graphics.frames.FlxAtlasFrames>, prefix:String):BitmapData
+	{
+		final radius = size * 0.28;
+		final shape = new openfl.display.Shape();
+		final graphics = shape.graphics;
+
+		var dark:FlxColor = color;
+		dark.brightness *= 0.55;
+
+		graphics.beginFill(dark.rgb, 0.9);
+		graphics.drawRoundRect(0, 0, size, size, radius, radius);
+		graphics.endFill();
+
+		graphics.beginFill(color.rgb, 0.75);
+		graphics.drawRoundRect(5, 5, size - 10, size - 10, radius * 0.85, radius * 0.85);
+		graphics.endFill();
+
+		graphics.beginFill(0xFFFFFF, 0.18);
+		graphics.drawRoundRect(9, 9, size - 18, (size - 18) * 0.45, radius * 0.7, radius * 0.7);
+		graphics.endFill();
+
+		final bitmap = new BitmapData(size, size, true, FlxColor.TRANSPARENT);
+		bitmap.draw(shape);
+
+		if (atlas != null)
+		{
+			var frame:Null<flixel.graphics.frames.FlxFrame> = null;
+			for (candidate in atlas.frames)
+			{
+				if (candidate.name != null && candidate.name.startsWith(prefix) && !candidate.name.contains('hold'))
+				{
+					frame = candidate;
+					break;
+				}
+			}
+
+			if (frame != null)
+			{
+				final arrow = frame.paint(null, null, true);
+				final target = size * 0.62;
+				final scale = Math.min(target / arrow.width, target / arrow.height);
+				final matrix = new openfl.geom.Matrix();
+				matrix.scale(scale, scale);
+				matrix.translate((size - arrow.width * scale) / 2, (size - arrow.height * scale) / 2);
+				bitmap.draw(arrow, matrix, new openfl.geom.ColorTransform(1, 1, 1, 0.9), null, null, true);
+				arrow.dispose();
+			}
+		}
+
+		return bitmap;
+	}
+
 	public function isHidden():Bool
 	{
 		return forceVisible != null ? !forceVisible : ClientPrefs.invisibleHitbox;

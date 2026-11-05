@@ -269,6 +269,30 @@ extern "C" long long nmv_native_free_space()
 	}
 }
 
+static UISelectionFeedbackGenerator *nmvSelectionGenerator = nil;
+
+extern "C" void nmv_native_haptic(int type, double intensity)
+{
+	if (intensity <= 0) return;
+
+	CGFloat value = (CGFloat)(intensity > 1 ? 1 : intensity);
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (type == 0)
+		{
+			if (nmvSelectionGenerator == nil) nmvSelectionGenerator = [[UISelectionFeedbackGenerator alloc] init];
+			[nmvSelectionGenerator selectionChanged];
+			[nmvSelectionGenerator prepare];
+			return;
+		}
+
+		int milliseconds = type == 1 ? 10 : (type == 2 ? 25 : 45);
+		UIImpactFeedbackGenerator *generator = nmvImpactGenerator(milliseconds);
+		[generator impactOccurredWithIntensity:value];
+		[generator prepare];
+	});
+}
+
 extern "C" void nmv_native_vibrate(int milliseconds)
 {
 	nmv_native_vibrate_intensity(milliseconds, 1.0);

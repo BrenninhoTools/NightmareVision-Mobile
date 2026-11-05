@@ -60,6 +60,10 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
 		
+		var option:Option = new Option('Haptics Sensitivity', 'Low: vibrates only on note hits and buttons.\nMedium: also misses and taps. High: also every scroll and swipe.', 'hapticsSensitivity', STRING, 'Medium', funkin.mobile.Haptics.SENSITIVITIES);
+		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		addOption(option);
+		
 		#if mobile
 		startScreenStyle = ClientPrefs.screenStyle;
 		

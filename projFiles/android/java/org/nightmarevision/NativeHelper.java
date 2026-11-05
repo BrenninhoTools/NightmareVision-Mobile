@@ -78,6 +78,85 @@ public class NativeHelper extends Extension
 		return vibrator;
 	}
 
+	private static final java.util.concurrent.ExecutorService hapticExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+
+	public static void haptic(final int type, final float intensity)
+	{
+		if (intensity <= 0) return;
+
+		hapticExecutor.execute(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				playHaptic(type, Math.min(1f, intensity));
+			}
+		});
+	}
+
+	private static void playHaptic(int type, float intensity)
+	{
+		try
+		{
+			Vibrator target = getVibrator();
+			if (target == null) return;
+
+			if (Build.VERSION.SDK_INT >= 30)
+			{
+				int primitive;
+				switch (type)
+				{
+					case 0: primitive = VibrationEffect.Composition.PRIMITIVE_TICK; break;
+					case 1: primitive = VibrationEffect.Composition.PRIMITIVE_TICK; break;
+					case 2: primitive = VibrationEffect.Composition.PRIMITIVE_CLICK; break;
+					default: primitive = VibrationEffect.Composition.PRIMITIVE_THUD; break;
+				}
+
+				if (type == 3 && !target.areAllPrimitivesSupported(primitive)) primitive = VibrationEffect.Composition.PRIMITIVE_CLICK;
+
+				if (target.areAllPrimitivesSupported(primitive))
+				{
+					target.vibrate(VibrationEffect.startComposition().addPrimitive(primitive, intensity).compose());
+					return;
+				}
+			}
+
+			if (Build.VERSION.SDK_INT >= 29 && intensity >= 0.85f)
+			{
+				int effect;
+				switch (type)
+				{
+					case 0: case 1: effect = VibrationEffect.EFFECT_TICK; break;
+					case 2: effect = VibrationEffect.EFFECT_CLICK; break;
+					default: effect = VibrationEffect.EFFECT_HEAVY_CLICK; break;
+				}
+				target.vibrate(VibrationEffect.createPredefined(effect));
+				return;
+			}
+
+			int duration;
+			switch (type)
+			{
+				case 0: duration = 6; break;
+				case 1: duration = 10; break;
+				case 2: duration = 18; break;
+				default: duration = 35; break;
+			}
+
+			if (Build.VERSION.SDK_INT >= 26)
+			{
+				int amplitude = VibrationEffect.DEFAULT_AMPLITUDE;
+				if (target.hasAmplitudeControl()) amplitude = Math.max(1, Math.min(255, Math.round(intensity * 255)));
+				target.vibrate(VibrationEffect.createOneShot(duration, amplitude));
+			}
+			else
+			{
+				target.vibrate(Math.max(1, Math.round(duration * intensity)));
+			}
+		}
+		catch (Throwable e) {}
+	}
+
 	public static boolean hasVibrator()
 	{
 		return getVibrator() != null;

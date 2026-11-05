@@ -519,6 +519,8 @@ class TouchInput
 
 			final distance = Math.sqrt(Math.pow(touch.gameX - gesture.startX, 2) + Math.pow(touch.gameY - gesture.startY, 2));
 
+			if (quickSwipe(gesture, touch.gameX - gesture.startX, touch.gameY - gesture.startY, now)) return;
+
 			if (distance <= tapDistance && now - gesture.startTime <= tapTime)
 			{
 				justTapped = true;
@@ -565,10 +567,39 @@ class TouchInput
 			return;
 		}
 
-		if (holdRepeat && gesture.direction != NONE && now - gesture.lastMoveTime >= holdDelay && now - gesture.lastPulseTime >= holdInterval)
+		if (holdRepeat && gesture.direction != NONE && now - gesture.lastMoveTime >= holdDelay && now - gesture.lastPulseTime >= repeatInterval(gesture))
 		{
 			emitSwipe(gesture, gesture.direction, now);
 		}
+	}
+
+	public static var quickSwipeRatio:Float = 0.45;
+
+	public static var quickSwipeSpeed:Float = 1.1;
+
+	public static var minHoldInterval:Float = 55;
+
+	static function quickSwipe(gesture:TouchGesture, deltaX:Float, deltaY:Float, now:Float):Bool
+	{
+		if (now - gesture.lastMoveTime > 90) return false;
+
+		final minimum = swipeDistance * quickSwipeRatio;
+		var direction:SwipeDirection = NONE;
+
+		if (Math.abs(deltaY) >= minimum && Math.abs(deltaY) >= Math.abs(deltaX) * swipeAxisRatio && Math.abs(gesture.velocityY) >= quickSwipeSpeed)
+			direction = resolveDirection(0, deltaY);
+		else if (Math.abs(deltaX) >= minimum && Math.abs(deltaX) >= Math.abs(deltaY) * swipeAxisRatio && Math.abs(gesture.velocityX) >= quickSwipeSpeed)
+			direction = resolveDirection(deltaX, 0);
+
+		if (direction == NONE) return false;
+
+		emitSwipe(gesture, direction, now);
+		return true;
+	}
+
+	static function repeatInterval(gesture:TouchGesture):Float
+	{
+		return Math.max(minHoldInterval, holdInterval * Math.pow(0.88, Math.max(0, gesture.steps - 1)));
 	}
 
 	static function trackVelocity(gesture:TouchGesture, x:Float, y:Float, now:Float):Void

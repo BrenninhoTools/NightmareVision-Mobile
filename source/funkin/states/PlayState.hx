@@ -1059,6 +1059,9 @@ class PlayState extends MusicBeatState
 			
 			inline function actualMiss()
 			{
+				#if mobile
+				if (!cpuControlled) funkin.mobile.Haptics.noteMiss();
+				#end
 				if (combo > 5 && gf != null && gf.animOffsets.exists('sad')) gf.playAnimForDuration('sad', 1, true);
 				combo = 0;
 				audio.setTrackVolumeState(true);

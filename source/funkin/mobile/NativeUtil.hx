@@ -6,6 +6,7 @@ import flixel.FlxG;
 @:cppFileCode('
 extern "C" void nmv_native_vibrate(int milliseconds);
 extern "C" void nmv_native_vibrate_intensity(int milliseconds, double intensity);
+extern "C" void nmv_native_haptic(int type, double intensity);
 extern "C" void nmv_native_toast(const char *message, int longDuration);
 extern "C" void nmv_native_pick_files(const char *extensions, int multiple);
 extern "C" const char *nmv_native_pick_state();
@@ -55,6 +56,20 @@ class NativeUtil
 	static var pickCancel:Null<Void->Void> = null;
 	
 	static var polling:Bool = false;
+	
+	public static function haptic(type:Int, intensity:Float = 1):Void
+	{
+		if (!hapticsEnabled || intensity <= 0) return;
+		
+		final clamped = Math.min(1, intensity);
+		
+		#if android
+		final func = jni('haptic', '(IF)V');
+		if (func != null) func(type, clamped);
+		#elseif ios
+		untyped __cpp__('nmv_native_haptic({0}, {1})', type, clamped);
+		#end
+	}
 	
 	public static function vibrate(milliseconds:Int = 12, intensity:Float = 1):Void
 	{

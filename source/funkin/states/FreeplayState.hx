@@ -275,6 +275,7 @@ class FreeplayState extends MusicBeatState
 		final camera = funkin.mobile.MobileUtil.createCamera();
 		
 		final back = funkin.mobile.MobileUtil.createBackButton(camera);
+		back.alpha = 0.3;
 		add(back);
 		
 		if (freeplayTabs.length > 1)

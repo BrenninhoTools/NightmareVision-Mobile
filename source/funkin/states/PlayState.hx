@@ -1112,7 +1112,7 @@ class PlayState extends MusicBeatState
 			
 			if (lane == 1)
 			{
-				if (!ClientPrefs.opponentStrums) strums.baseAlpha = 0;
+				if (!ClientPrefs.opponentStrums #if mobile && !arrowsMode #end) strums.baseAlpha = 0;
 				else if (ClientPrefs.middleScroll) strums.baseAlpha = 0.35;
 			}
 		}

@@ -339,8 +339,8 @@ jobs:
                 key: ios-hxcpp-v4-${{ hashFiles('source/**', 'Project.xml', '.hxpkg', 'projFiles/ios/**') }}
                 restore-keys: ios-hxcpp-v4-
 
-            - name: Compile build
-              timeout-minutes: 60
+            - name: Prepare Xcode project
+              timeout-minutes: 15
               run: |
                 set -euo pipefail
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then
@@ -351,6 +351,28 @@ jobs:
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
                 haxelib run lime update Project.xml ios -release -nosign $FLAGS < /dev/null
+
+            - name: Compile Haxe (arm64)
+              timeout-minutes: 45
+              run: |
+                set -euo pipefail
+                HAXE_DIR="$GITHUB_WORKSPACE/export/release/ios/NightmareVision/haxe"
+                BUILD_DIR="$HAXE_DIR/build/Release-iphoneos-arm64"
+                LIB_DIR="$GITHUB_WORKSPACE/export/release/ios/NightmareVision/lib/arm64"
+                mkdir -p "$LIB_DIR"
+                cd "$HAXE_DIR"
+                haxe Build.hxml -D HXCPP_ARM64 -cpp "$BUILD_DIR" < /dev/null
+                cd "$BUILD_DIR"
+                haxelib run hxcpp Build.xml haxe -Ddestination="$LIB_DIR/libApplicationMain.a" -options Options.txt < /dev/null
+                env -u HXCPP_COMPILE_CACHE haxelib run hxcpp "$HAXE_DIR/BuildHxcppMbedtls.xml" -Ddestination="$LIB_DIR/libmbedtls_hxcpp.a" -options "$BUILD_DIR/Options.txt" < /dev/null
+                ls -la "$LIB_DIR"
+                sed -i '' 's/^default: \$(HAXE_BUILDS)$/default:/' "$HAXE_DIR/makefile"
+                grep -q '^default:$' "$HAXE_DIR/makefile"
+
+            - name: Link app
+              timeout-minutes: 20
+              run: |
+                set -euo pipefail
                 cd export/release/ios
                 xcodebuild -project NightmareVision.xcodeproj -configuration Release -arch arm64 \
                   PLATFORM_NAME=iphoneos SDKROOT=iphoneos$IPHONE_VER -jobs "$HXCPP_COMPILE_THREADS" \

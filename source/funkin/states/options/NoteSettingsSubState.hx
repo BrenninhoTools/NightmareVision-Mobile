@@ -18,6 +18,14 @@ class NoteSettingsSubState extends BaseOptionsMenu
 		addOption(option);
 		
 		var option:Option = new Option('Opponent Notes', 'If unchecked, opponent notes get hidden.', 'opponentStrums', BOOL, true);
+		#if mobile
+		if (ClientPrefs.hitboxMode == 'Arrows')
+		{
+			option.locked = true;
+			option.lockedValue = true;
+			option.description = 'Locked on while Hitbox Mode is set to Arrows.\nChange Hitbox Mode in Mobile Options to unlock it.';
+		}
+		#end
 		addOption(option);
 		
 		// temporarily disabled

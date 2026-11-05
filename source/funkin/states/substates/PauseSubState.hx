@@ -172,11 +172,6 @@ class PauseSubState extends MusicBeatSubstate
 		regenMenu();
 		cameras = [cam];
 		
-		#if mobile
-		final backButton = funkin.mobile.MobileUtil.createBackButton(cam);
-		add(backButton);
-		#end
-
 		super.create();
 		
 		scriptGroup.call('onCreatePost', []);

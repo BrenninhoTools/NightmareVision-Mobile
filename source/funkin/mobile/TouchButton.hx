@@ -71,11 +71,11 @@ class TouchButton extends FlxSprite
 	}
 
 	#if FLX_TOUCH
-	public function containsTouch(touch:FlxTouch):Bool
+	public function containsTouch(touch:FlxTouch, padding:Float = 0):Bool
 	{
 		touch.getViewPosition(TouchUtil.getCamera(this), touchPoint);
 
-		return touchPoint.x >= x && touchPoint.x < x + width && touchPoint.y >= y && touchPoint.y < y + height;
+		return touchPoint.x >= x - padding && touchPoint.x < x + width + padding && touchPoint.y >= y - padding && touchPoint.y < y + height + padding;
 	}
 	#end
 

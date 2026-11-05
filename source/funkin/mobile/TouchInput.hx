@@ -127,6 +127,10 @@ class TouchInput
 
 	static final beginTimes:Map<Int, Float> = [];
 
+	static final touchZones:Map<Int, TouchButton> = [];
+
+	public static var zoneStickiness:Float = 14;
+
 	public static var lastReleaseTime(default, null):Float = -1;
 
 	public static var swipeAxisRatio:Float = 1.25;
@@ -285,6 +289,7 @@ class TouchInput
 
 	public static function reset():Void
 	{
+		touchZones.clear();
 		dragging = false;
 		holdTime = 0;
 		longPressFired = false;
@@ -343,7 +348,7 @@ class TouchInput
 		for (touch in FlxG.touches.list)
 		{
 			final quick = touch.justReleased && !seenTouches.exists(touch.touchPointID);
-			final zone = touch.pressed || quick ? findZone(touch) : null;
+			final zone = touch.pressed || quick ? stickyZone(touch) : null;
 			if (zone != null) zone.capture(touch.justPressed || quick ? beginTimes.get(touch.touchPointID) ?? -1 : -1);
 			if (touch.justReleased) beginTimes.remove(touch.touchPointID);
 
@@ -412,6 +417,29 @@ class TouchInput
 	}
 
 	#if FLX_TOUCH
+	static function stickyZone(touch:FlxTouch):Null<TouchButton>
+	{
+		final id = touch.touchPointID;
+		final previous = touchZones.get(id);
+
+		var zone:Null<TouchButton> = null;
+
+		if (previous != null && previous.isTouchable() && zones.contains(previous) && previous.containsTouch(touch, zoneStickiness))
+		{
+			final found = findZone(touch);
+			zone = found == null || found.priority <= previous.priority ? previous : found;
+		}
+		else
+		{
+			zone = findZone(touch);
+		}
+
+		if (touch.justReleased || zone == null) touchZones.remove(id);
+		else touchZones.set(id, zone);
+
+		return zone;
+	}
+
 	static function findZone(touch:FlxTouch):Null<TouchButton>
 	{
 		var found:Null<TouchButton> = null;

@@ -108,13 +108,19 @@ class Option
 		}
 	}
 	
+	public var locked:Bool = false;
+	
+	public var lockedValue:Dynamic = null;
+	
 	public function getValue():Dynamic
 	{
+		if (locked) return lockedValue;
 		return Reflect.getProperty(ClientPrefs, variable);
 	}
 	
 	public function setValue(value:Dynamic)
 	{
+		if (locked) return;
 		Reflect.setProperty(ClientPrefs, variable, value);
 	}
 	

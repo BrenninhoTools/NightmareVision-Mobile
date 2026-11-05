@@ -286,6 +286,17 @@ extern "C" void nmv_native_haptic(int type, double intensity)
 			return;
 		}
 
+		if (type == 4)
+		{
+			UIImpactFeedbackGenerator *light = nmvImpactGenerator(10);
+			[light impactOccurredWithIntensity:value];
+			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.07 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+				[light impactOccurredWithIntensity:value * 0.8];
+				[light prepare];
+			});
+			return;
+		}
+
 		int milliseconds = type == 1 ? 10 : (type == 2 ? 25 : 45);
 		UIImpactFeedbackGenerator *generator = nmvImpactGenerator(milliseconds);
 		[generator impactOccurredWithIntensity:value];

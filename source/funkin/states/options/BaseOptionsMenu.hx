@@ -184,7 +184,14 @@ class BaseOptionsMenu extends MusicBeatSubstate
 			
 			if (usesCheckbox)
 			{
-				if (controls.ACCEPT && !touchBlocksAccept)
+				if (controls.ACCEPT && !touchBlocksAccept && curOption.locked)
+				{
+					FlxG.sound.play(Paths.sound('cancelMenu'));
+					#if mobile
+					funkin.mobile.Haptics.denied();
+					#end
+				}
+				else if (controls.ACCEPT && !touchBlocksAccept)
 				{
 					FlxG.sound.play(Paths.sound('scrollMenu'));
 					curOption.setValue((curOption.getValue() == true) ? false : true);

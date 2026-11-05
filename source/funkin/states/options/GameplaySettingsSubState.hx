@@ -21,6 +21,14 @@ class GameplaySettingsSubState extends BaseOptionsMenu
 			'downScroll', // Save data variable name
 			BOOL, // Variable type
 			false); // Default value
+		#if mobile
+		if (ClientPrefs.hitboxMode == 'Arrows')
+		{
+			option.locked = true;
+			option.lockedValue = true;
+			option.description = 'Locked on while Hitbox Mode is set to Arrows.\nChange Hitbox Mode in Mobile Options to unlock it.';
+		}
+		#end
 		addOption(option);
 		
 		// var option:Option = new Option('Middlescroll', '[IS NOT FUNCTIONAL AS OF NOW]\nIf checked, your notes get centered.', 'middleScroll', 'bool', false);

@@ -67,7 +67,15 @@ public class NativeHelper extends Extension
 			Context context = getContext();
 			if (context == null) return null;
 
-			Vibrator found = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+			Vibrator found = null;
+
+			if (Build.VERSION.SDK_INT >= 31)
+			{
+				android.os.VibratorManager manager = (android.os.VibratorManager) context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+				if (manager != null) found = manager.getDefaultVibrator();
+			}
+
+			if (found == null) found = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
 			if (found != null && found.hasVibrator()) vibrator = found;
 		}
 		catch (Throwable e)
@@ -80,18 +88,61 @@ public class NativeHelper extends Extension
 
 	private static final java.util.concurrent.ExecutorService hapticExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 
+	private static final long HAPTIC_STALE_MS = 60;
+
 	public static void haptic(final int type, final float intensity)
 	{
 		if (intensity <= 0) return;
+
+		final long queued = android.os.SystemClock.uptimeMillis();
 
 		hapticExecutor.execute(new Runnable()
 		{
 			@Override
 			public void run()
 			{
+				if (android.os.SystemClock.uptimeMillis() - queued > HAPTIC_STALE_MS) return;
 				playHaptic(type, Math.min(1f, intensity));
 			}
 		});
+	}
+
+	private static void deliver(Vibrator target, VibrationEffect effect)
+	{
+		if (Build.VERSION.SDK_INT >= 33)
+		{
+			target.vibrate(effect, android.os.VibrationAttributes.createForUsage(android.os.VibrationAttributes.USAGE_MEDIA));
+			return;
+		}
+
+		target.vibrate(effect);
+	}
+
+	private static int primitiveFor(Vibrator target, int type)
+	{
+		if (Build.VERSION.SDK_INT < 30) return -1;
+
+		int[] candidates;
+		switch (type)
+		{
+			case 0:
+				candidates = Build.VERSION.SDK_INT >= 31 ? new int[] {VibrationEffect.Composition.PRIMITIVE_LOW_TICK, VibrationEffect.Composition.PRIMITIVE_TICK} : new int[] {VibrationEffect.Composition.PRIMITIVE_TICK};
+				break;
+			case 1:
+				candidates = new int[] {VibrationEffect.Composition.PRIMITIVE_TICK, VibrationEffect.Composition.PRIMITIVE_CLICK};
+				break;
+			case 2:
+				candidates = new int[] {VibrationEffect.Composition.PRIMITIVE_CLICK, VibrationEffect.Composition.PRIMITIVE_TICK};
+				break;
+			default:
+				candidates = Build.VERSION.SDK_INT >= 31 ? new int[] {VibrationEffect.Composition.PRIMITIVE_THUD, VibrationEffect.Composition.PRIMITIVE_CLICK} : new int[] {VibrationEffect.Composition.PRIMITIVE_CLICK};
+				break;
+		}
+
+		for (int primitive : candidates)
+			if (target.areAllPrimitivesSupported(primitive)) return primitive;
+
+		return -1;
 	}
 
 	private static void playHaptic(int type, float intensity)
@@ -101,27 +152,16 @@ public class NativeHelper extends Extension
 			Vibrator target = getVibrator();
 			if (target == null) return;
 
-			if (Build.VERSION.SDK_INT >= 30)
+			int primitive = primitiveFor(target, type);
+			if (primitive >= 0)
 			{
-				int primitive;
-				switch (type)
-				{
-					case 0: primitive = VibrationEffect.Composition.PRIMITIVE_TICK; break;
-					case 1: primitive = VibrationEffect.Composition.PRIMITIVE_TICK; break;
-					case 2: primitive = VibrationEffect.Composition.PRIMITIVE_CLICK; break;
-					default: primitive = VibrationEffect.Composition.PRIMITIVE_THUD; break;
-				}
-
-				if (type == 3 && !target.areAllPrimitivesSupported(primitive)) primitive = VibrationEffect.Composition.PRIMITIVE_CLICK;
-
-				if (target.areAllPrimitivesSupported(primitive))
-				{
-					target.vibrate(VibrationEffect.startComposition().addPrimitive(primitive, intensity).compose());
-					return;
-				}
+				VibrationEffect.Composition composition = VibrationEffect.startComposition().addPrimitive(primitive, intensity);
+				if (type == 4) composition.addPrimitive(primitive, intensity * 0.8f, 60);
+				deliver(target, composition.compose());
+				return;
 			}
 
-			if (Build.VERSION.SDK_INT >= 29 && intensity >= 0.85f)
+			if (Build.VERSION.SDK_INT >= 29 && intensity >= 0.85f && type != 4)
 			{
 				int effect;
 				switch (type)
@@ -130,27 +170,30 @@ public class NativeHelper extends Extension
 					case 2: effect = VibrationEffect.EFFECT_CLICK; break;
 					default: effect = VibrationEffect.EFFECT_HEAVY_CLICK; break;
 				}
-				target.vibrate(VibrationEffect.createPredefined(effect));
+				deliver(target, VibrationEffect.createPredefined(effect));
 				return;
 			}
 
 			int duration;
 			switch (type)
 			{
-				case 0: duration = 6; break;
-				case 1: duration = 10; break;
-				case 2: duration = 18; break;
-				default: duration = 35; break;
+				case 0: duration = 5; break;
+				case 1: duration = 9; break;
+				case 2: duration = 16; break;
+				default: duration = 30; break;
 			}
 
 			if (Build.VERSION.SDK_INT >= 26)
 			{
 				int amplitude = VibrationEffect.DEFAULT_AMPLITUDE;
 				if (target.hasAmplitudeControl()) amplitude = Math.max(1, Math.min(255, Math.round(intensity * 255)));
-				target.vibrate(VibrationEffect.createOneShot(duration, amplitude));
+
+				if (type == 4) deliver(target, VibrationEffect.createWaveform(new long[] {0, 12, 60, 12}, new int[] {0, amplitude, 0, amplitude}, -1));
+				else deliver(target, VibrationEffect.createOneShot(duration, amplitude));
 			}
 			else
 			{
+				target.cancel();
 				target.vibrate(Math.max(1, Math.round(duration * intensity)));
 			}
 		}

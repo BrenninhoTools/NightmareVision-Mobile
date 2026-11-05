@@ -8,6 +8,7 @@ enum HapticType
 	LIGHT;
 	MEDIUM;
 	HEAVY;
+	DOUBLE;
 }
 
 class Haptics
@@ -35,6 +36,7 @@ class Haptics
 			case LIGHT: 0.5;
 			case MEDIUM: 0.75;
 			case HEAVY: 1.0;
+			case DOUBLE: 0.6;
 		}
 
 		NativeUtil.haptic(typeId(type), base * scale * ClientPrefs.hapticsIntensity);
@@ -51,6 +53,18 @@ class Haptics
 	{
 		if (level < 1 || !throttle(NOTE, noteInterval())) return;
 		play(HEAVY, 0.85);
+	}
+
+	public static function sustain():Void
+	{
+		if (level < 2 || !throttle(SCROLL, 90)) return;
+		play(SELECTION, 0.8);
+	}
+
+	public static function denied():Void
+	{
+		if (!throttle(MENU, 120)) return;
+		play(DOUBLE);
 	}
 
 	public static function select():Void
@@ -124,6 +138,7 @@ class Haptics
 			case LIGHT: 1;
 			case MEDIUM: 2;
 			case HEAVY: 3;
+			case DOUBLE: 4;
 		}
 	}
 

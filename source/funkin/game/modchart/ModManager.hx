@@ -221,7 +221,21 @@ class ModManager implements IFlxDestroyable
 	public function getBaseX(direction:Int, player:Int):Float
 	{
 		if (arrowsLayout && player == 0) return getArrowsX(direction, keys);
+		if (arrowsLayout && player == 1) return getArrowsOpponentX(direction, keys);
 		return (getCenterX(player, keys) + getStrumX(direction, keys));
+	}
+	
+	public static var arrowsOpponentScale:Float = 0.5;
+	
+	public static var arrowsOpponentRight:Float = -1;
+	
+	public static var arrowsOpponentCenterY:Float = -1;
+	
+	public static function getArrowsOpponentX(direction:Int, keys:Int):Float
+	{
+		final right = arrowsOpponentRight >= 0 ? arrowsOpponentRight : FlxG.width - funkin.mobile.ScreenStyle.safeRight - 20;
+		final spacing = Note.swagWidth * arrowsOpponentScale;
+		return right - spacing * (keys - direction - 0.5);
 	}
 	
 	public static var arrowsSpread:Float = 0.72;
@@ -316,6 +330,7 @@ class ModManager implements IFlxDestroyable
 		if (!obj.active) return pos;
 		
 		pos.setTo(getBaseX(data, player), getBaseY() + diff, 0);
+		if (arrowsLayout && player == 1 && arrowsOpponentCenterY >= 0) pos.y += arrowsOpponentCenterY - getBaseY();
 		
 		if (activeMods[player] != null)
 		{

@@ -582,6 +582,9 @@ class PlayState extends MusicBeatState
 		pauseButton = funkin.mobile.MobileUtil.createPauseButton(camMobile);
 		if (ClientPrefs.invisiblePauseButton) pauseButton.alpha = 0;
 		add(pauseButton);
+		
+		ModManager.arrowsOpponentRight = pauseButton.x - funkin.mobile.MobileUtil.BUTTON_SPACING;
+		ModManager.arrowsOpponentCenterY = pauseButton.y + pauseButton.height / 2;
 	}
 	
 	public var arrowsMode(default, null):Bool = false;
@@ -614,7 +617,15 @@ class PlayState extends MusicBeatState
 		if (!arrowsMode || modManager == null) return;
 		
 		if (arrowsScale != 1) modManager.setValue('mini', 1 - arrowsScale, 0);
-		for (lane in 1...SONG.lanes)
+		
+		if (SONG.lanes > 1)
+		{
+			modManager.setValue('mini', 1 - ModManager.arrowsOpponentScale, 1);
+			modManager.setValue('noteAlpha', 1, 1);
+			modManager.setValue('reverse', ClientPrefs.downScroll ? 1 : 0, 1);
+		}
+		
+		for (lane in 2...SONG.lanes)
 			modManager.setValue('alpha', 1, lane);
 	}
 	

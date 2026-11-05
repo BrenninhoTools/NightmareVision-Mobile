@@ -290,7 +290,7 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 
 	public static var borderSize:Int = 3;
 
-	static function createLaneGraphic(width:Int, height:Int, color:FlxColor):BitmapData
+	public static function createLaneGraphic(width:Int, height:Int, color:FlxColor):BitmapData
 	{
 		final bitmap = new BitmapData(width, height, true, FlxColor.TRANSPARENT);
 

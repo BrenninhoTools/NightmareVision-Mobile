@@ -574,7 +574,7 @@ class PlayState extends MusicBeatState
 	{
 		camMobile = funkin.mobile.MobileUtil.createCamera();
 		
-		hitbox = new funkin.mobile.Hitbox([for (action in InputSystem.ACTION_LIST) (action : String)]).setCamera(camMobile);
+		hitbox = new funkin.mobile.Hitbox([for (action in InputSystem.ACTION_LIST) (action : String)], ClientPrefs.hitboxMode == 'Four Lanes' ? ClientPrefs.hitboxColors : null).setCamera(camMobile);
 		hitbox.onLaneDown.add((lane) -> scripts?.call('onHitboxPress', [lane]));
 		hitbox.onLaneUp.add((lane) -> scripts?.call('onHitboxRelease', [lane]));
 		if (ClientPrefs.hitboxMode == 'D-Pad Left' || ClientPrefs.hitboxMode == 'D-Pad Right') hitbox.applyDPad(ClientPrefs.hitboxMode == 'D-Pad Right');

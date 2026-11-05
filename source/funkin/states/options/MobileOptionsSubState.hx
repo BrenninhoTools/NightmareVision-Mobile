@@ -28,13 +28,35 @@ class MobileOptionsSubState extends BaseOptionsMenu
 	var prompted:Bool = false;
 	#end
 	
+	var hitboxModeOption:Option;
+	
+	function openHitboxCustom():Void
+	{
+		FlxG.sound.play(Paths.sound('scrollMenu'));
+		
+		final custom = new HitboxCustomSubState();
+		custom.onClosed = () -> {
+			if (hitboxModeOption.options != null)
+			{
+				hitboxModeOption.curOption = Std.int(Math.max(0, hitboxModeOption.options.indexOf(ClientPrefs.hitboxMode)));
+				updateTextFrom(hitboxModeOption);
+			}
+			nextAccept = 5;
+		};
+		openSubState(custom);
+	}
+	
 	public function new()
 	{
 		title = 'Mobile Options';
 		rpcTitle = 'Mobile Options Menu';
 		
-		var option:Option = new Option('Hitbox Mode', 'Four Lanes: four touch lanes. Arrows: tap the strums at the bottom.\nD-Pad Left / D-Pad Right: a four note pad on that side of the screen.', 'hitboxMode', STRING, 'Four Lanes', ['Four Lanes', 'Arrows', 'D-Pad Left', 'D-Pad Right']);
+		var option:Option = new Option('Hitbox Custom', 'Preview the hitbox and change the color of each lane\nwith RGB sliders in Four Lanes mode.', 'hitboxMode', BUTTON);
+		option.callback = openHitboxCustom;
 		addOption(option);
+		
+		hitboxModeOption = new Option('Hitbox Mode', 'Four Lanes: four touch lanes. Arrows: tap the strums at the bottom.\nD-Pad Left / D-Pad Right: a four note pad on that side of the screen.', 'hitboxMode', STRING, 'Four Lanes', ['Four Lanes', 'Arrows', 'D-Pad Left', 'D-Pad Right']);
+		addOption(hitboxModeOption);
 		
 		var option:Option = new Option('Invisible Hitbox', 'If checked, the hitbox lanes stay invisible while you play,\nbut they still work.', 'invisibleHitbox', BOOL, false);
 		addOption(option);

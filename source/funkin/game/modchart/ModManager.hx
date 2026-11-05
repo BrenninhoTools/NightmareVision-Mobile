@@ -244,10 +244,14 @@ class ModManager implements IFlxDestroyable
 	{
 		final safeLeft = funkin.mobile.ScreenStyle.safeLeft;
 		final usable = FlxG.width - safeLeft - funkin.mobile.ScreenStyle.safeRight;
+		if (keys == 4 && direction >= 0 && direction < arrowsLayoutFour.length) return safeLeft + usable * arrowsLayoutFour[direction];
+		
 		final span = usable * arrowsSpread;
 		final left = safeLeft + (usable - span) / 2;
 		return left + span * (direction + 0.5) / Math.max(1, keys);
 	}
+	
+	public static var arrowsLayoutFour:Array<Float> = [0.16, 0.34, 0.66, 0.84];
 	
 	public static inline function getCenterX(player:Int, keys:Int):Float
 	{

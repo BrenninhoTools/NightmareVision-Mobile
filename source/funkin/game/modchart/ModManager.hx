@@ -251,7 +251,7 @@ class ModManager implements IFlxDestroyable
 		return left + span * (direction + 0.5) / Math.max(1, keys);
 	}
 	
-	public static var arrowsLayoutFour:Array<Float> = [0.16, 0.34, 0.66, 0.84];
+	public static var arrowsLayoutFour:Array<Float> = [0.25, 0.39, 0.61, 0.75];
 	
 	public static inline function getCenterX(player:Int, keys:Int):Float
 	{

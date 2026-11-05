@@ -583,8 +583,18 @@ class PlayState extends MusicBeatState
 		if (ClientPrefs.invisiblePauseButton) pauseButton.alpha = 0;
 		add(pauseButton);
 		
-		ModManager.arrowsOpponentRight = pauseButton.x - funkin.mobile.MobileUtil.BUTTON_SPACING;
-		ModManager.arrowsOpponentCenterY = pauseButton.y + pauseButton.height / 2;
+		final strumHalf = Note.swagWidth * ModManager.arrowsOpponentScale / 2;
+		var opponentTop = funkin.mobile.MobileUtil.topEdge();
+		
+		final debug = funkin.backend.DebugDisplay.instance;
+		if (debug != null && debug.visible && FlxG.stage != null && FlxG.stage.stageHeight > 0)
+		{
+			final stageToGame = FlxG.height / FlxG.stage.stageHeight;
+			opponentTop = Math.max(opponentTop, (debug.y + debug.textUnderlay.height * debug.scaleY) * stageToGame + 6);
+		}
+		
+		ModManager.arrowsOpponentLeft = funkin.mobile.MobileUtil.leftEdge();
+		ModManager.arrowsOpponentCenterY = opponentTop + strumHalf;
 	}
 	
 	public var arrowsMode(default, null):Bool = false;

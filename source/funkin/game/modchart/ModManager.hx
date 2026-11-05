@@ -227,15 +227,15 @@ class ModManager implements IFlxDestroyable
 	
 	public static var arrowsOpponentScale:Float = 0.5;
 	
-	public static var arrowsOpponentRight:Float = -1;
+	public static var arrowsOpponentLeft:Float = -1;
 	
 	public static var arrowsOpponentCenterY:Float = -1;
 	
 	public static function getArrowsOpponentX(direction:Int, keys:Int):Float
 	{
-		final right = arrowsOpponentRight >= 0 ? arrowsOpponentRight : FlxG.width - funkin.mobile.ScreenStyle.safeRight - 20;
+		final left = arrowsOpponentLeft >= 0 ? arrowsOpponentLeft : funkin.mobile.ScreenStyle.safeLeft + 20;
 		final spacing = Note.swagWidth * arrowsOpponentScale;
-		return right - spacing * (keys - direction - 0.5);
+		return left + spacing * (direction + 0.5);
 	}
 	
 	public static var arrowsSpread:Float = 0.72;

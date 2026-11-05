@@ -48,17 +48,19 @@ class VirtualPadButton extends TouchButton
 		this.key = key;
 		blocksGestures = true;
 
-		final path = key.image != null ? 'images/mobile/virtualpad/${key.image}.png' : null;
+		final noteIndex = switch (key.key)
+		{
+			case LEFT: 0;
+			case DOWN: 1;
+			case UP: 2;
+			case RIGHT: 3;
+			default: -1;
+		}
 
-		if (path != null && Paths.fileExists(path))
-		{
-			loadGraphic(Paths.image('mobile/virtualpad/${key.image}'));
-			setGraphicSize(size, size);
-		}
+		if (noteIndex >= 0 && VirtualPad.noteAtlas != null)
+			loadGraphic(Hitbox.createDPadGraphic(size, Hitbox.COLORS[noteIndex], VirtualPad.noteAtlas, Hitbox.DPAD_NOTES[noteIndex]), false, 0, 0, true);
 		else
-		{
 			loadGraphic(createGraphic(size, key.label), false, 0, 0, true);
-		}
 
 		updateHitbox();
 		baseScale = scale.x;
@@ -148,31 +150,36 @@ class VirtualPadButton extends TouchButton
 		scale.set(baseScale, baseScale);
 	}
 
+	public static var keyColor:FlxColor = 0xFF3B3B52;
+
 	static function createGraphic(size:Int, label:String):BitmapData
 	{
-		final radius = size * 0.32;
+		final radius = size * 0.28;
 		final shape = new Shape();
 		final g = shape.graphics;
 
-		g.beginFill(0x000000);
+		var dark:FlxColor = keyColor;
+		dark.brightness *= 0.5;
+
+		g.beginFill(dark.rgb, 0.92);
 		g.drawRoundRect(0, 0, size, size, radius, radius);
 		g.endFill();
 
-		g.beginFill(0xFFFFFF);
-		g.drawRoundRect(3, 3, size - 6, size - 6, radius * 0.9, radius * 0.9);
+		g.beginFill(keyColor.rgb, 0.85);
+		g.drawRoundRect(5, 5, size - 10, size - 10, radius * 0.85, radius * 0.85);
 		g.endFill();
 
-		g.beginFill(0x000000);
-		g.drawRoundRect(10, 10, size - 20, size - 20, radius * 0.7, radius * 0.7);
+		g.beginFill(0xFFFFFF, 0.14);
+		g.drawRoundRect(9, 9, size - 18, (size - 18) * 0.45, radius * 0.7, radius * 0.7);
 		g.endFill();
 
 		final bitmap = new BitmapData(size, size, true, 0);
 		bitmap.draw(shape);
 
-		final fontSize = label.length <= 1 ? Std.int(size * 0.42) : Std.int(Math.min(size * 0.26, (size - 26) / (label.length * 0.62)));
+		final fontSize = label.length <= 1 ? Std.int(size * 0.44) : Std.int(Math.min(size * 0.27, (size - 22) / (label.length * 0.62)));
 		final text = new FlxText(0, 0, size, label, fontSize);
 		text.setFormat(Paths.DEFAULT_FONT, fontSize, FlxColor.WHITE, CENTER, OUTLINE, FlxColor.BLACK);
-		text.borderSize = 2;
+		text.borderSize = Math.max(1.5, size / 40);
 		text.drawFrame(true);
 
 		final pixels = text.pixels;
@@ -192,6 +199,8 @@ class VirtualPadButton extends TouchButton
 class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 {
 	public static var idleAlpha:Float = 0.55;
+
+	public static var noteAtlas(default, null):Null<flixel.graphics.frames.FlxAtlasFrames> = null;
 
 	public static var buttonSize:Int = 84;
 
@@ -284,6 +293,8 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 
 		this.pages = pages ?? (actions != null ? [actions] : DEFAULT_PAGES);
 
+		noteAtlas = Hitbox.loadNoteAtlas();
+
 		loadOffsets();
 
 		final size = buttonSize;
@@ -338,6 +349,9 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		pageLabel = new FlxText(left + (small + gap) * tools.length + 4, top + small / 2 - 12, 0, '', 20);
 		pageLabel.setFormat(Paths.DEFAULT_FONT, 20, FlxColor.WHITE, LEFT, OUTLINE, FlxColor.BLACK);
 		pageLabel.cameras = [padCamera];
+
+		if (noteAtlas != null) noteAtlas.parent.destroy();
+		noteAtlas = null;
 
 		applyOffsets();
 		setPage(0);
@@ -600,7 +614,7 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		saveOffsets();
 	}
 
-	function hitsButton(stageX:Float, stageY:Float):Bool
+	public function hitsButton(stageX:Float, stageY:Float):Bool
 	{
 		final scale = FlxG.scaleMode.scale;
 		final gameX = (stageX - FlxG.game.x) / scale.x;

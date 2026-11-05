@@ -26,7 +26,6 @@ class ChartTouchControls
 
 	static var state:Null<FlxState> = null;
 
-	static var backButton:Null<TouchButton> = null;
 
 	static final touches:Map<Int, {startX:Float, startY:Float, x:Float, y:Float}> = [];
 
@@ -61,13 +60,6 @@ class ChartTouchControls
 		state = target;
 		active = true;
 
-		final camera = MobileUtil.createCamera();
-		backButton = MobileUtil.createButton('backButton', 'back', [], MobileUtil.backScale, camera);
-		backButton.setPosition(MobileUtil.rightEdge() - backButton.width, MobileUtil.bottomEdge() - backButton.height);
-		backButton.blocksGestures = true;
-		backButton.onDown.add(() -> pressKey(ESCAPE, 27));
-		target.add(backButton);
-
 		final stage = FlxG.stage;
 		stage.addEventListener(TouchEvent.TOUCH_BEGIN, onTouchBegin, false, 30000);
 		stage.addEventListener(TouchEvent.TOUCH_MOVE, onTouchMove, false, 30000);
@@ -77,7 +69,7 @@ class ChartTouchControls
 		stage.addEventListener(MouseEvent.CLICK, blockMouse, false, 30000);
 		FlxG.signals.postUpdate.add(flushPending);
 
-		NativeUtil.toast('Tap the grid to place notes, drag to scroll, swipe sideways to change section, two fingers to play or pause, pinch to zoom.', true);
+		NativeUtil.toast('Tap the grid to place notes, drag to scroll, swipe sideways to change section, two fingers to play or pause, pinch to zoom. Use the pad for shortcuts.', true);
 	}
 
 	public static function detach():Void
@@ -86,7 +78,6 @@ class ChartTouchControls
 
 		active = false;
 		state = null;
-		backButton = null;
 		touches.clear();
 		primaryId = -1;
 		pendingUps.resize(0);
@@ -117,7 +108,12 @@ class ChartTouchControls
 		final grid:Null<FlxSprite> = Reflect.field(state, 'gridBG');
 		if (grid == null || !grid.exists) return false;
 
-		if (backButton != null && TouchUtil.pointOverlaps(gameX, gameY, backButton)) return false;
+		final pad = EditorTouchSupport.current;
+		if (pad != null && FlxG.stage != null)
+		{
+			final scale = FlxG.scaleMode.scale;
+			if (pad.hitsButton(gameX * scale.x + FlxG.game.x, gameY * scale.y + FlxG.game.y)) return false;
+		}
 
 		return TouchUtil.pointOverlaps(gameX, gameY, grid);
 	}

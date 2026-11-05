@@ -135,14 +135,16 @@ class EditorTouchSupport
 		if (!editor) return;
 		
 		final name = Type.getClassName(Type.getClass(state));
+		final camera = MobileUtil.createCamera();
+		
 		if (CHART_EDITORS.contains(name))
 		{
 			TouchInput.gesturesEnabled = false;
+			current = new VirtualPad(camera);
+			state.add(current);
 			ChartTouchControls.attach(state);
 			return;
 		}
-		
-		final camera = MobileUtil.createCamera();
 		
 		if (MENU_ONLY.contains(name))
 		{

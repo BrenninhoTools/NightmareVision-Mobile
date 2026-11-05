@@ -114,7 +114,7 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		idleAlpha = dpadIdleAlpha;
 	}
 
-	static function loadNoteAtlas():Null<flixel.graphics.frames.FlxAtlasFrames>
+	public static function loadNoteAtlas():Null<flixel.graphics.frames.FlxAtlasFrames>
 	{
 		try
 		{
@@ -130,7 +130,7 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		return null;
 	}
 
-	static function createDPadGraphic(size:Int, color:FlxColor, atlas:Null<flixel.graphics.frames.FlxAtlasFrames>, prefix:String):BitmapData
+	public static function createDPadGraphic(size:Int, color:FlxColor, atlas:Null<flixel.graphics.frames.FlxAtlasFrames>, prefix:String):BitmapData
 	{
 		final radius = size * 0.28;
 		final shape = new openfl.display.Shape();

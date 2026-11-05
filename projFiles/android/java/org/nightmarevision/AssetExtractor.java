@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.haxe.extension.Extension;
 
@@ -47,7 +50,7 @@ public class AssetExtractor extends Extension
 
 	private static final int BUFFER_SIZE = 512 * 1024;
 
-	private static final int MAX_THREADS = 6;
+	private static final int MAX_THREADS = 8;
 
 	private static final long MIN_FREE_BYTES = 64L * 1024L * 1024L;
 
@@ -62,6 +65,22 @@ public class AssetExtractor extends Extension
 	private static boolean started = false;
 
 	private static TextView overlay;
+
+	private static final class Entry
+	{
+		final long size;
+		final long crc;
+		final boolean stored;
+
+		Entry(long size, long crc, boolean stored)
+		{
+			this.size = size;
+			this.crc = crc;
+			this.stored = stored;
+		}
+	}
+
+	private static final Map<String, Long> checksums = new ConcurrentHashMap<String, Long>();
 
 	public AssetExtractor()
 	{
@@ -154,6 +173,7 @@ public class AssetExtractor extends Extension
 
 		migrateFrom(StorageHelper.getPreviousDirectory());
 
+		checksums.clear();
 		final Map<String, Long> manifest = new ConcurrentHashMap<String, Long>(readManifest());
 		final String version = getVersion(context);
 		final File versionFile = new File(gameDirectory, VERSION_FILE);
@@ -162,9 +182,14 @@ public class AssetExtractor extends Extension
 		if (!updated && !manifest.isEmpty() && !new File(gameDirectory, ERROR_FILE).exists() && quickCheck(manifest))
 			return;
 
+		final Map<String, Entry> packageIndex = readPackageIndex(context);
 		List<String> files;
 
-		if (!updated && !manifest.isEmpty())
+		if (packageIndex != null)
+		{
+			files = new ArrayList<String>(packageIndex.keySet());
+		}
+		else if (!updated && !manifest.isEmpty())
 		{
 			files = new ArrayList<String>(manifest.keySet());
 		}
@@ -180,9 +205,28 @@ public class AssetExtractor extends Extension
 		for (String path : files)
 		{
 			File target = new File(gameDirectory, path);
+			Entry entry = packageIndex != null ? packageIndex.get(path) : null;
 
-			if (needsCopy(path, target, manifest, updated)) pending.add(path);
-			else if (!manifest.containsKey(path)) manifest.put(path, target.length());
+			if (needsCopy(path, target, manifest, updated, entry)) pending.add(path);
+			else
+			{
+				if (!manifest.containsKey(path)) manifest.put(path, target.length());
+				if (entry != null && entry.size == target.length()) checksums.put(path, entry.crc);
+			}
+		}
+
+		if (packageIndex != null)
+		{
+			Collections.sort(pending, new java.util.Comparator<String>()
+			{
+				@Override
+				public int compare(String a, String b)
+				{
+					long sizeA = packageIndex.get(a).size;
+					long sizeB = packageIndex.get(b).size;
+					return sizeA < sizeB ? 1 : (sizeA > sizeB ? -1 : 0);
+				}
+			});
 		}
 
 		total = pending.size();
@@ -228,10 +272,17 @@ public class AssetExtractor extends Extension
 						String path = pending.get(index);
 						File target = new File(gameDirectory, path);
 
-						long size = copy(assets, path, target, buffer);
-						if (size < 0) size = copy(assets, path, target, buffer);
+						Entry entry = packageIndex != null ? packageIndex.get(path) : null;
+						boolean direct = entry == null || entry.stored;
 
-						if (size >= 0) manifest.put(path, size);
+						long size = copy(assets, path, target, buffer, direct);
+						if (size < 0) size = copy(assets, path, target, buffer, false);
+
+						if (size >= 0)
+						{
+							manifest.put(path, size);
+							if (entry != null && entry.size == size) checksums.put(path, entry.crc);
+						}
 						else failed.add(path);
 
 						done = completed.incrementAndGet();
@@ -481,12 +532,20 @@ public class AssetExtractor extends Extension
 		}
 	}
 
-	private static boolean needsCopy(String path, File target, Map<String, Long> manifest, boolean updated)
+	private static boolean needsCopy(String path, File target, Map<String, Long> manifest, boolean updated, Entry entry)
 	{
-		if (!target.isFile() || target.length() == 0) return true;
+		if (!target.isFile() || (target.length() == 0 && (entry == null || entry.size != 0))) return true;
 
 		Long recorded = manifest.get(path);
 		boolean always = isAlwaysUpdated(path);
+
+		if (entry != null && recorded != null && recorded == target.length())
+		{
+			Long crc = checksums.get(path);
+			if (crc != null && crc == entry.crc && entry.size == target.length()) return false;
+			if (crc == null && !updated && entry.size == target.length()) return false;
+			return always || updated || entry.size != target.length();
+		}
 
 		if (always && (recorded == null || recorded != target.length())) return true;
 
@@ -529,7 +588,57 @@ public class AssetExtractor extends Extension
 			collect(assets, path + "/" + child, output);
 	}
 
-	private static long copy(AssetManager assets, String path, File target, byte[] buffer)
+	private static Map<String, Entry> readPackageIndex(Context context)
+	{
+		ZipFile zip = null;
+
+		try
+		{
+			String source = context.getApplicationInfo().sourceDir;
+			if (source == null) return null;
+
+			zip = new ZipFile(source);
+			Map<String, Entry> index = new HashMap<String, Entry>();
+			Enumeration<? extends ZipEntry> entries = zip.entries();
+
+			while (entries.hasMoreElements())
+			{
+				ZipEntry entry = entries.nextElement();
+				if (entry.isDirectory()) continue;
+
+				String name = entry.getName();
+				if (!name.startsWith("assets/")) continue;
+
+				String path = name.substring(7);
+				if (!isRootPath(path)) continue;
+
+				index.put(path, new Entry(entry.getSize(), entry.getCrc(), entry.getMethod() == ZipEntry.STORED));
+			}
+
+			return index.isEmpty() ? null : index;
+		}
+		catch (Throwable e)
+		{
+			return null;
+		}
+		finally
+		{
+			try
+			{
+				if (zip != null) zip.close();
+			}
+			catch (Throwable e) {}
+		}
+	}
+
+	private static boolean isRootPath(String path)
+	{
+		for (String root : ROOTS)
+			if (path.startsWith(root + "/")) return true;
+		return false;
+	}
+
+	private static long copy(AssetManager assets, String path, File target, byte[] buffer, boolean tryDirect)
 	{
 		File temp = new File(target.getAbsolutePath() + ".copying");
 		InputStream input = null;
@@ -540,7 +649,7 @@ public class AssetExtractor extends Extension
 			File parent = target.getParentFile();
 			if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) return -1;
 
-			long direct = copyDirect(assets, path, temp);
+			long direct = tryDirect ? copyDirect(assets, path, temp) : -1;
 			if (direct >= 0 && temp.length() == direct)
 			{
 				if (target.exists() && !target.delete()) return -1;
@@ -617,12 +726,13 @@ public class AssetExtractor extends Extension
 			String line;
 			while ((line = reader.readLine()) != null)
 			{
-				int tab = line.lastIndexOf('\t');
-				if (tab <= 0) continue;
+				String[] parts = line.split("\t");
+				if (parts.length < 2 || parts[0].length() == 0) continue;
 
 				try
 				{
-					manifest.put(line.substring(0, tab), Long.parseLong(line.substring(tab + 1)));
+					manifest.put(parts[0], Long.parseLong(parts[1]));
+					if (parts.length > 2) checksums.put(parts[0], Long.parseLong(parts[2]));
 				}
 				catch (Throwable ignored) {}
 			}
@@ -637,7 +747,12 @@ public class AssetExtractor extends Extension
 	{
 		StringBuilder builder = new StringBuilder();
 		for (Map.Entry<String, Long> entry : manifest.entrySet())
-			builder.append(entry.getKey()).append('\t').append(entry.getValue()).append('\n');
+		{
+			builder.append(entry.getKey()).append('\t').append(entry.getValue());
+			Long crc = checksums.get(entry.getKey());
+			if (crc != null) builder.append('\t').append(crc);
+			builder.append('\n');
+		}
 
 		File temp = new File(gameDirectory, MANIFEST_FILE + ".tmp");
 		writeText(temp, builder.toString());

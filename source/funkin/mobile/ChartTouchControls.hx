@@ -108,11 +108,10 @@ class ChartTouchControls
 		final grid:Null<FlxSprite> = Reflect.field(state, 'gridBG');
 		if (grid == null || !grid.exists) return false;
 
-		final pad = EditorTouchSupport.current;
-		if (pad != null && FlxG.stage != null)
+		if (FlxG.stage != null)
 		{
 			final scale = FlxG.scaleMode.scale;
-			if (pad.hitsButton(gameX * scale.x + FlxG.game.x, gameY * scale.y + FlxG.game.y)) return false;
+			if (EditorTouchSupport.hitsButton(gameX * scale.x + FlxG.game.x, gameY * scale.y + FlxG.game.y)) return false;
 		}
 
 		return TouchUtil.pointOverlaps(gameX, gameY, grid);

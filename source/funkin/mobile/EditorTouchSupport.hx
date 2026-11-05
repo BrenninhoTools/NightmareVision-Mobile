@@ -2,6 +2,9 @@ package funkin.mobile;
 
 import flixel.FlxG;
 import flixel.FlxState;
+import flixel.input.keyboard.FlxKey;
+import openfl.events.KeyboardEvent;
+import openfl.ui.KeyLocation;
 
 class EditorTouchSupport
 {
@@ -13,7 +16,9 @@ class EditorTouchSupport
 	
 	public static var enabled:Bool = true;
 	
-	public static var current(default, null):Null<VirtualPad> = null;
+	public static var current(default, null):Null<TouchButton> = null;
+
+	static var escapeHeld:Bool = false;
 	
 	static var initialized:Bool = false;
 	
@@ -100,7 +105,11 @@ class EditorTouchSupport
 
 		gesturesBeforeSuspend = TouchInput.gesturesEnabled;
 		TouchInput.gesturesEnabled = true;
-		if (current != null) current.suspended = true;
+		if (current != null)
+		{
+			releaseEscape();
+			current.visible = false;
+		}
 	}
 
 	public static function resume():Void
@@ -109,7 +118,7 @@ class EditorTouchSupport
 		if (--suspendCount > 0) return;
 
 		TouchInput.gesturesEnabled = gesturesBeforeSuspend;
-		if (current != null) current.suspended = false;
+		if (current != null) current.visible = true;
 	}
 
 	static function onPreSwitch():Void
@@ -119,6 +128,7 @@ class EditorTouchSupport
 			suspendCount = 0;
 			TouchInput.gesturesEnabled = gesturesBeforeSuspend;
 		}
+		releaseEscape();
 		current = null;
 		ChartTouchControls.detach();
 	}
@@ -137,15 +147,6 @@ class EditorTouchSupport
 		final name = Type.getClassName(Type.getClass(state));
 		final camera = MobileUtil.createCamera();
 		
-		if (CHART_EDITORS.contains(name))
-		{
-			TouchInput.gesturesEnabled = false;
-			current = new VirtualPad(camera);
-			state.add(current);
-			ChartTouchControls.attach(state);
-			return;
-		}
-		
 		if (MENU_ONLY.contains(name))
 		{
 			state.add(MobileUtil.createBackButton(camera));
@@ -154,7 +155,53 @@ class EditorTouchSupport
 		
 		TouchInput.gesturesEnabled = false;
 		
-		current = new VirtualPad(camera);
+		current = createEditorBackButton(camera, state);
 		state.add(current);
+		
+		if (CHART_EDITORS.contains(name)) ChartTouchControls.attach(state);
+	}
+	
+	static function createEditorBackButton(camera:flixel.FlxCamera, state:FlxState):TouchButton
+	{
+		final button = MobileUtil.createBackButton(camera);
+		button.actions = [];
+		button.persistent = false;
+		button.owner = state;
+		button.onDown.add(pressEscape);
+		button.onUp.add(releaseEscape);
+		return button;
+	}
+	
+	public static function hitsButton(stageX:Float, stageY:Float):Bool
+	{
+		if (current == null || !current.exists || !current.visible) return false;
+		
+		final camera = TouchUtil.getCamera(current);
+		final scale = FlxG.scaleMode.scale;
+		final gameX = (stageX - FlxG.game.x) / scale.x;
+		final gameY = (stageY - FlxG.game.y) / scale.y;
+		final x = (gameX - camera.x) / camera.zoom + camera.viewMarginX;
+		final y = (gameY - camera.y) / camera.zoom + camera.viewMarginY;
+		final padding = 10;
+		
+		return x >= current.x - padding && x < current.x + current.width + padding && y >= current.y - padding && y < current.y + current.height + padding;
+	}
+	
+	static function pressEscape():Void
+	{
+		final stage = FlxG.stage;
+		if (stage == null || escapeHeld) return;
+		
+		escapeHeld = true;
+		stage.dispatchEvent(new KeyboardEvent(KeyboardEvent.KEY_DOWN, true, false, 27, FlxKey.ESCAPE, KeyLocation.STANDARD));
+	}
+	
+	static function releaseEscape():Void
+	{
+		if (!escapeHeld) return;
+		
+		escapeHeld = false;
+		final stage = FlxG.stage;
+		if (stage != null) stage.dispatchEvent(new KeyboardEvent(KeyboardEvent.KEY_UP, true, false, 27, FlxKey.ESCAPE, KeyLocation.STANDARD));
 	}
 }

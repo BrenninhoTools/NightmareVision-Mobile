@@ -1,5 +1,7 @@
 package funkin.states.options;
 
+import openfl.display.BitmapData;
+
 import flixel.FlxCamera;
 import flixel.text.FlxText;
 import flixel.util.FlxColor;
@@ -10,9 +12,11 @@ import haxe.ui.components.HorizontalSlider;
 import haxe.ui.components.Label;
 import haxe.ui.components.NumberStepper;
 import haxe.ui.containers.Box;
-import haxe.ui.containers.HorizontalButtonBar;
 import haxe.ui.containers.HBox;
+import haxe.ui.containers.HorizontalButtonBar;
 import haxe.ui.containers.VBox;
+import haxe.ui.core.Component;
+import haxe.ui.core.Screen;
 
 import funkin.mobile.Hitbox;
 import funkin.mobile.MobileUtil;
@@ -24,7 +28,9 @@ class HitboxCustomSubState extends UISubState
 
 	public static final MODES:Array<String> = ['Four Lanes', 'Arrows', 'D-Pad Left', 'D-Pad Right'];
 
-	static inline final PANEL_WIDTH:Float = 390;
+	public static final IMAGE_EXTENSIONS:Array<String> = ['png', 'jpg', 'jpeg'];
+
+	static inline final PANEL_WIDTH:Float = 400;
 
 	static inline final GAP:Float = 16;
 
@@ -46,8 +52,6 @@ class HitboxCustomSubState extends UISubState
 
 	var previewBg:FlxSprite;
 
-	var previewFrame:FlxSprite;
-
 	var previewItems:Array<FlxSprite> = [];
 
 	var lanes:Array<FlxSprite> = [];
@@ -56,13 +60,27 @@ class HitboxCustomSubState extends UISubState
 
 	var noteAtlas:Null<flixel.graphics.frames.FlxAtlasFrames> = null;
 
+	var customImage:Null<BitmapData> = null;
+
+	var panel:VBox;
+
+	var menuPage:VBox;
+
+	var rgbPage:VBox;
+
 	var modeBar:HorizontalButtonBar;
 
 	var laneBar:HorizontalButtonBar;
 
-	var colorBox:VBox;
+	var statusLabel:Label;
 
-	var lockedLabel:Label;
+	var imageButton:Button;
+
+	var rgbButton:Button;
+
+	var rgbNotice:Label;
+
+	var colorBox:VBox;
 
 	var swatch:Box;
 
@@ -74,11 +92,18 @@ class HitboxCustomSubState extends UISubState
 
 	var syncing:Bool = false;
 
+	var picking:Bool = false;
+
+	var exiting:Bool = false;
+
+	var pulse:Float = 0;
+
 	var backButton:Null<funkin.mobile.TouchButton> = null;
 
 	override function create()
 	{
 		colors = [for (i in 0...4) getSavedColor(i)];
+		customImage = Hitbox.loadCustomImage();
 
 		uiCamera = MobileUtil.createCamera();
 		cameras = [uiCamera];
@@ -90,7 +115,7 @@ class HitboxCustomSubState extends UISubState
 		final shade = new FlxSprite().makeGraphic(1, 1, FlxColor.BLACK);
 		shade.setGraphicSize(FlxG.width, FlxG.height);
 		shade.updateHitbox();
-		shade.alpha = 0.75;
+		shade.alpha = 0.8;
 		shade.scrollFactor.set();
 		insert(0, shade);
 
@@ -116,12 +141,12 @@ class HitboxCustomSubState extends UISubState
 		title.scrollFactor.set();
 		add(title);
 
-		previewFrame = new FlxSprite(previewX - 3, previewY - 3).makeGraphic(Std.int(previewWidth + 6), Std.int(previewHeight + 6), FlxColor.WHITE);
-		previewFrame.scrollFactor.set();
-		previewFrame.alpha = 0.85;
-		add(previewFrame);
+		final frame = new FlxSprite(previewX - 3, previewY - 3).makeGraphic(Std.int(previewWidth + 6), Std.int(previewHeight + 6), FlxColor.WHITE);
+		frame.scrollFactor.set();
+		frame.alpha = 0.85;
+		add(frame);
 
-		previewBg = new FlxSprite(previewX, previewY).loadGraphic(Paths.image('menus/menuDesat'));
+		previewBg = new FlxSprite().loadGraphic(Paths.image('menus/menuDesat'));
 		previewBg.setGraphicSize(Std.int(previewWidth), Std.int(previewHeight));
 		previewBg.updateHitbox();
 		previewBg.setPosition(previewX, previewY);
@@ -144,11 +169,12 @@ class HitboxCustomSubState extends UISubState
 
 		rebuildPreview();
 		refreshControls();
+		showPage(false);
 	}
 
 	function buildPanel(x:Float, y:Float):Void
 	{
-		final panel = new VBox();
+		panel = new VBox();
 		panel.left = x;
 		panel.top = y;
 		panel.width = PANEL_WIDTH;
@@ -161,7 +187,24 @@ class HitboxCustomSubState extends UISubState
 
 		panel.addComponent(makeLabel('HITBOX CUSTOM', 22));
 
-		panel.addComponent(makeLabel('Hitbox Mode', 15));
+		menuPage = buildMenuPage();
+		panel.addComponent(menuPage);
+
+		rgbPage = buildRgbPage();
+		panel.addComponent(rgbPage);
+
+		Screen.instance.addComponent(panel);
+		if (!members.contains(panel)) add(panel);
+		panel.cameras = [uiCamera];
+	}
+
+	function buildMenuPage():VBox
+	{
+		final page = new VBox();
+		page.percentWidth = 100;
+		page.verticalSpacing = 10;
+
+		page.addComponent(makeLabel('Hitbox Mode', 15));
 
 		modeBar = new HorizontalButtonBar();
 		modeBar.percentWidth = 100;
@@ -175,11 +218,46 @@ class HitboxCustomSubState extends UISubState
 			rebuildPreview();
 			refreshControls();
 		};
-		panel.addComponent(modeBar);
+		page.addComponent(modeBar);
 
-		lockedLabel = makeLabel('Colors can only be changed\nin Four Lanes mode.', 14);
-		lockedLabel.styleString = 'color: #FFB347;';
-		panel.addComponent(lockedLabel);
+		imageButton = makeButton('Import Hitbox Image');
+		imageButton.onClick = (_) -> importImage();
+		page.addComponent(imageButton);
+
+		rgbButton = makeButton('RGB Hitbox');
+		rgbButton.onClick = (_) -> {
+			FlxG.sound.play(Paths.sound('scrollMenu'));
+			showPage(true);
+		};
+		page.addComponent(rgbButton);
+
+		final reset = makeButton('Reset Hitbox');
+		reset.onClick = (_) -> resetHitbox();
+		page.addComponent(reset);
+
+		statusLabel = makeLabel('', 14);
+		statusLabel.percentWidth = 100;
+		page.addComponent(statusLabel);
+
+		final done = makeButton('Save and Back');
+		page.addComponent(done);
+		done.onClick = (_) -> exit();
+
+		return page;
+	}
+
+	function buildRgbPage():VBox
+	{
+		final page = new VBox();
+		page.percentWidth = 100;
+		page.verticalSpacing = 8;
+
+		page.addComponent(makeLabel('RGB Hitbox', 18));
+
+		rgbNotice = makeLabel('', 14);
+		rgbNotice.percentWidth = 100;
+		rgbNotice.styleString = 'font-size: 14px; color: #FFB347;';
+		page.addComponent(rgbNotice);
 
 		colorBox = new VBox();
 		colorBox.percentWidth = 100;
@@ -224,6 +302,7 @@ class HitboxCustomSubState extends UISubState
 		buttons.horizontalSpacing = 8;
 
 		final resetLane = makeButton('Reset Lane');
+		resetLane.percentWidth = 50;
 		resetLane.onClick = (_) -> {
 			colors[selected] = Hitbox.COLORS[selected];
 			FlxG.sound.play(Paths.sound('cancelMenu'));
@@ -231,25 +310,27 @@ class HitboxCustomSubState extends UISubState
 		};
 		buttons.addComponent(resetLane);
 
-		final resetAll = makeButton('Reset All');
-		resetAll.onClick = (_) -> {
+		final resetColors = makeButton('Reset Colors');
+		resetColors.percentWidth = 50;
+		resetColors.onClick = (_) -> {
 			colors = Hitbox.COLORS.copy();
 			FlxG.sound.play(Paths.sound('cancelMenu'));
-			for (i in 0...lanes.length)
-				lanes[i].color = colors[i];
-			applyColor();
+			rebuildPreview();
+			syncControls();
 		};
-		buttons.addComponent(resetAll);
+		buttons.addComponent(resetColors);
 
 		colorBox.addComponent(buttons);
-		panel.addComponent(colorBox);
+		page.addComponent(colorBox);
 
-		final done = makeButton('Save and Back');
-		done.percentWidth = 100;
-		done.onClick = (_) -> exit();
-		panel.addComponent(done);
+		final back = makeButton('Back');
+		back.onClick = (_) -> {
+			FlxG.sound.play(Paths.sound('cancelMenu'));
+			showPage(false);
+		};
+		page.addComponent(back);
 
-		add(panel);
+		return page;
 	}
 
 	function makeChannelRow(channel:Int):HBox
@@ -261,7 +342,7 @@ class HitboxCustomSubState extends UISubState
 		final name = makeLabel(['R', 'G', 'B'][channel], 18);
 		name.width = 22;
 		name.verticalAlign = 'center';
-		name.styleString = 'color: ' + ['#FF6B6B', '#6BFF8A', '#6BB5FF'][channel] + ';';
+		name.styleString = 'font-size: 18px; color: ' + ['#FF6B6B', '#6BFF8A', '#6BB5FF'][channel] + ';';
 		row.addComponent(name);
 
 		final slider = new HorizontalSlider();
@@ -307,8 +388,8 @@ class HitboxCustomSubState extends UISubState
 	{
 		final button = new Button();
 		button.text = text;
-		button.percentWidth = 50;
-		button.height = 40;
+		button.percentWidth = 100;
+		button.height = 44;
 		return button;
 	}
 
@@ -319,6 +400,154 @@ class HitboxCustomSubState extends UISubState
 		button.percentWidth = 25;
 		button.height = 40;
 		return button;
+	}
+
+	function showPage(rgb:Bool):Void
+	{
+		menuPage.hidden = rgb;
+		rgbPage.hidden = !rgb;
+		refreshControls();
+	}
+
+	function setStatus(text:String):Void
+	{
+		statusLabel.text = text;
+	}
+
+	function importImage():Void
+	{
+		if (picking) return;
+
+		picking = true;
+		FlxG.sound.play(Paths.sound('scrollMenu'));
+		setStatus('Choose an image...');
+
+		funkin.utils.FileUtil.browseForFile({
+			title: 'Import Hitbox Image',
+			typeFilter: [new openfl.net.FileFilter('Images', '*.png;*.jpg;*.jpeg')]
+		}, (path) -> {
+			picking = false;
+			onImagePicked(path);
+		}, () -> {
+			picking = false;
+			setStatus('');
+		});
+	}
+
+	function onImagePicked(path:Null<String>):Void
+	{
+		#if sys
+		if (path == null || !sys.FileSystem.exists(path))
+		{
+			denied('Could not open that image.');
+			return;
+		}
+
+		var image:Null<BitmapData> = null;
+		try
+		{
+			image = BitmapData.fromBytes(sys.io.File.getBytes(path));
+		}
+		catch (e:Dynamic) {}
+
+		if (image == null || image.width <= 0 || image.height <= 0)
+		{
+			denied('That file is not a supported image.');
+			return;
+		}
+
+		final extension = haxe.io.Path.extension(path).toLowerCase();
+		final target = haxe.io.Path.join([Hitbox.CUSTOM_IMAGE_FOLDER, 'hitbox.' + (IMAGE_EXTENSIONS.contains(extension) ? extension : 'png')]);
+
+		try
+		{
+			if (!sys.FileSystem.exists(Hitbox.CUSTOM_IMAGE_FOLDER)) sys.FileSystem.createDirectory(Hitbox.CUSTOM_IMAGE_FOLDER);
+
+			for (old in IMAGE_EXTENSIONS)
+			{
+				final oldPath = haxe.io.Path.join([Hitbox.CUSTOM_IMAGE_FOLDER, 'hitbox.' + old]);
+				if (oldPath != target && sys.FileSystem.exists(oldPath)) sys.FileSystem.deleteFile(oldPath);
+			}
+
+			if (haxe.io.Path.normalize(sys.FileSystem.absolutePath(path)) != haxe.io.Path.normalize(sys.FileSystem.absolutePath(target))) sys.io.File.copy(path, target);
+		}
+		catch (e:Dynamic)
+		{
+			image.dispose();
+			denied('Could not save the image.');
+			return;
+		}
+
+		ClientPrefs.hitboxImage = target;
+		ClientPrefs.flush();
+
+		if (customImage != null) customImage.dispose();
+		customImage = image;
+
+		if (ClientPrefs.hitboxMode != 'Four Lanes')
+		{
+			ClientPrefs.hitboxMode = 'Four Lanes';
+			syncing = true;
+			modeBar.selectedIndex = 0;
+			syncing = false;
+		}
+
+		FlxG.sound.play(Paths.sound('confirmMenu'));
+		#if mobile
+		funkin.mobile.Haptics.button();
+		#end
+
+		rebuildPreview();
+		refreshControls();
+		setStatus('Image imported.');
+		#else
+		denied('Importing images is not supported here.');
+		#end
+	}
+
+	function resetHitbox():Void
+	{
+		colors = Hitbox.COLORS.copy();
+		ClientPrefs.hitboxColors = Hitbox.COLORS.copy();
+
+		#if sys
+		final path = Hitbox.getCustomImagePath();
+		if (path != null)
+		{
+			try
+			{
+				sys.FileSystem.deleteFile(path);
+			}
+			catch (e:Dynamic) {}
+		}
+		#end
+
+		ClientPrefs.hitboxImage = '';
+		ClientPrefs.flush();
+
+		if (customImage != null)
+		{
+			customImage.dispose();
+			customImage = null;
+		}
+
+		FlxG.sound.play(Paths.sound('cancelMenu'));
+		#if mobile
+		funkin.mobile.Haptics.button();
+		#end
+
+		rebuildPreview();
+		refreshControls();
+		setStatus('Hitbox reset to default.');
+	}
+
+	function denied(message:String):Void
+	{
+		FlxG.sound.play(Paths.sound('cancelMenu'));
+		#if mobile
+		funkin.mobile.Haptics.denied();
+		#end
+		setStatus(message);
 	}
 
 	function setChannel(channel:Int, value:Int):Void
@@ -340,7 +569,7 @@ class HitboxCustomSubState extends UISubState
 
 	function applyColor():Void
 	{
-		if (selected < lanes.length) lanes[selected].color = colors[selected];
+		if (customImage == null && selected < lanes.length) lanes[selected].color = colors[selected];
 		syncControls();
 	}
 
@@ -378,11 +607,16 @@ class HitboxCustomSubState extends UISubState
 
 	function refreshControls():Void
 	{
-		final editable = ClientPrefs.hitboxMode == 'Four Lanes';
+		final lanesMode = ClientPrefs.hitboxMode == 'Four Lanes';
+		final editable = lanesMode && customImage == null;
 
+		if (!lanesMode) rgbNotice.text = 'Colors can only be changed\nin Four Lanes mode.';
+		else if (customImage != null) rgbNotice.text = 'A custom image is in use.\nUse Reset Hitbox to use colors again.';
+		else rgbNotice.text = '';
+
+		rgbNotice.hidden = editable;
 		colorBox.disabled = !editable;
 		colorBox.opacity = editable ? 1 : 0.4;
-		lockedLabel.hidden = editable;
 
 		syncControls();
 		highlightLanes();
@@ -444,15 +678,19 @@ class HitboxCustomSubState extends UISubState
 				previewLabel.text = ClientPrefs.hitboxMode;
 
 			default:
-				final laneWidth = previewWidth / 4;
+				final width = Std.int(previewWidth);
+				final height = Std.int(previewHeight);
+				final laneWidth = Math.floor(width / 4);
 				for (i in 0...4)
 				{
-					final lane = addPreview(new FlxSprite().loadGraphic(Hitbox.createLaneGraphic(Std.int(laneWidth), Std.int(previewHeight), FlxColor.WHITE)));
+					final sliceWidth = i == 3 ? width - laneWidth * 3 : laneWidth;
+					final graphic = customImage != null ? Hitbox.sliceImage(customImage, i, 4, width, height) : Hitbox.createLaneGraphic(sliceWidth, height, FlxColor.WHITE);
+					final lane = addPreview(new FlxSprite().loadGraphic(graphic));
 					lane.setPosition(previewX + laneWidth * i, previewY);
-					lane.color = colors[i];
+					lane.color = customImage != null ? FlxColor.WHITE : colors[i];
 					lanes.push(lane);
 				}
-				previewLabel.text = 'Tap a lane to edit its color';
+				previewLabel.text = customImage != null ? 'Custom image hitbox' : 'Tap a lane to edit its color';
 		}
 
 		add(previewLabel);
@@ -461,18 +699,21 @@ class HitboxCustomSubState extends UISubState
 
 	function highlightLanes():Void
 	{
+		final rgbOpen = rgbPage != null && !rgbPage.hidden;
 		for (i in 0...lanes.length)
-			lanes[i].alpha = i == selected ? 1 : 0.45;
+			lanes[i].alpha = !rgbOpen || i == selected ? 1 : 0.45;
 	}
-
-	var pulse:Float = 0;
 
 	override function update(elapsed:Float)
 	{
 		super.update(elapsed);
 
+		if (picking) return;
+
+		final rgbOpen = !rgbPage.hidden;
+
 		pulse += elapsed;
-		if (selected < lanes.length) lanes[selected].alpha = 0.8 + Math.sin(pulse * 5) * 0.2;
+		if (rgbOpen && selected < lanes.length) lanes[selected].alpha = 0.8 + Math.sin(pulse * 5) * 0.2;
 
 		if (lanes.length > 0 && FlxG.mouse.justPressed)
 		{
@@ -480,23 +721,27 @@ class HitboxCustomSubState extends UISubState
 			if (point.x >= previewX && point.x < previewX + previewWidth && point.y >= previewY && point.y < previewY + previewHeight)
 			{
 				final index = Std.int(Math.min(3, (point.x - previewX) / (previewWidth / 4)));
-				if (index != selected) selectLane(index);
+				if (!rgbOpen && ClientPrefs.hitboxMode == 'Four Lanes' && customImage == null)
+				{
+					selected = index;
+					FlxG.sound.play(Paths.sound('scrollMenu'));
+					showPage(true);
+				}
+				else if (rgbOpen && index != selected) selectLane(index);
 			}
 			point.put();
 		}
 
-		#if mobile
-		if (backButton != null && backButton.touchJustPressed)
+		if (controls.BACK)
 		{
-			exit();
-			return;
+			if (rgbOpen)
+			{
+				FlxG.sound.play(Paths.sound('cancelMenu'));
+				showPage(false);
+			}
+			else exit();
 		}
-		#end
-
-		if (controls.BACK) exit();
 	}
-
-	var exiting:Bool = false;
 
 	function exit():Void
 	{
@@ -513,10 +758,18 @@ class HitboxCustomSubState extends UISubState
 
 	override function destroy()
 	{
+		if (panel != null) Screen.instance.removeComponent(panel, false);
+
 		if (noteAtlas != null)
 		{
 			noteAtlas.destroy();
 			noteAtlas = null;
+		}
+
+		if (customImage != null)
+		{
+			customImage.dispose();
+			customImage = null;
 		}
 
 		super.destroy();

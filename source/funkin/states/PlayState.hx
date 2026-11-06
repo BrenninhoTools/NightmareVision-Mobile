@@ -578,6 +578,15 @@ class PlayState extends MusicBeatState
 		hitbox.onLaneDown.add((lane) -> scripts?.call('onHitboxPress', [lane]));
 		hitbox.onLaneUp.add((lane) -> scripts?.call('onHitboxRelease', [lane]));
 		if (ClientPrefs.hitboxMode == 'D-Pad Left' || ClientPrefs.hitboxMode == 'D-Pad Right') hitbox.applyDPad(ClientPrefs.hitboxMode == 'D-Pad Right');
+		else if (ClientPrefs.hitboxMode == 'Four Lanes')
+		{
+			final image = funkin.mobile.Hitbox.loadCustomImage();
+			if (image != null)
+			{
+				hitbox.applyImage(image);
+				image.dispose();
+			}
+		}
 		add(hitbox);
 		
 		pauseButton = funkin.mobile.MobileUtil.createPauseButton(camMobile);

@@ -72,6 +72,62 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		}
 	}
 
+	public static inline final CUSTOM_IMAGE_FOLDER:String = 'mobile';
+
+	public static function getCustomImagePath():Null<String>
+	{
+		final path = ClientPrefs.hitboxImage;
+		if (path == null || path.length == 0) return null;
+		#if sys
+		if (!sys.FileSystem.exists(path)) return null;
+		#end
+		return path;
+	}
+
+	public static function loadCustomImage():Null<BitmapData>
+	{
+		final path = getCustomImagePath();
+		if (path == null) return null;
+
+		try
+		{
+			#if sys
+			return BitmapData.fromBytes(sys.io.File.getBytes(path));
+			#end
+		}
+		catch (e:Dynamic) {}
+
+		return null;
+	}
+
+	public static function sliceImage(image:BitmapData, index:Int, count:Int, width:Int, height:Int):BitmapData
+	{
+		final laneWidth = Math.floor(width / count);
+		final sliceWidth = index == count - 1 ? width - laneWidth * index : laneWidth;
+		final result = new BitmapData(Std.int(Math.max(1, sliceWidth)), Std.int(Math.max(1, height)), true, FlxColor.TRANSPARENT);
+		final matrix = new openfl.geom.Matrix();
+		matrix.scale(width / image.width, height / image.height);
+		matrix.translate(-laneWidth * index, 0);
+		result.draw(image, matrix, null, null, null, true);
+		return result;
+	}
+
+	public var customImage(default, null):Bool = false;
+
+	public function applyImage(image:BitmapData):Void
+	{
+		if (image == null || dpad) return;
+
+		customImage = true;
+
+		for (index => lane in members)
+		{
+			if (lane == null) continue;
+			lane.loadGraphic(sliceImage(image, index, members.length, FlxG.width, FlxG.height));
+			lane.updateHitbox();
+		}
+	}
+
 	public static final DPAD_NOTES:Array<String> = ['purple', 'blue', 'green', 'red'];
 
 	public static var dpadSize:Int = 124;

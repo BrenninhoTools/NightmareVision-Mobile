@@ -366,6 +366,7 @@ class NativeUtil
 				case 'xml': 'text/xml';
 				case 'txt': 'text/plain';
 				case 'png': 'image/png';
+				case 'jpg' | 'jpeg': 'image/jpeg';
 				case 'ogg': 'audio/ogg';
 				case 'mp3': 'audio/mpeg';
 				case 'zip': 'application/zip';

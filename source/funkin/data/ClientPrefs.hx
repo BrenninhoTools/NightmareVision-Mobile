@@ -71,6 +71,8 @@ class ClientPrefs
 	
 	@saveVar public static var hitboxColors:Array<FlxColor> = [0xFFC24B99, 0xFF00FFFF, 0xFF12FA05, 0xFFF9393F];
 	
+	@saveVar public static var hitboxImage:String = '';
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

@@ -38,6 +38,8 @@ class TouchButton extends FlxSprite
 
 	public var ownedCamera:Null<FlxCamera> = null;
 
+	public var hitTest:Null<(Float, Float, Float) -> Bool> = null;
+
 	var held:Bool = false;
 
 	var captureTime:Float = -1;
@@ -74,6 +76,8 @@ class TouchButton extends FlxSprite
 	public function containsTouch(touch:FlxTouch, padding:Float = 0):Bool
 	{
 		touch.getViewPosition(TouchUtil.getCamera(this), touchPoint);
+
+		if (hitTest != null) return hitTest(touchPoint.x, touchPoint.y, padding);
 
 		return touchPoint.x >= x - padding && touchPoint.x < x + width + padding && touchPoint.y >= y - padding && touchPoint.y < y + height + padding;
 	}

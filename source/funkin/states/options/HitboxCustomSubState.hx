@@ -12,6 +12,7 @@ import haxe.ui.components.HorizontalSlider;
 import haxe.ui.components.Label;
 import haxe.ui.components.NumberStepper;
 import haxe.ui.containers.Box;
+import haxe.ui.containers.Grid;
 import haxe.ui.containers.HBox;
 import haxe.ui.containers.HorizontalButtonBar;
 import haxe.ui.containers.VBox;
@@ -26,7 +27,7 @@ class HitboxCustomSubState extends UISubState
 {
 	public static final LANE_NAMES:Array<String> = ['Left', 'Down', 'Up', 'Right'];
 
-	public static final MODES:Array<String> = ['Four Lanes', 'Arrows', 'D-Pad Left', 'D-Pad Right'];
+	public static final MODE_LABELS:Array<String> = ['Lanes', 'Triangle', 'Arrows', 'Pad Left', 'Pad Right', 'Double Pad'];
 
 	public static final IMAGE_EXTENSIONS:Array<String> = ['png', 'jpg', 'jpeg'];
 
@@ -68,7 +69,11 @@ class HitboxCustomSubState extends UISubState
 
 	var rgbPage:VBox;
 
-	var modeBar:HorizontalButtonBar;
+	var modeButtons:Array<Button> = [];
+
+	var alphaSlider:HorizontalSlider;
+
+	var alphaLabel:Label;
 
 	var laneBar:HorizontalButtonBar;
 
@@ -206,19 +211,43 @@ class HitboxCustomSubState extends UISubState
 
 		page.addComponent(makeLabel('Hitbox Mode', 15));
 
-		modeBar = new HorizontalButtonBar();
-		modeBar.percentWidth = 100;
-		for (mode in MODES)
-			modeBar.addComponent(makeBarButton(mode == 'Four Lanes' ? 'Lanes' : mode == 'D-Pad Left' ? 'Pad L' : mode == 'D-Pad Right' ? 'Pad R' : mode));
-		modeBar.selectedIndex = Std.int(Math.max(0, MODES.indexOf(ClientPrefs.hitboxMode)));
-		modeBar.onChange = (_) -> {
-			if (syncing || modeBar.selectedIndex < 0) return;
-			ClientPrefs.hitboxMode = MODES[modeBar.selectedIndex];
-			FlxG.sound.play(Paths.sound('scrollMenu'));
-			rebuildPreview();
-			refreshControls();
+		final modeGrid = new Grid();
+		modeGrid.columns = 3;
+		modeGrid.percentWidth = 100;
+		modeGrid.horizontalSpacing = 6;
+		modeGrid.verticalSpacing = 6;
+		for (index => mode in Hitbox.MODES)
+		{
+			final button = new Button();
+			button.text = MODE_LABELS[index];
+			button.toggle = true;
+			button.percentWidth = 33;
+			button.height = 40;
+			button.onClick = (_) -> setMode(mode);
+			modeGrid.addComponent(button);
+			modeButtons.push(button);
+		}
+		page.addComponent(modeGrid);
+		syncModeButtons();
+
+		alphaLabel = makeLabel('', 15);
+		page.addComponent(alphaLabel);
+
+		alphaSlider = new HorizontalSlider();
+		alphaSlider.min = 0;
+		alphaSlider.max = 100;
+		alphaSlider.step = 5;
+		alphaSlider.precision = 0;
+		alphaSlider.percentWidth = 100;
+		alphaSlider.pos = Math.round(ClientPrefs.hitboxAlpha * 100);
+		alphaSlider.onChange = (_) -> {
+			if (syncing) return;
+			ClientPrefs.hitboxAlpha = Math.round(alphaSlider.pos) / 100;
+			updateAlphaLabel();
+			highlightLanes();
 		};
-		page.addComponent(modeBar);
+		page.addComponent(alphaSlider);
+		updateAlphaLabel();
 
 		imageButton = makeButton('Import Hitbox Image');
 		imageButton.onClick = (_) -> importImage();
@@ -402,6 +431,41 @@ class HitboxCustomSubState extends UISubState
 		return button;
 	}
 
+	function setMode(mode:String):Void
+	{
+		if (ClientPrefs.hitboxMode != mode)
+		{
+			ClientPrefs.hitboxMode = mode;
+			FlxG.sound.play(Paths.sound('scrollMenu'));
+			#if mobile
+			funkin.mobile.Haptics.select();
+			#end
+			rebuildPreview();
+			refreshControls();
+		}
+
+		syncModeButtons();
+	}
+
+	function syncModeButtons():Void
+	{
+		syncing = true;
+		for (index => button in modeButtons)
+			button.selected = Hitbox.MODES[index] == ClientPrefs.hitboxMode;
+		syncing = false;
+	}
+
+	function updateAlphaLabel():Void
+	{
+		alphaLabel.text = 'Hitbox Alpha: ' + Math.round(ClientPrefs.hitboxAlpha * 100) + '%';
+	}
+
+	function colorsEditable():Bool
+	{
+		final mode = ClientPrefs.hitboxMode;
+		return mode == 'Triangle' || (mode == 'Four Lanes' && customImage == null);
+	}
+
 	function showPage(rgb:Bool):Void
 	{
 		menuPage.hidden = rgb;
@@ -487,9 +551,7 @@ class HitboxCustomSubState extends UISubState
 		if (ClientPrefs.hitboxMode != 'Four Lanes')
 		{
 			ClientPrefs.hitboxMode = 'Four Lanes';
-			syncing = true;
-			modeBar.selectedIndex = 0;
-			syncing = false;
+			syncModeButtons();
 		}
 
 		FlxG.sound.play(Paths.sound('confirmMenu'));
@@ -523,7 +585,13 @@ class HitboxCustomSubState extends UISubState
 		#end
 
 		ClientPrefs.hitboxImage = '';
+		ClientPrefs.hitboxAlpha = 1;
 		ClientPrefs.flush();
+
+		syncing = true;
+		alphaSlider.pos = 100;
+		syncing = false;
+		updateAlphaLabel();
 
 		if (customImage != null)
 		{
@@ -569,7 +637,7 @@ class HitboxCustomSubState extends UISubState
 
 	function applyColor():Void
 	{
-		if (customImage == null && selected < lanes.length) lanes[selected].color = colors[selected];
+		if (colorsEditable() && selected < lanes.length) lanes[selected].color = colors[selected];
 		syncControls();
 	}
 
@@ -607,10 +675,9 @@ class HitboxCustomSubState extends UISubState
 
 	function refreshControls():Void
 	{
-		final lanesMode = ClientPrefs.hitboxMode == 'Four Lanes';
-		final editable = lanesMode && customImage == null;
+		final editable = colorsEditable();
 
-		if (!lanesMode) rgbNotice.text = 'Colors can only be changed\nin Four Lanes mode.';
+		if (!Hitbox.usesColors(ClientPrefs.hitboxMode)) rgbNotice.text = 'Colors can only be changed\nin Four Lanes or Triangle mode.';
 		else if (customImage != null) rgbNotice.text = 'A custom image is in use.\nUse Reset Hitbox to use colors again.';
 		else rgbNotice.text = '';
 
@@ -632,6 +699,7 @@ class HitboxCustomSubState extends UISubState
 
 		previewItems = [];
 		lanes = [];
+		previewTriangle = false;
 		remove(previewLabel, true);
 	}
 
@@ -661,21 +729,32 @@ class HitboxCustomSubState extends UISubState
 				}
 				previewLabel.text = 'Tap the arrows at the bottom of the screen';
 
-			case 'D-Pad Left' | 'D-Pad Right':
+			case 'D-Pad Left' | 'D-Pad Right' | 'Double D-Pad':
 				final size = Std.int(Hitbox.dpadSize * scale);
-				final gap = Hitbox.dpadGap * scale;
-				final margin = MobileUtil.BUTTON_MARGIN * scale;
-				final crossWidth = size * 3 + gap * 2;
-				final originX = ClientPrefs.hitboxMode == 'D-Pad Right' ? previewX + previewWidth - margin - crossWidth : previewX + margin;
-				final originY = previewY + previewHeight - margin - crossWidth;
-				final offsets = [[0, 1], [1, 2], [1, 0], [2, 1]];
+				final sides = ClientPrefs.hitboxMode == 'Double D-Pad' ? [false, true] : [ClientPrefs.hitboxMode == 'D-Pad Right'];
 
-				for (i in 0...4)
+				for (onRight in sides)
 				{
-					final button = addPreview(new FlxSprite().loadGraphic(Hitbox.createDPadGraphic(size, Hitbox.COLORS[i], noteAtlas, Hitbox.DPAD_NOTES[i])));
-					button.setPosition(originX + offsets[i][0] * (size + gap), originY + offsets[i][1] * (size + gap));
+					for (i in 0...4)
+					{
+						final position = Hitbox.dpadPosition(i, onRight);
+						final button = addPreview(new FlxSprite().loadGraphic(Hitbox.createDPadGraphic(size, Hitbox.COLORS[i], noteAtlas, Hitbox.DPAD_NOTES[i])));
+						button.setPosition(previewX + position[0] * scale, previewY + position[1] * scale);
+					}
 				}
 				previewLabel.text = ClientPrefs.hitboxMode;
+
+			case 'Triangle':
+				previewTriangle = true;
+				for (i in 0...4)
+				{
+					final bounds = Hitbox.triangleBounds(i, previewWidth, previewHeight);
+					final lane = addPreview(new FlxSprite().loadGraphic(Hitbox.createTriangleGraphic(i, previewWidth, previewHeight, FlxColor.WHITE)));
+					lane.setPosition(previewX + bounds.x, previewY + bounds.y);
+					lane.color = colors[i];
+					lanes.push(lane);
+				}
+				previewLabel.text = 'Tap a triangle to edit its color';
 
 			default:
 				final width = Std.int(previewWidth);
@@ -697,11 +776,34 @@ class HitboxCustomSubState extends UISubState
 		highlightLanes();
 	}
 
+	var previewTriangle:Bool = false;
+
 	function highlightLanes():Void
 	{
 		final rgbOpen = rgbPage != null && !rgbPage.hidden;
+		final multiplier = ClientPrefs.hitboxAlpha;
+
+		for (item in previewItems)
+			item.alpha = multiplier;
+
 		for (i in 0...lanes.length)
-			lanes[i].alpha = !rgbOpen || i == selected ? 1 : 0.45;
+			lanes[i].alpha = (!rgbOpen || i == selected ? 1 : 0.45) * multiplier;
+	}
+
+	function previewLaneAt(x:Float, y:Float):Int
+	{
+		final localX = x - previewX;
+		final localY = y - previewY;
+		if (localX < 0 || localY < 0 || localX >= previewWidth || localY >= previewHeight) return -1;
+
+		if (previewTriangle)
+		{
+			for (i in 0...4)
+				if (Hitbox.triangleContains(i, localX, localY, previewWidth, previewHeight)) return i;
+			return -1;
+		}
+
+		return Std.int(Math.min(3, localX / (previewWidth / 4)));
 	}
 
 	override function update(elapsed:Float)
@@ -713,15 +815,15 @@ class HitboxCustomSubState extends UISubState
 		final rgbOpen = !rgbPage.hidden;
 
 		pulse += elapsed;
-		if (rgbOpen && selected < lanes.length) lanes[selected].alpha = 0.8 + Math.sin(pulse * 5) * 0.2;
+		if (rgbOpen && selected < lanes.length) lanes[selected].alpha = (0.8 + Math.sin(pulse * 5) * 0.2) * ClientPrefs.hitboxAlpha;
 
 		if (lanes.length > 0 && FlxG.mouse.justPressed)
 		{
 			final point = FlxG.mouse.getViewPosition(uiCamera);
-			if (point.x >= previewX && point.x < previewX + previewWidth && point.y >= previewY && point.y < previewY + previewHeight)
+			final index = previewLaneAt(point.x, point.y);
+			if (index >= 0)
 			{
-				final index = Std.int(Math.min(3, (point.x - previewX) / (previewWidth / 4)));
-				if (!rgbOpen && ClientPrefs.hitboxMode == 'Four Lanes' && customImage == null)
+				if (!rgbOpen && colorsEditable())
 				{
 					selected = index;
 					FlxG.sound.play(Paths.sound('scrollMenu'));

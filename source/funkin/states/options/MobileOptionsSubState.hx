@@ -51,11 +51,11 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		title = 'Mobile Options';
 		rpcTitle = 'Mobile Options Menu';
 		
-		var option:Option = new Option('Hitbox Custom', 'Preview the hitbox and change the color of each lane\nwith RGB sliders in Four Lanes mode.', 'hitboxMode', BUTTON);
+		var option:Option = new Option('Hitbox Custom', 'Preview the hitbox, import an image, change its colors\nwith RGB and set its alpha.', 'hitboxMode', BUTTON);
 		option.callback = openHitboxCustom;
 		addOption(option);
 		
-		hitboxModeOption = new Option('Hitbox Mode', 'Four Lanes: four touch lanes. Arrows: tap the strums at the bottom.\nD-Pad Left / D-Pad Right: a four note pad on that side of the screen.', 'hitboxMode', STRING, 'Four Lanes', ['Four Lanes', 'Arrows', 'D-Pad Left', 'D-Pad Right']);
+		hitboxModeOption = new Option('Hitbox Mode', 'Four Lanes / Triangle: four touch areas. Arrows: tap the strums.\nD-Pad: a four note pad on the left, right or both sides.', 'hitboxMode', STRING, 'Four Lanes', funkin.mobile.Hitbox.MODES.copy());
 		addOption(hitboxModeOption);
 		
 		var option:Option = new Option('Invisible Hitbox', 'If checked, the hitbox lanes stay invisible while you play,\nbut they still work.', 'invisibleHitbox', BOOL, false);

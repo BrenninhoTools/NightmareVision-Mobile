@@ -1,0 +1,67 @@
+name: Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: Release version, must match a file in documents-mobile/releases
+                required: true
+                default: V3
+                type: string
+            prerelease:
+                description: Mark as pre-release
+                required: false
+                default: false
+                type: boolean
+
+permissions:
+    contents: write
+
+jobs:
+    Build:
+        uses: ./.github/workflows/main.yml
+
+    Release:
+        needs: Build
+        runs-on: ubuntu-24.04
+        timeout-minutes: 15
+
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                fetch-depth: 1
+
+            - name: Check release notes
+              run: test -f "documents-mobile/releases/${{ inputs.version }}.md"
+
+            - name: Download Android
+              uses: actions/download-artifact@v5
+              with:
+                name: NightmareVision (Android)
+                path: artifacts/android
+
+            - name: Download iOS
+              uses: actions/download-artifact@v5
+              with:
+                name: NightmareVision (iOS)
+                path: artifacts/ios
+
+            - name: Prepare files
+              run: |
+                set -euo pipefail
+                mkdir -p release
+                cp artifacts/android/NightmareVision.apk release/NightmareVision-Android.apk
+                cp artifacts/ios/NightmareVision.ipa release/NightmareVision-iOS.ipa
+                ls -la release
+
+            - name: Publish release
+              uses: softprops/action-gh-release@v2
+              with:
+                tag_name: ${{ inputs.version }}
+                name: NightmareVision Mobile ${{ inputs.version }}
+                body_path: documents-mobile/releases/${{ inputs.version }}.md
+                target_commitish: ${{ github.sha }}
+                prerelease: ${{ inputs.prerelease }}
+                files: |
+                  release/NightmareVision-Android.apk
+                  release/NightmareVision-iOS.ipa

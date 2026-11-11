@@ -50,6 +50,20 @@ class TouchButton extends FlxSprite
 
 	var armed:Bool = false;
 
+	var pendingRelease:Float = -1;
+
+	var pendingReleaseFrame:Int = -1;
+
+	var lastHeldFrame:Int = -1;
+
+	@:allow(funkin.mobile.TouchInput)
+	function captureRelease(time:Float):Void
+	{
+		final frame = TouchInput.currentFrame;
+		if (pendingReleaseFrame != frame || time > pendingRelease) pendingRelease = time;
+		pendingReleaseFrame = frame;
+	}
+
 	public function new(x:Float = 0, y:Float = 0, ?actions:Array<String>, priority:Int = 1)
 	{
 		super(x, y);
@@ -75,13 +89,20 @@ class TouchButton extends FlxSprite
 	#if FLX_TOUCH
 	public function containsTouch(touch:FlxTouch, padding:Float = 0):Bool
 	{
-		touch.getViewPosition(TouchUtil.getCamera(this), touchPoint);
-
-		if (hitTest != null) return hitTest(touchPoint.x, touchPoint.y, padding);
-
-		return touchPoint.x >= x - padding && touchPoint.x < x + width + padding && touchPoint.y >= y - padding && touchPoint.y < y + height + padding;
+		return containsPoint(touch.gameX, touch.gameY, padding);
 	}
 	#end
+
+	public function containsPoint(gameX:Float, gameY:Float, padding:Float = 0):Bool
+	{
+		final camera = TouchUtil.getCamera(this);
+		final viewX = (gameX - camera.x) / camera.zoom + camera.viewMarginX;
+		final viewY = (gameY - camera.y) / camera.zoom + camera.viewMarginY;
+
+		if (hitTest != null) return hitTest(viewX, viewY, padding);
+
+		return viewX >= x - padding && viewX < x + width + padding && viewY >= y - padding && viewY < y + height + padding;
+	}
 
 	@:allow(funkin.mobile.TouchInput)
 	function beginPoll():Void
@@ -115,7 +136,14 @@ class TouchButton extends FlxSprite
 		touchJustReleased = !touchPressed && wasPressed;
 
 		if (touchJustPressed) pressTime = captureTime >= 0 ? captureTime : TouchInput.now();
-		if (touchJustReleased) releaseTime = TouchInput.lastReleaseTime >= 0 ? TouchInput.lastReleaseTime : TouchInput.now();
+		if (touchJustReleased)
+		{
+			if (pendingReleaseFrame >= lastHeldFrame && pendingRelease >= pressTime) releaseTime = pendingRelease;
+			else releaseTime = TouchInput.now();
+			pendingRelease = -1;
+			pendingReleaseFrame = -1;
+		}
+		if (touchPressed) lastHeldFrame = TouchInput.currentFrame;
 
 		if (touchJustPressed)
 		{

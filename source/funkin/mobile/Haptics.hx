@@ -9,11 +9,18 @@ enum HapticType
 	MEDIUM;
 	HEAVY;
 	DOUBLE;
+	CONFIRM;
 }
 
 class Haptics
 {
 	public static final SENSITIVITIES:Array<String> = ['Low', 'Medium', 'High'];
+
+	public static final TYPES:Array<String> = ['All', 'Notes'];
+
+	public static var notesOnly(get, never):Bool;
+
+	static var lastConfirm:Float = -1000;
 
 	static var lastNote:Float = -1000;
 
@@ -37,6 +44,7 @@ class Haptics
 			case MEDIUM: 0.75;
 			case HEAVY: 1.0;
 			case DOUBLE: 0.6;
+			case CONFIRM: 1.0;
 		}
 
 		NativeUtil.haptic(typeId(type), base * scale * ClientPrefs.hapticsIntensity);
@@ -61,27 +69,41 @@ class Haptics
 		play(SELECTION, 0.8);
 	}
 
+	public static function confirm():Void
+	{
+		#if mobile
+		if (!enabled || notesOnly) return;
+
+		final now = FlxG.game != null ? FlxG.game.ticks : 0;
+		if (now - lastConfirm < 400) return;
+		lastConfirm = now;
+		lastMenu = now;
+
+		NativeUtil.haptic(typeId(CONFIRM), Math.min(1, Math.max(0.55, 1.6 * ClientPrefs.hapticsIntensity)));
+		#end
+	}
+
 	public static function denied():Void
 	{
-		if (!throttle(MENU, 120)) return;
+		if (notesOnly || !throttle(MENU, 120)) return;
 		play(DOUBLE);
 	}
 
 	public static function select():Void
 	{
-		if (level < 1 || !throttle(MENU, 40)) return;
+		if (notesOnly || level < 1 || !throttle(MENU, 40)) return;
 		play(LIGHT);
 	}
 
 	public static function scroll():Void
 	{
-		if (level < 2 || !throttle(SCROLL, 30)) return;
+		if (notesOnly || level < 2 || !throttle(SCROLL, 30)) return;
 		play(SELECTION);
 	}
 
 	public static function button():Void
 	{
-		if (!throttle(MENU, 40)) return;
+		if (notesOnly || !throttle(MENU, 40)) return;
 		play(LIGHT, 1.2);
 	}
 
@@ -139,6 +161,7 @@ class Haptics
 			case MEDIUM: 2;
 			case HEAVY: 3;
 			case DOUBLE: 4;
+			case CONFIRM: 5;
 		}
 	}
 
@@ -149,6 +172,15 @@ class Haptics
 		return index < 0 ? 1 : index;
 		#else
 		return 1;
+		#end
+	}
+
+	static function get_notesOnly():Bool
+	{
+		#if mobile
+		return ClientPrefs.hapticsType == 'Notes';
+		#else
+		return false;
 		#end
 	}
 

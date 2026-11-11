@@ -87,6 +87,8 @@ class ClientPrefs
 	
 	@saveVar public static var hapticsSensitivity:String = 'Medium';
 	
+	@saveVar public static var hapticsType:String = 'All';
+	
 	@saveVar public static var screenStyle:String = 'Original';
 	
 	@saveVar public static var storageType:String = 'Media';

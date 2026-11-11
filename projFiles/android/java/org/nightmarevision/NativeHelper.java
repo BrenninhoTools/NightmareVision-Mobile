@@ -145,12 +145,39 @@ public class NativeHelper extends Extension
 		return -1;
 	}
 
+	private static void playConfirm(Vibrator target, float intensity)
+	{
+		if (Build.VERSION.SDK_INT >= 26)
+		{
+			if (target.hasAmplitudeControl())
+			{
+				int strong = Math.max(1, Math.min(255, Math.round(intensity * 255)));
+				int soft = Math.max(1, Math.round(strong * 0.6f));
+				deliver(target, VibrationEffect.createWaveform(new long[] {0, 70, 45, 150, 30, 60}, new int[] {0, strong, 0, strong, 0, soft}, -1));
+			}
+			else
+			{
+				deliver(target, VibrationEffect.createWaveform(new long[] {0, 70, 45, 150}, -1));
+			}
+			return;
+		}
+
+		target.cancel();
+		target.vibrate(new long[] {0, 70, 45, 150}, -1);
+	}
+
 	private static void playHaptic(int type, float intensity)
 	{
 		try
 		{
 			Vibrator target = getVibrator();
 			if (target == null) return;
+
+			if (type == 5)
+			{
+				playConfirm(target, intensity);
+				return;
+			}
 
 			int primitive = primitiveFor(target, type);
 			if (primitive >= 0)

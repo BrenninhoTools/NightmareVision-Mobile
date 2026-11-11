@@ -74,6 +74,10 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
 		
+		var option:Option = new Option('Haptics Type', 'All: vibrates on notes, menus, buttons and touch.\nNotes: vibrates only when you hit or miss notes.', 'hapticsType', STRING, 'All', funkin.mobile.Haptics.TYPES.copy());
+		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		addOption(option);
+		
 		var option:Option = new Option('Haptics Intensity', 'How strong the vibration feels.', 'hapticsIntensity', PERCENT, 0.6);
 		option.minValue = 0.1;
 		option.maxValue = 1;

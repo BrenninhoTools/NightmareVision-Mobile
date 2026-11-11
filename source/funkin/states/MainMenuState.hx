@@ -207,6 +207,9 @@ class MainMenuState extends MusicBeatState
 				{
 					canInteract = true;
 					FunkinSound.play(Paths.sound('confirmMenu'));
+					#if mobile
+					funkin.mobile.Haptics.confirm();
+					#end
 					
 					if (ClientPrefs.flashing && magenta != null) FlxFlicker.flicker(magenta, 1.1, 0.15, false);
 					

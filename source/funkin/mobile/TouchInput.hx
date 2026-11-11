@@ -127,6 +127,17 @@ class TouchInput
 
 	static final beginTimes:Map<Int, Float> = [];
 
+	static final endTimes:Map<Int, Float> = [];
+
+	static final beginPoints:Map<Int, FlxPoint> = [];
+
+	public static var currentFrame(get, never):Int;
+
+	static inline function get_currentFrame():Int
+	{
+		return frame;
+	}
+
 	static final touchZones:Map<Int, TouchButton> = [];
 
 	public static var zoneStickiness:Float = 14;
@@ -161,11 +172,29 @@ class TouchInput
 	static function onStageTouchBegin(event:openfl.events.TouchEvent):Void
 	{
 		beginTimes.set(event.touchPointID, now());
+		endTimes.remove(event.touchPointID);
+
+		final scale = FlxG.scaleMode != null ? FlxG.scaleMode.scale : null;
+		if (scale == null || scale.x == 0 || scale.y == 0) return;
+
+		final point = beginPoints.get(event.touchPointID) ?? FlxPoint.get();
+		point.set((event.stageX - FlxG.game.x) / scale.x, (event.stageY - FlxG.game.y) / scale.y);
+		beginPoints.set(event.touchPointID, point);
 	}
 
 	static function onStageTouchEnd(event:openfl.events.TouchEvent):Void
 	{
-		lastReleaseTime = now();
+		final time = now();
+		lastReleaseTime = time;
+		endTimes.set(event.touchPointID, time);
+	}
+
+	static function clearTouch(id:Int):Void
+	{
+		beginTimes.remove(id);
+		endTimes.remove(id);
+		beginPoints.get(id)?.put();
+		beginPoints.remove(id);
 	}
 
 	static var backKeyDown:Bool = false;
@@ -347,10 +376,19 @@ class TouchInput
 
 		for (touch in FlxG.touches.list)
 		{
-			final quick = touch.justReleased && !seenTouches.exists(touch.touchPointID);
+			final id = touch.touchPointID;
+			final quick = touch.justReleased && !seenTouches.exists(id);
+			final held = touchZones.get(id);
 			final zone = touch.pressed || quick ? stickyZone(touch) : null;
-			if (zone != null) zone.capture(touch.justPressed || quick ? beginTimes.get(touch.touchPointID) ?? -1 : -1);
-			if (touch.justReleased) beginTimes.remove(touch.touchPointID);
+			if (zone != null) zone.capture(touch.justPressed || quick ? beginTimes.get(id) ?? -1 : -1);
+
+			if (touch.justReleased)
+			{
+				final released = endTimes.get(id) ?? now();
+				final owner = zone ?? held;
+				if (owner != null) owner.captureRelease(released);
+				clearTouch(id);
+			}
 
 			handleGesture(touch, zone, allowGestures, quick);
 		}
@@ -431,7 +469,8 @@ class TouchInput
 		}
 		else
 		{
-			zone = findZone(touch);
+			final begin = touch.justPressed || !seenTouches.exists(id) ? beginPoints.get(id) : null;
+			zone = begin != null ? findZoneAt(begin.x, begin.y) ?? findZone(touch) : findZone(touch);
 		}
 
 		if (touch.justReleased || zone == null) touchZones.remove(id);
@@ -449,6 +488,22 @@ class TouchInput
 		{
 			final zone = zones[i];
 			if (!zone.isTouchable() || !zone.containsTouch(touch)) continue;
+
+			if (found == null || zone.priority > found.priority) found = zone;
+		}
+
+		return found;
+	}
+
+	static function findZoneAt(gameX:Float, gameY:Float):Null<TouchButton>
+	{
+		var found:Null<TouchButton> = null;
+
+		var i = zones.length;
+		while (i-- > 0)
+		{
+			final zone = zones[i];
+			if (!zone.isTouchable() || !zone.containsPoint(gameX, gameY)) continue;
 
 			if (found == null || zone.priority > found.priority) found = zone;
 		}

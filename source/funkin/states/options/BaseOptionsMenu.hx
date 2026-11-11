@@ -188,7 +188,7 @@ class BaseOptionsMenu extends MusicBeatSubstate
 				{
 					FlxG.sound.play(Paths.sound('cancelMenu'));
 					#if mobile
-					funkin.mobile.Haptics.denied();
+					funkin.mobile.haptics.Haptics.denied();
 					#end
 				}
 				else if (controls.ACCEPT && !touchBlocksAccept)

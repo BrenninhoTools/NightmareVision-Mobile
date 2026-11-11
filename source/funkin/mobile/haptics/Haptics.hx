@@ -1,6 +1,8 @@
-package funkin.mobile;
+package funkin.mobile.haptics;
 
 import flixel.FlxG;
+
+import funkin.mobile.NativeUtil;
 
 enum HapticType
 {
@@ -53,10 +55,27 @@ class Haptics
 		#end
 	}
 
-	public static function note():Void
+	public static function note(ratingMod:Float = 1):Void
 	{
 		if (!throttle(NOTE, noteInterval())) return;
-		play(MEDIUM);
+
+		if (ratingMod < 0 || ratingMod >= 1) play(MEDIUM, 1.05);
+		else if (ratingMod >= 0.75) play(MEDIUM, 0.8);
+		else if (ratingMod >= 0.5) play(LIGHT, 0.75);
+		else play(DOUBLE, 0.55);
+	}
+
+	public static var milestoneStep:Int = 100;
+
+	public static function combo(value:Int):Void
+	{
+		if (milestoneStep <= 0 || value <= 0 || value % milestoneStep != 0) return;
+
+		#if mobile
+		if (!enabled) return;
+		lastNote = FlxG.game != null ? FlxG.game.ticks : 0;
+		NativeUtil.haptic(typeId(DOUBLE), ClientPrefs.hapticsIntensity * 1.3);
+		#end
 	}
 
 	public static function noteMiss():Void

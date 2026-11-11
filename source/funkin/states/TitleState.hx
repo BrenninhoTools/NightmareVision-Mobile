@@ -148,7 +148,7 @@ class TitleState extends MusicBeatState
 				
 				FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
 				#if mobile
-				funkin.mobile.Haptics.confirm();
+				funkin.mobile.haptics.Haptics.confirm();
 				#end
 				
 				FlxTimer.wait(1, () -> {

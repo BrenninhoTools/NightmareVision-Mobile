@@ -438,7 +438,7 @@ class HitboxCustomSubState extends UISubState
 			ClientPrefs.hitboxMode = mode;
 			FlxG.sound.play(Paths.sound('scrollMenu'));
 			#if mobile
-			funkin.mobile.Haptics.select();
+			funkin.mobile.haptics.Haptics.select();
 			#end
 			rebuildPreview();
 			refreshControls();
@@ -556,7 +556,7 @@ class HitboxCustomSubState extends UISubState
 
 		FlxG.sound.play(Paths.sound('confirmMenu'));
 		#if mobile
-		funkin.mobile.Haptics.button();
+		funkin.mobile.haptics.Haptics.button();
 		#end
 
 		rebuildPreview();
@@ -601,7 +601,7 @@ class HitboxCustomSubState extends UISubState
 
 		FlxG.sound.play(Paths.sound('cancelMenu'));
 		#if mobile
-		funkin.mobile.Haptics.button();
+		funkin.mobile.haptics.Haptics.button();
 		#end
 
 		rebuildPreview();
@@ -613,7 +613,7 @@ class HitboxCustomSubState extends UISubState
 	{
 		FlxG.sound.play(Paths.sound('cancelMenu'));
 		#if mobile
-		funkin.mobile.Haptics.denied();
+		funkin.mobile.haptics.Haptics.denied();
 		#end
 		setStatus(message);
 	}
@@ -646,7 +646,7 @@ class HitboxCustomSubState extends UISubState
 		selected = index;
 		FlxG.sound.play(Paths.sound('scrollMenu'));
 		#if mobile
-		funkin.mobile.Haptics.select();
+		funkin.mobile.haptics.Haptics.select();
 		#end
 		syncControls();
 		highlightLanes();

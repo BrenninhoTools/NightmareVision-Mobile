@@ -1,5 +1,6 @@
 package funkin.mobile;
 
+import funkin.mobile.haptics.Haptics;
 import flixel.FlxG;
 import flixel.math.FlxPoint;
 #if FLX_TOUCH

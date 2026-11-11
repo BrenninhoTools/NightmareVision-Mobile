@@ -958,7 +958,7 @@ class PlayState extends MusicBeatState
 		
 		#if mobile
 		createMobileControls();
-		trainHaptics = new funkin.mobile.TrainHaptics();
+		stageHaptics = new funkin.mobile.haptics.StageHaptics();
 		#end
 		
 		Conductor.safeZoneOffset = (ClientPrefs.safeFrames / 60) * 1000;
@@ -1075,6 +1075,9 @@ class PlayState extends MusicBeatState
 				{
 					combo += 1;
 					if (combo > 9999) combo = 9999;
+					#if mobile
+					if (!cpuControlled) funkin.mobile.haptics.Haptics.combo(combo);
+					#end
 					popUpScore(note);
 				}
 			});
@@ -1082,7 +1085,7 @@ class PlayState extends MusicBeatState
 			inline function actualMiss()
 			{
 				#if mobile
-				if (!cpuControlled) funkin.mobile.Haptics.noteMiss();
+				if (!cpuControlled) funkin.mobile.haptics.Haptics.noteMiss();
 				#end
 				if (combo > 5 && gf != null && gf.animOffsets.exists('sad')) gf.playAnimForDuration('sad', 1, true);
 				combo = 0;
@@ -1867,14 +1870,14 @@ class PlayState extends MusicBeatState
 	}
 	
 	#if mobile
-	var trainHaptics:Null<funkin.mobile.TrainHaptics> = null;
+	var stageHaptics:Null<funkin.mobile.haptics.StageHaptics> = null;
 	#end
 
 	override public function update(elapsed:Float):Void
 	{
 		#if mobile
 		updateArrowsHitbox();
-		if (trainHaptics != null && !paused) trainHaptics.update();
+		if (stageHaptics != null && !paused) stageHaptics.update();
 		#end
 
 		if (cameraLerping && !inCutscene) FlxG.camera.followLerp = (.04 * cameraSpeed);

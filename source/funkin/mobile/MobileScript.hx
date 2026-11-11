@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import funkin.mobile.haptics.Haptics;
+import funkin.mobile.haptics.Haptics.HapticType;
 import flixel.FlxBasic;
 import flixel.FlxCamera;
 import flixel.FlxG;

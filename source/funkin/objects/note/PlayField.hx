@@ -394,9 +394,8 @@ class PlayField extends FlxTypedContainer<StrumNote>
 			#if mobile
 			if (!field.autoPlayed)
 			{
-				if (note.isSustainNote) funkin.mobile.Haptics.sustain();
-				else if (note.hitCausesMiss) funkin.mobile.Haptics.noteMiss();
-				else funkin.mobile.Haptics.note();
+				if (note.isSustainNote) funkin.mobile.haptics.Haptics.sustain();
+				else if (note.hitCausesMiss) funkin.mobile.haptics.Haptics.noteMiss();
 			}
 			#end
 			
@@ -430,6 +429,9 @@ class PlayField extends FlxTypedContainer<StrumNote>
 			var ratingThing:funkin.game.Rating = funkin.game.Rating.judgeNote(note, Math.abs(note.strumTime - Conductor.songPosition + ClientPrefs.ratingOffset) / PlayState.instance?.playbackRate);
 			note.rating = ratingThing;
 			shouldSplash = field.noteSplashes && ratingThing.ratingMod >= 1;
+			#if mobile
+			if (!field.autoPlayed && !note.isSustainNote) funkin.mobile.haptics.Haptics.note(ratingThing.ratingMod);
+			#end
 		} 
 		if(shouldSplash) field.spawnSplash(note);
 		

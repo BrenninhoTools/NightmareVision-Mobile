@@ -71,11 +71,11 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		addOption(option);
 		
 		var option:Option = new Option('Haptics', 'If checked, the device vibrates when you hit notes,\ntap menu options and scroll with touch.', 'haptics', BOOL, true);
-		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		option.onChange = () -> funkin.mobile.haptics.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
 		
-		var option:Option = new Option('Haptics Type', 'All: vibrates on notes, menus, buttons and touch.\nNotes: vibrates only when you hit or miss notes.', 'hapticsType', STRING, 'All', funkin.mobile.Haptics.TYPES.copy());
-		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		var option:Option = new Option('Haptics Type', 'All: vibrates on notes, menus, buttons and touch.\nNotes: vibrates only when you hit or miss notes.', 'hapticsType', STRING, 'All', funkin.mobile.haptics.Haptics.TYPES.copy());
+		option.onChange = () -> funkin.mobile.haptics.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
 		
 		var option:Option = new Option('Haptics Intensity', 'How strong the vibration feels.\nAbove 1.0 the vibrations also get longer.', 'hapticsIntensity', FLOAT, 0.6);
@@ -84,11 +84,11 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.maxValue = 5;
 		option.changeValue = 0.1;
 		option.decimals = 1;
-		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		option.onChange = () -> funkin.mobile.haptics.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
 		
-		var option:Option = new Option('Haptics Sensitivity', 'Low: vibrates only on note hits and buttons.\nMedium: also misses and taps. High: also every scroll and swipe.', 'hapticsSensitivity', STRING, 'Medium', funkin.mobile.Haptics.SENSITIVITIES);
-		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
+		var option:Option = new Option('Haptics Sensitivity', 'Low: vibrates only on note hits and buttons.\nMedium: also misses and taps. High: also every scroll and swipe.', 'hapticsSensitivity', STRING, 'Medium', funkin.mobile.haptics.Haptics.SENSITIVITIES);
+		option.onChange = () -> funkin.mobile.haptics.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
 		
 		#if mobile

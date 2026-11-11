@@ -28,7 +28,7 @@ extern "C" int nmv_native_is_charging();
 extern "C" int nmv_native_power_save();
 extern "C" void nmv_native_keep_screen_on(int value);
 extern "C" int nmv_native_open_url(const char *url);
-extern "C" void nmv_native_set_clipboard(const char *text);
+extern "C" void nmv_native_set_clipboard(const char *content);
 extern "C" const char *nmv_native_get_clipboard();
 extern "C" double nmv_native_refresh_rate();
 ')
@@ -264,15 +264,16 @@ class NativeUtil
 		#end
 	}
 	
-	public static function setClipboard(text:String):Void
+	public static function setClipboard(content:String):Void
 	{
+		final clip:String = content != null ? content : '';
 		#if android
 		final func = jni('setClipboard', '(Ljava/lang/String;)V');
-		if (func != null) func(text ?? '');
+		if (func != null) func(clip);
 		#elseif ios
-		untyped __cpp__('nmv_native_set_clipboard({0}.utf8_str())', text ?? '');
+		untyped __cpp__('nmv_native_set_clipboard({0}.utf8_str())', clip);
 		#else
-		lime.system.Clipboard.text = text ?? '';
+		lime.system.Clipboard.text = clip;
 		#end
 	}
 	

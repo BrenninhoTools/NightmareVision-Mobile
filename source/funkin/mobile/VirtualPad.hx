@@ -29,6 +29,14 @@ typedef VirtualKey =
 	var ?color:FlxColor;
 }
 
+typedef VirtualPadLayout =
+{
+	var ?dpadRow:Bool;
+	var ?columns:Int;
+	var ?rightLimit:Float;
+	var ?bottomLimit:Float;
+}
+
 class VirtualPadButton extends TouchButton
 {
 	public final key:VirtualKey;
@@ -201,7 +209,7 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 
 	public static var idleAlpha:Float = 0.6;
 
-	public static var buttonSize:Int = 80;
+	public static var buttonSize:Int = 96;
 
 	public static var gap:Float = 6;
 
@@ -319,7 +327,7 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		return graphic;
 	}
 
-	public function new(camera:FlxCamera, ?dpad:Array<VirtualKey>, ?actions:Array<Array<VirtualKey>>, ?pages:Array<Array<Array<VirtualKey>>>, ?rightLimit:Float)
+	public function new(camera:FlxCamera, ?dpad:Array<VirtualKey>, ?actions:Array<Array<VirtualKey>>, ?pages:Array<Array<Array<VirtualKey>>>, ?layout:VirtualPadLayout)
 	{
 		super();
 
@@ -334,11 +342,13 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		final stepY = height + gap;
 		final bottom = MobileUtil.bottomEdge() - height;
 		final left = MobileUtil.leftEdge();
-		final right = rightLimit ?? MobileUtil.rightEdge();
+		final right = layout?.rightLimit ?? MobileUtil.rightEdge();
+		final actionBottom = layout?.bottomLimit != null ? layout.bottomLimit - height : bottom;
+		final columns = layout?.columns ?? 0;
 
 		if (dpad.length >= 4)
 		{
-			final positions = [[left, bottom - stepY], [left + stepX, bottom], [left + stepX, bottom - stepY * 2], [left + stepX * 2, bottom - stepY]];
+			final positions = layout?.dpadRow == true ? [for (index in 0...4) [left + stepX * index, bottom]] : [[left, bottom - stepY], [left + stepX, bottom], [left + stepX, bottom - stepY * 2], [left + stepX * 2, bottom - stepY]];
 			for (index in 0...4)
 			{
 				final button = addButton(positions[index][0], positions[index][1], dpad[index], 'dpad', size);
@@ -350,15 +360,34 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		{
 			final buttons:Array<VirtualPadButton> = [];
 
-			for (rowIndex => row in rows)
+			if (columns > 0)
 			{
-				final y = bottom - stepY * (rows.length - 1 - rowIndex);
-				for (columnIndex => entry in row)
+				final entries = [for (row in rows) for (entry in row) entry];
+				final rowCount = Math.ceil(entries.length / columns);
+
+				for (index => entry in entries)
 				{
-					final x = right - size - stepX * (row.length - 1 - columnIndex);
+					final row = Std.int(index / columns);
+					final column = index % columns;
+					final x = right - size - stepX * (columns - 1 - column);
+					final y = actionBottom - stepY * (rowCount - 1 - row);
 					final button = addButton(x, y, entry, 'actions', size);
 					buttons.push(button);
 					actionButtons.push(button);
+				}
+			}
+			else
+			{
+				for (rowIndex => row in rows)
+				{
+					final y = actionBottom - stepY * (rows.length - 1 - rowIndex);
+					for (columnIndex => entry in row)
+					{
+						final x = right - size - stepX * (row.length - 1 - columnIndex);
+						final button = addButton(x, y, entry, 'actions', size);
+						buttons.push(button);
+						actionButtons.push(button);
+					}
 				}
 			}
 

@@ -36,9 +36,11 @@ class EditorTouchSupport
 		{
 			case 'funkin.states.editors.ChartEditorState' | 'funkin.states.editors.OLDChartEditorState':
 				[
-					[letter('e', E), letter('d', Q, 'q'.code), letter('f', S, 's'.code)],
-					[letter('z', Z), letter('x', X), letter('v', SPACE, 32)],
-					[toggle('s', SHIFT), toggle('c', CONTROL), letter('a', ENTER, 13)]
+					[letter('e', E), letter('d', Q, 'q'.code)],
+					[letter('z', Z), letter('x', X)],
+					[letter('f', S, 's'.code), letter('v', SPACE, 32)],
+					[toggle('s', SHIFT), toggle('c', CONTROL)],
+					[letter('a', ENTER, 13)]
 				];
 			case 'funkin.states.editors.CharacterEditorState':
 				[
@@ -213,7 +215,8 @@ class EditorTouchSupport
 
 		final dpad = hasDPad(name) ? VirtualPad.DEFAULT_DPAD : [];
 		final actions = layoutFor(name) ?? VirtualPad.DEFAULT_ACTIONS;
-		pad = new VirtualPad(camera, dpad, actions, null, current.x - VirtualPad.gap * 2);
+		final layout:VirtualPad.VirtualPadLayout = CHART_EDITORS.contains(name) ? {dpadRow: true, columns: 2, bottomLimit: current.y - VirtualPad.gap * 2} : {rightLimit: current.x - VirtualPad.gap * 2};
+		pad = new VirtualPad(camera, dpad, actions, null, layout);
 		state.add(pad);
 		
 		if (CHART_EDITORS.contains(name)) ChartTouchControls.attach(state);

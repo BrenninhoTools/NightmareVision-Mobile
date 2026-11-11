@@ -1,5 +1,7 @@
-package funkin.mobile;
+package funkin.mobile.scripting;
 
+import funkin.mobile.MobileUtil;
+import funkin.mobile.VirtualPad;
 import funkin.mobile.backend.StorageUtil;
 import funkin.mobile.input.TouchButton;
 import funkin.mobile.input.TouchInput;

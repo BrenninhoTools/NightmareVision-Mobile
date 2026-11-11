@@ -50,7 +50,7 @@ class TitleState extends MusicBeatState
 	override public function create():Void
 	{
 		#if mobile
-		funkin.mobile.LogcatUtil.mark('TitleState.create');
+		funkin.mobile.android.logcat.LogcatUtil.mark('TitleState.create');
 		#end
 		
 		init();

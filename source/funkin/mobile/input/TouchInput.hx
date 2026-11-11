@@ -1,6 +1,6 @@
 package funkin.mobile.input;
 
-import funkin.mobile.ScreenStyle;
+import funkin.mobile.ui.ScreenStyle;
 import funkin.mobile.haptics.Haptics;
 
 import flixel.FlxG;

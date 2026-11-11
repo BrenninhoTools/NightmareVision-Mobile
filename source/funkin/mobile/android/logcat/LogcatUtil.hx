@@ -1,4 +1,4 @@
-package funkin.mobile;
+package funkin.mobile.android.logcat;
 
 import funkin.mobile.backend.StorageUtil;
 

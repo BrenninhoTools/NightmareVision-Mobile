@@ -1,4 +1,4 @@
-package funkin.mobile;
+package funkin.mobile.ui;
 
 import funkin.mobile.native.NativeUtil;
 

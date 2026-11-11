@@ -233,7 +233,7 @@ class ModManager implements IFlxDestroyable
 	
 	public static function getArrowsOpponentX(direction:Int, keys:Int):Float
 	{
-		final left = arrowsOpponentLeft >= 0 ? arrowsOpponentLeft : funkin.mobile.ScreenStyle.safeLeft + 20;
+		final left = arrowsOpponentLeft >= 0 ? arrowsOpponentLeft : funkin.mobile.ui.ScreenStyle.safeLeft + 20;
 		final spacing = Note.swagWidth * arrowsOpponentScale;
 		return left + spacing * (direction + 0.5);
 	}
@@ -242,8 +242,8 @@ class ModManager implements IFlxDestroyable
 	
 	public static function getArrowsX(direction:Int, keys:Int):Float
 	{
-		final safeLeft = funkin.mobile.ScreenStyle.safeLeft;
-		final usable = FlxG.width - safeLeft - funkin.mobile.ScreenStyle.safeRight;
+		final safeLeft = funkin.mobile.ui.ScreenStyle.safeLeft;
+		final usable = FlxG.width - safeLeft - funkin.mobile.ui.ScreenStyle.safeRight;
 		if (keys == 4 && direction >= 0 && direction < arrowsLayoutFour.length) return safeLeft + usable * arrowsLayoutFour[direction];
 		
 		final span = usable * arrowsSpread;
@@ -258,9 +258,9 @@ class ModManager implements IFlxDestroyable
 		return switch (player)
 		{
 			case 0:
-				(FlxG.width - Note.swagWidth * (keys / 2) - 100 - 3 - funkin.mobile.ScreenStyle.safeRight);
+				(FlxG.width - Note.swagWidth * (keys / 2) - 100 - 3 - funkin.mobile.ui.ScreenStyle.safeRight);
 			case 1:
-				(Note.swagWidth * (keys / 2) + 100 - 3 + funkin.mobile.ScreenStyle.safeLeft);
+				(Note.swagWidth * (keys / 2) + 100 - 3 + funkin.mobile.ui.ScreenStyle.safeLeft);
 			default:
 				(FlxG.width * 0.5 - 3);
 		}

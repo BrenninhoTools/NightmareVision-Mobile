@@ -50,25 +50,25 @@ class Main extends Sprite
 		#end
 		
 		#if android
-		funkin.mobile.LogcatUtil.init();
+		funkin.mobile.android.logcat.LogcatUtil.init();
 		#end
 		
 		#if mobile
-		funkin.mobile.LogcatUtil.startBoot();
-		funkin.mobile.LogcatUtil.mark('main started');
+		funkin.mobile.android.logcat.LogcatUtil.startBoot();
+		funkin.mobile.android.logcat.LogcatUtil.mark('main started');
 		funkin.mobile.backend.StorageUtil.init();
-		funkin.mobile.LogcatUtil.mark('storage ready: ' + funkin.mobile.backend.StorageUtil.directory + ' (' + funkin.mobile.backend.StorageUtil.getActiveStorageType() + ')');
+		funkin.mobile.android.logcat.LogcatUtil.mark('storage ready: ' + funkin.mobile.backend.StorageUtil.directory + ' (' + funkin.mobile.backend.StorageUtil.getActiveStorageType() + ')');
 		#end
 		
 		#if android
 		funkin.mobile.backend.StorageUtil.requestPermissions();
-		funkin.mobile.LogcatUtil.mark('permissions requested');
+		funkin.mobile.android.logcat.LogcatUtil.mark('permissions requested');
 		#end
 		
 		initHaxeUI();
 		
 		#if mobile
-		funkin.mobile.LogcatUtil.mark('haxeui ready');
+		funkin.mobile.android.logcat.LogcatUtil.mark('haxeui ready');
 		#end
 		
 		#if desktop
@@ -80,11 +80,11 @@ class Main extends Sprite
 		ClientPrefs.tryBindingSave('funkin');
 		
 		#if mobile
-		funkin.mobile.LogcatUtil.mark('save bound');
+		funkin.mobile.android.logcat.LogcatUtil.mark('save bound');
 		#end
 		
 		#if mobile
-		funkin.mobile.LogcatUtil.mark('creating game');
+		funkin.mobile.android.logcat.LogcatUtil.mark('creating game');
 		#end
 		
 		var firstState:Class<flixel.FlxState> = Init;
@@ -92,24 +92,24 @@ class Main extends Sprite
 		#if android
 		if (funkin.mobile.backend.StorageUtil.waitForNativeCopy())
 		{
-			funkin.mobile.LogcatUtil.mark('native copy finished: ' + funkin.mobile.backend.StorageUtil.readNativeStatus());
+			funkin.mobile.android.logcat.LogcatUtil.mark('native copy finished: ' + funkin.mobile.backend.StorageUtil.readNativeStatus());
 			funkin.mobile.backend.StorageUtil.cleanLegacyCopy();
 			funkin.mobile.backend.StorageUtil.checkFreeSpace();
 		}
 		else
 		{
 			final status = funkin.mobile.backend.StorageUtil.readNativeStatus();
-			funkin.mobile.LogcatUtil.mark('native copy unavailable: ' + status);
+			funkin.mobile.android.logcat.LogcatUtil.mark('native copy unavailable: ' + status);
 			
 			if (status != null && status.startsWith('error'))
 			{
 				lime.app.Application.current?.window?.alert('Could not copy the game files:\n' + status.substr(6) + '\n\nFree space: ' + funkin.mobile.backend.StorageUtil.getFreeSpaceMB() + ' MB', 'Storage');
 			}
 			
-			firstState = funkin.mobile.CopyState;
+			firstState = funkin.mobile.states.CopyState;
 		}
 		#elseif mobile
-		firstState = funkin.mobile.CopyState;
+		firstState = funkin.mobile.states.CopyState;
 		#end
 		
 		addChild(new funkin.backend.FunkinGame(startMeta.width, startMeta.height, firstState, startMeta.fps, startMeta.fps, true, startMeta.startFullScreen));

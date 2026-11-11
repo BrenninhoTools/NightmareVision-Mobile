@@ -69,7 +69,7 @@ FlxG.plugins.drawOnTop = true;
 		FlxG.signals.preStateSwitch.add((cast FlxG.scaleMode : funkin.backend.FunkinRatioScaleMode).resetSize);
 		
 		#if mobile
-		funkin.mobile.ScreenStyle.init();
+		funkin.mobile.ui.ScreenStyle.init();
 		#end
 		
 		step('music');
@@ -119,7 +119,7 @@ FlxG.plugins.drawOnTop = true;
 	static inline function step(name:String):Void
 	{
 		#if mobile
-		funkin.mobile.LogcatUtil.mark('Init: ' + name);
+		funkin.mobile.android.logcat.LogcatUtil.mark('Init: ' + name);
 		#end
 	}
 }

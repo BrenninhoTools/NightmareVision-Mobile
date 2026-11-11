@@ -50,7 +50,7 @@ class BaseOptionsMenu extends MusicBeatSubstate
 		bg.color = 0xFFea71fd;
 		bg.screenCenter();
 		#if mobile
-		funkin.mobile.ScreenStyle.cover(bg);
+		funkin.mobile.ui.ScreenStyle.cover(bg);
 		#end
 		add(bg);
 		
@@ -410,7 +410,7 @@ class BaseOptionsMenu extends MusicBeatSubstate
 			boyfriend.destroy();
 		}
 		
-		boyfriend = new Character(840 + funkin.mobile.ScreenStyle.contentOffset, 170, 'bf', true);
+		boyfriend = new Character(840 + funkin.mobile.ui.ScreenStyle.contentOffset, 170, 'bf', true);
 		boyfriend.setGraphicSize(Std.int(boyfriend.width * 0.75));
 		boyfriend.updateHitbox();
 		boyfriend.dance();

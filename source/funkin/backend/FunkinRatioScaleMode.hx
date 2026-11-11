@@ -66,7 +66,7 @@ class FunkinRatioScaleMode extends RatioScaleMode
 		if (this.width != null) return this.width;
 		#if mobile
 		final stage = FlxG.stage;
-		if (stage != null) return funkin.mobile.ScreenStyle.getGameWidth(lastWindowWidth > 0 ? lastWindowWidth : stage.stageWidth, lastWindowHeight > 0 ? lastWindowHeight : stage.stageHeight);
+		if (stage != null) return funkin.mobile.ui.ScreenStyle.getGameWidth(lastWindowWidth > 0 ? lastWindowWidth : stage.stageWidth, lastWindowHeight > 0 ? lastWindowHeight : stage.stageHeight);
 		#end
 		return FlxG.initialWidth;
 	}

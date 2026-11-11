@@ -1,5 +1,6 @@
 package funkin.mobile;
 
+import funkin.mobile.ui.ScreenStyle;
 import funkin.mobile.input.TouchButton;
 
 import flixel.FlxG;

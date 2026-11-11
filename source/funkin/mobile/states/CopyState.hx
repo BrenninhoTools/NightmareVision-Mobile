@@ -1,5 +1,6 @@
-package funkin.mobile;
+package funkin.mobile.states;
 
+import funkin.mobile.android.logcat.LogcatUtil;
 import funkin.mobile.backend.StorageUtil;
 
 import flixel.FlxG;

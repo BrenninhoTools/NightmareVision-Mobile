@@ -17,7 +17,7 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		
 		startScreenStyle = ClientPrefs.screenStyle;
 		ClientPrefs.flush();
-		funkin.mobile.ScreenStyle.apply(true);
+		funkin.mobile.ui.ScreenStyle.apply(true);
 		return true;
 	}
 	#end
@@ -94,7 +94,7 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		#if mobile
 		startScreenStyle = ClientPrefs.screenStyle;
 		
-		var option:Option = new Option('Screen Style', 'Original: the classic 16:9 screen with black bars.\nFull: uses the whole screen without stretching. Applies when you leave this menu.', 'screenStyle', STRING, 'Original', funkin.mobile.ScreenStyle.STYLES);
+		var option:Option = new Option('Screen Style', 'Original: the classic 16:9 screen with black bars.\nFull: uses the whole screen without stretching. Applies when you leave this menu.', 'screenStyle', STRING, 'Original', funkin.mobile.ui.ScreenStyle.STYLES);
 		addOption(option);
 		#end
 		

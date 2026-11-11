@@ -144,6 +144,11 @@ class MobileScript
 		Haptics.impact(strength);
 	}
 
+	public static function hapticPattern(durations:Array<Float>, amplitudes:Array<Float>, ?sharpnesses:Array<Float>):Bool
+	{
+		return Haptics.pattern(durations, amplitudes, sharpnesses);
+	}
+
 	public static function hapticDenied():Void
 	{
 		Haptics.denied();

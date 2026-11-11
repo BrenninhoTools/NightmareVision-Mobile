@@ -31,6 +31,7 @@ extern "C" int nmv_native_open_url(const char *url);
 extern "C" void nmv_native_set_clipboard(const char *content);
 extern "C" const char *nmv_native_get_clipboard();
 extern "C" double nmv_native_refresh_rate();
+extern "C" int nmv_native_supports_core_haptics();
 ')
 #end
 @:build(funkin.mobile.native.NativeMacro.build())
@@ -303,6 +304,15 @@ class NativeUtil
 		#else
 		final display = lime.system.System.getDisplay(0);
 		return display != null && display.currentMode != null && display.currentMode.refreshRate > 0 ? display.currentMode.refreshRate : 60;
+		#end
+	}
+	
+	public static function supportsCoreHaptics():Bool
+	{
+		#if ios
+		return untyped __cpp__('nmv_native_supports_core_haptics() != 0');
+		#else
+		return false;
 		#end
 	}
 	

@@ -111,17 +111,17 @@ class StageHaptics
 		if (time < trainArrive)
 		{
 			final progress = (time - trainApproach) / (trainArrive - trainApproach);
-			Haptics.rumble(0.15 + progress * 0.55, 80);
+			Haptics.rumble(0.15 + progress * 0.55, 80, 0.1);
 			return;
 		}
 
 		final fade = Math.min(1, Math.max(0.35, (end - time) / 700));
-		Haptics.rumble(fade, 50);
+		Haptics.rumble(fade, 50, 0.12);
 
 		if (time - lastClack >= trainClack || time < lastClack)
 		{
 			lastClack = time;
-			Haptics.impact(fade);
+			Haptics.impact(fade, 0.55);
 		}
 	}
 
@@ -132,12 +132,12 @@ class StageHaptics
 		if (progress >= 0.95) return;
 
 		final envelope = Math.pow(Math.sin(Math.PI * Math.min(1, progress / 0.9)), 1.5);
-		Haptics.rumble(0.2 + envelope * 0.9, 45);
+		Haptics.rumble(0.2 + envelope * 0.9, 45, 0.25 + envelope * 0.2);
 
 		if (!fired.exists(entry) && progress >= 0.4)
 		{
 			fired.set(entry, true);
-			Haptics.impact(1.1);
+			Haptics.impact(1.1, 0.4);
 		}
 	}
 
@@ -146,13 +146,13 @@ class StageHaptics
 		if (!fired.exists(entry))
 		{
 			fired.set(entry, true);
-			Haptics.impact(1.4);
+			Haptics.impact(1.4, 0.15);
 			return;
 		}
 
 		final strength = Math.exp(-time / thunderDecay);
 		if (strength < 0.12) return;
 
-		Haptics.rumble(strength * 1.1, 55);
+		Haptics.rumble(strength * 1.1, 55, 0.05);
 	}
 }

@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <CoreHaptics/CoreHaptics.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <GameController/GameController.h>
 
@@ -540,4 +541,13 @@ extern "C" double nmv_native_refresh_rate()
 		rate = [UIScreen mainScreen].maximumFramesPerSecond;
 	});
 	return (double)rate;
+}
+
+extern "C" int nmv_native_supports_core_haptics()
+{
+	if (@available(iOS 13.0, *))
+	{
+		return [CHHapticEngine capabilitiesForHardware].supportsHaptics ? 1 : 0;
+	}
+	return 0;
 }

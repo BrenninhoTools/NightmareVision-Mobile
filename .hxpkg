@@ -40,6 +40,11 @@
                 "branch": "bfe01edc20cdc54fe7f54f1f2124b8959646144c"
             },
             {
+                "name": "extension-haptics",
+                "link": "https://github.com/LimeExtensions/extension-haptics",
+                "branch": "8978b34b437f943a0d164bd6b3d8b69bd0025081"
+            },
+            {
                 "name": "hxvlc",
                 "version": "2.3.0"
             },

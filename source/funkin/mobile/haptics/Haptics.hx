@@ -35,7 +35,25 @@ class Haptics
 
 	public static var level(get, never):Int;
 
-	public static function play(type:HapticType, scale:Float = 1):Void
+	public static function init():Void
+	{
+		#if mobile
+		HapticEngine.init();
+		#end
+	}
+
+	public static function pattern(durations:Array<Float>, amplitudes:Array<Float>, ?sharpnesses:Array<Float>):Bool
+	{
+		#if mobile
+		if (!enabled) return false;
+		final scale = ClientPrefs.hapticsIntensity;
+		return HapticEngine.pattern(durations, [for (value in amplitudes) value * scale], sharpnesses);
+		#else
+		return false;
+		#end
+	}
+
+	public static function play(type:HapticType, scale:Float = 1, sharpness:Float = -1):Void
 	{
 		#if mobile
 		if (!enabled) return;
@@ -51,7 +69,7 @@ class Haptics
 			case RUMBLE: 1.0;
 		}
 
-		NativeUtil.haptic(typeId(type), base * scale * ClientPrefs.hapticsIntensity);
+		HapticEngine.fire(type, base * scale * ClientPrefs.hapticsIntensity, sharpness);
 		#end
 	}
 
@@ -59,10 +77,10 @@ class Haptics
 	{
 		if (!throttle(NOTE, noteInterval())) return;
 
-		if (ratingMod < 0 || ratingMod >= 1) play(MEDIUM, 1.05);
-		else if (ratingMod >= 0.75) play(MEDIUM, 0.8);
-		else if (ratingMod >= 0.5) play(LIGHT, 0.75);
-		else play(DOUBLE, 0.55);
+		if (ratingMod < 0 || ratingMod >= 1) play(MEDIUM, 1.05, 0.85);
+		else if (ratingMod >= 0.75) play(MEDIUM, 0.8, 0.6);
+		else if (ratingMod >= 0.5) play(LIGHT, 0.75, 0.4);
+		else play(DOUBLE, 0.55, 0.15);
 	}
 
 	public static var milestoneStep:Int = 100;
@@ -74,7 +92,7 @@ class Haptics
 		#if mobile
 		if (!enabled) return;
 		lastNote = FlxG.game != null ? FlxG.game.ticks : 0;
-		NativeUtil.haptic(typeId(DOUBLE), ClientPrefs.hapticsIntensity * 1.3);
+		HapticEngine.fire(DOUBLE, ClientPrefs.hapticsIntensity * 1.3, 0.7);
 		#end
 	}
 
@@ -102,13 +120,13 @@ class Haptics
 		final build = Math.min(1, 0.55 + held / 900);
 		final tug = 0.82 + Math.sin(held * 0.022) * 0.18;
 
-		NativeUtil.haptic(typeId(RUMBLE), build * tug * ClientPrefs.hapticsIntensity * 1.4);
+		HapticEngine.fire(RUMBLE, build * tug * ClientPrefs.hapticsIntensity * 1.4, 0.08 + (1 - tug) * 0.4);
 		#end
 	}
 
 	static var lastAmbient:Float = -1000;
 
-	public static function rumble(strength:Float, interval:Float = 60):Void
+	public static function rumble(strength:Float, interval:Float = 60, sharpness:Float = 0.15):Void
 	{
 		#if mobile
 		if (!enabled || notesOnly || strength <= 0) return;
@@ -117,15 +135,15 @@ class Haptics
 		if (now - lastAmbient < interval) return;
 		lastAmbient = now;
 
-		NativeUtil.haptic(typeId(RUMBLE), strength * ClientPrefs.hapticsIntensity * 1.4);
+		HapticEngine.fire(RUMBLE, strength * ClientPrefs.hapticsIntensity * 1.4, sharpness);
 		#end
 	}
 
-	public static function impact(strength:Float = 1):Void
+	public static function impact(strength:Float = 1, sharpness:Float = 0.3):Void
 	{
 		#if mobile
 		if (!enabled || notesOnly || strength <= 0) return;
-		NativeUtil.haptic(typeId(HEAVY), strength * ClientPrefs.hapticsIntensity * 1.4);
+		HapticEngine.fire(HEAVY, strength * ClientPrefs.hapticsIntensity * 1.4, sharpness);
 		#end
 	}
 
@@ -139,7 +157,7 @@ class Haptics
 		lastConfirm = now;
 		lastMenu = now;
 
-		NativeUtil.haptic(typeId(CONFIRM), Math.max(0.55, 1.6 * ClientPrefs.hapticsIntensity));
+		HapticEngine.fire(CONFIRM, Math.max(0.55, 1.6 * ClientPrefs.hapticsIntensity));
 		#end
 	}
 
@@ -176,7 +194,7 @@ class Haptics
 		if (now - lastMenu < 90) return;
 		lastMenu = now;
 
-		NativeUtil.haptic(typeId(MEDIUM), 0.75 * intensity);
+		HapticEngine.fire(MEDIUM, 0.75 * intensity);
 		#end
 	}
 

@@ -103,7 +103,7 @@ class ModsState extends MusicBeatState
 		#if mobile
 		hintText = new FlxText(txtbox.x + txtbox.width + 20, FlxG.height - 110, FlxG.width - txtbox.x - txtbox.width - 220, '', 18);
 		hintText.setFormat(Paths.DEFAULT_FONT, 18, FlxColor.WHITE, FlxTextAlign.LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-		hintText.text = 'Tap the box to enable or disable a mod, hold it to make the mod top priority.\nMods folder: ' + funkin.mobile.StorageUtil.getPath(Paths.MODS_DIRECTORY);
+		hintText.text = 'Tap the box to enable or disable a mod, hold it to make the mod top priority.\nMods folder: ' + funkin.mobile.backend.StorageUtil.getPath(Paths.MODS_DIRECTORY);
 		add(hintText);
 		
 		add(funkin.mobile.MobileUtil.createBackButton());
@@ -130,24 +130,24 @@ class ModsState extends MusicBeatState
 	{
 		if (modList.length == 0) return false;
 		
-		if (funkin.mobile.TouchUtil.longPressedOn(box) || funkin.mobile.TouchUtil.longPressedOn(checkbox))
+		if (funkin.mobile.util.TouchUtil.longPressedOn(box) || funkin.mobile.util.TouchUtil.longPressedOn(checkbox))
 		{
 			makeTopMod(modList[curDir]);
 			return true;
 		}
 		
-		if (!funkin.mobile.TouchUtil.tapped) return false;
+		if (!funkin.mobile.util.TouchUtil.tapped) return false;
 		
-		if (funkin.mobile.TouchUtil.tappedOn(checkbox) || funkin.mobile.TouchUtil.tappedOn(box))
+		if (funkin.mobile.util.TouchUtil.tappedOn(checkbox) || funkin.mobile.util.TouchUtil.tappedOn(box))
 		{
 			toggleMod();
 			return true;
 		}
 		
-		if (funkin.mobile.TouchUtil.tappedOn(listtxt) && modList.length > 0)
+		if (funkin.mobile.util.TouchUtil.tappedOn(listtxt) && modList.length > 0)
 		{
 			final lineHeight = listtxt.height / modList.length;
-			final row = Std.int((funkin.mobile.TouchInput.tapPosition.y - listtxt.y) / lineHeight);
+			final row = Std.int((funkin.mobile.input.TouchInput.tapPosition.y - listtxt.y) / lineHeight);
 			
 			if (row >= 0 && row < modList.length && row != curDir)
 			{

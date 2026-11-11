@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import funkin.mobile.input.ExternalInput;
+
 import openfl.display.Shape;
 import openfl.display.Sprite;
 import openfl.events.Event;

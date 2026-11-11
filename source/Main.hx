@@ -56,12 +56,12 @@ class Main extends Sprite
 		#if mobile
 		funkin.mobile.LogcatUtil.startBoot();
 		funkin.mobile.LogcatUtil.mark('main started');
-		funkin.mobile.StorageUtil.init();
-		funkin.mobile.LogcatUtil.mark('storage ready: ' + funkin.mobile.StorageUtil.directory + ' (' + funkin.mobile.StorageUtil.getActiveStorageType() + ')');
+		funkin.mobile.backend.StorageUtil.init();
+		funkin.mobile.LogcatUtil.mark('storage ready: ' + funkin.mobile.backend.StorageUtil.directory + ' (' + funkin.mobile.backend.StorageUtil.getActiveStorageType() + ')');
 		#end
 		
 		#if android
-		funkin.mobile.StorageUtil.requestPermissions();
+		funkin.mobile.backend.StorageUtil.requestPermissions();
 		funkin.mobile.LogcatUtil.mark('permissions requested');
 		#end
 		
@@ -90,20 +90,20 @@ class Main extends Sprite
 		var firstState:Class<flixel.FlxState> = Init;
 		
 		#if android
-		if (funkin.mobile.StorageUtil.waitForNativeCopy())
+		if (funkin.mobile.backend.StorageUtil.waitForNativeCopy())
 		{
-			funkin.mobile.LogcatUtil.mark('native copy finished: ' + funkin.mobile.StorageUtil.readNativeStatus());
-			funkin.mobile.StorageUtil.cleanLegacyCopy();
-			funkin.mobile.StorageUtil.checkFreeSpace();
+			funkin.mobile.LogcatUtil.mark('native copy finished: ' + funkin.mobile.backend.StorageUtil.readNativeStatus());
+			funkin.mobile.backend.StorageUtil.cleanLegacyCopy();
+			funkin.mobile.backend.StorageUtil.checkFreeSpace();
 		}
 		else
 		{
-			final status = funkin.mobile.StorageUtil.readNativeStatus();
+			final status = funkin.mobile.backend.StorageUtil.readNativeStatus();
 			funkin.mobile.LogcatUtil.mark('native copy unavailable: ' + status);
 			
 			if (status != null && status.startsWith('error'))
 			{
-				lime.app.Application.current?.window?.alert('Could not copy the game files:\n' + status.substr(6) + '\n\nFree space: ' + funkin.mobile.StorageUtil.getFreeSpaceMB() + ' MB', 'Storage');
+				lime.app.Application.current?.window?.alert('Could not copy the game files:\n' + status.substr(6) + '\n\nFree space: ' + funkin.mobile.backend.StorageUtil.getFreeSpaceMB() + ' MB', 'Storage');
 			}
 			
 			firstState = funkin.mobile.CopyState;

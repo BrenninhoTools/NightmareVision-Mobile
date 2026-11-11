@@ -62,7 +62,7 @@ class FileUtil
 	public static function browseForFile(options:BrowseOptions, ?onSelect:String->Void, ?onCancel:Void->Void)
 	{
 		#if mobile
-		final started = funkin.mobile.NativeUtil.pickFiles(filterExtensions(options.typeFilter), false, (files) -> {
+		final started = funkin.mobile.native.NativeUtil.pickFiles(filterExtensions(options.typeFilter), false, (files) -> {
 			if (onSelect != null) onSelect(files[0]);
 		}, onCancel);
 		
@@ -89,7 +89,7 @@ final title = options.title;
 	public static function browseForMultipleFiles(options:BrowseOptions, ?onSelect:Array<String>->Void, ?onCancel:Void->Void)
 	{
 		#if mobile
-		final started = funkin.mobile.NativeUtil.pickFiles(filterExtensions(options.typeFilter), true, (files) -> {
+		final started = funkin.mobile.native.NativeUtil.pickFiles(filterExtensions(options.typeFilter), true, (files) -> {
 			if (onSelect != null) onSelect(files);
 		}, onCancel);
 		
@@ -120,13 +120,13 @@ final title = options.title;
 		#if mobile
 		final name = (fileName ?? 'file').withoutDirectory();
 		final safeName = name.length > 0 ? name : 'file';
-		final staging = haxe.io.Path.join([funkin.mobile.StorageUtil.getPath('.cache'), safeName]);
+		final staging = haxe.io.Path.join([funkin.mobile.backend.StorageUtil.getPath('.cache'), safeName]);
 		
 		if (saveFileToPath(data, staging))
 		{
-			final started = funkin.mobile.NativeUtil.saveFile(staging, safeName, (savedName) -> {
+			final started = funkin.mobile.native.NativeUtil.saveFile(staging, safeName, (savedName) -> {
 				final shown = savedName.length > 0 ? savedName : safeName;
-				funkin.mobile.NativeUtil.toast('Saved ' + shown, false);
+				funkin.mobile.native.NativeUtil.toast('Saved ' + shown, false);
 				if (onSelect != null) onSelect(shown);
 			}, () -> {
 				if (onCancel != null) onCancel();
@@ -166,12 +166,12 @@ final title = options.title;
 		
 		if (saved != null)
 		{
-			funkin.mobile.NativeUtil.toast('Saved to ' + EXPORT_FOLDER + '/' + saved.withoutDirectory(), true);
+			funkin.mobile.native.NativeUtil.toast('Saved to ' + EXPORT_FOLDER + '/' + saved.withoutDirectory(), true);
 			if (onSelect != null) onSelect(saved);
 		}
 		else
 		{
-			funkin.mobile.NativeUtil.toast('Could not save ' + fileName, true);
+			funkin.mobile.native.NativeUtil.toast('Could not save ' + fileName, true);
 			if (onCancel != null) onCancel();
 		}
 	}

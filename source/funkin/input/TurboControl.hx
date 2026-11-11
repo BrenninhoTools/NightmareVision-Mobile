@@ -99,12 +99,12 @@ class TurboControl extends FlxBasic // very basic turbo control thingy
 		#if mobile
 		if (action != null)
 		{
-			if (funkin.mobile.TouchInput.check(action + funkin.mobile.TouchInput.PRESS_SUFFIX))
+			if (funkin.mobile.input.TouchInput.check(action + funkin.mobile.input.TouchInput.PRESS_SUFFIX))
 			{
 				holding = false;
 				justPressed = true;
 			}
-			pressed = pressed || funkin.mobile.TouchInput.check(action);
+			pressed = pressed || funkin.mobile.input.TouchInput.check(action);
 		}
 		#end
 		

@@ -1,5 +1,9 @@
 package funkin.mobile;
 
+import funkin.mobile.input.ExternalInput;
+import funkin.mobile.native.NativeUtil;
+import funkin.mobile.util.TouchUtil;
+
 import openfl.events.KeyboardEvent;
 import openfl.events.MouseEvent;
 import openfl.events.TouchEvent;

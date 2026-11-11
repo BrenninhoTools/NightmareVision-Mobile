@@ -1,4 +1,6 @@
-package funkin.mobile;
+package funkin.mobile.util;
+
+import funkin.mobile.input.TouchInput;
 
 import flixel.FlxBasic;
 import flixel.FlxCamera;
@@ -9,7 +11,7 @@ import flixel.FlxState;
 import flixel.input.touch.FlxTouch;
 #end
 
-import funkin.mobile.TouchInput.SwipeDirection;
+import funkin.mobile.input.TouchInput.SwipeDirection;
 
 class TouchUtil
 {

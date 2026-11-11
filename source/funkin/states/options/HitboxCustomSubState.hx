@@ -19,7 +19,7 @@ import haxe.ui.containers.VBox;
 import haxe.ui.core.Component;
 import haxe.ui.core.Screen;
 
-import funkin.mobile.Hitbox;
+import funkin.mobile.util.Hitbox;
 import funkin.mobile.MobileUtil;
 import funkin.objects.note.Note;
 
@@ -103,7 +103,7 @@ class HitboxCustomSubState extends UISubState
 
 	var pulse:Float = 0;
 
-	var backButton:Null<funkin.mobile.TouchButton> = null;
+	var backButton:Null<funkin.mobile.input.TouchButton> = null;
 
 	override function create()
 	{

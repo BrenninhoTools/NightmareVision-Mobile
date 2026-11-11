@@ -1,5 +1,10 @@
 package funkin.mobile;
 
+import funkin.mobile.input.ExternalInput;
+import funkin.mobile.input.TouchButton;
+import funkin.mobile.input.TouchInput;
+import funkin.mobile.util.TouchUtil;
+
 import flixel.FlxG;
 import flixel.FlxState;
 import flixel.input.keyboard.FlxKey;

@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import funkin.mobile.backend.StorageUtil;
+
 import haxe.io.Path;
 #if sys
 import sys.FileSystem;

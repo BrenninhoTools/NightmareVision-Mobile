@@ -29,7 +29,7 @@ class OptionsState extends MusicBeatState
 	var justLeftSubState = false;
 	
 	#if mobile
-	var mobileOptionsButton:Null<funkin.mobile.TouchButton> = null;
+	var mobileOptionsButton:Null<funkin.mobile.input.TouchButton> = null;
 	#end
 
 	public function openSelectedSubstate(label:String)
@@ -141,7 +141,7 @@ class OptionsState extends MusicBeatState
 		}
 		
 		#if mobile
-		funkin.mobile.TouchInput.poll();
+		funkin.mobile.input.TouchInput.poll();
 		
 		if (subState == null && mobileOptionsButton != null && mobileOptionsButton.touchJustPressed)
 		{
@@ -156,8 +156,8 @@ class OptionsState extends MusicBeatState
 		var touchBlocksAccept = false;
 		
 		#if mobile
-		final tapped = funkin.mobile.TouchUtil.getMenuTap(cast grpOptions.members);
-		if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+		final tapped = funkin.mobile.util.TouchUtil.getMenuTap(cast grpOptions.members);
+		if (tapped != funkin.mobile.util.TouchUtil.NO_TAP)
 		{
 			touchBlocksAccept = tapped != curSelected;
 			if (tapped >= 0 && tapped != curSelected) changeSelection(tapped - curSelected);

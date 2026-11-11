@@ -1,5 +1,12 @@
 package funkin.mobile;
 
+import funkin.mobile.backend.StorageUtil;
+import funkin.mobile.input.TouchButton;
+import funkin.mobile.input.TouchInput;
+import funkin.mobile.native.NativeUtil;
+import funkin.mobile.util.Hitbox;
+import funkin.mobile.util.TouchUtil;
+
 import funkin.mobile.haptics.Haptics;
 import funkin.mobile.haptics.Haptics.HapticType;
 import flixel.FlxBasic;
@@ -365,7 +372,7 @@ class MobileScript
 		lastTouchCount = TouchInput.touchCount;
 	}
 
-	static function swipeName(direction:TouchInput.SwipeDirection):String
+	static function swipeName(direction:funkin.mobile.input.TouchInput.SwipeDirection):String
 	{
 		return switch (direction)
 		{

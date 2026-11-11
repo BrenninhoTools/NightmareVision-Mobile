@@ -12,7 +12,7 @@ import flixel.input.actions.FlxAction.FlxActionDigital;
 
 import funkin.input.Controls;
 import funkin.input.Controls.Action;
-import funkin.mobile.TouchInput;
+import funkin.mobile.input.TouchInput;
 
 import lime.system.System;
 #if FLX_GAMEINPUT_API

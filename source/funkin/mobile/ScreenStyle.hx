@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import funkin.mobile.native.NativeUtil;
+
 import flixel.FlxBasic;
 import flixel.FlxG;
 import flixel.FlxSprite;

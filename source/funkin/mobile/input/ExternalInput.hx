@@ -1,4 +1,7 @@
-package funkin.mobile;
+package funkin.mobile.input;
+
+import funkin.mobile.TouchCursor;
+import funkin.mobile.native.NativeUtil;
 
 import openfl.Assets;
 import openfl.display.Shape;

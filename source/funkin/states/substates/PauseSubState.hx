@@ -190,8 +190,8 @@ class PauseSubState extends MusicBeatSubstate
 		var touchBlocksAccept:Bool = false;
 		
 		#if mobile
-		final tapped = funkin.mobile.TouchUtil.getMenuTap(cast grpMenuShit.members);
-		if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+		final tapped = funkin.mobile.util.TouchUtil.getMenuTap(cast grpMenuShit.members);
+		if (tapped != funkin.mobile.util.TouchUtil.NO_TAP)
 		{
 			touchBlocksAccept = tapped != curSelected;
 			

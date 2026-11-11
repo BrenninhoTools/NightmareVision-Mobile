@@ -266,9 +266,9 @@ class FreeplayState extends MusicBeatState
 	var instPlaying:Int = -1;
 	
 	#if mobile
-	var tabLeftButton:Null<funkin.mobile.TouchButton> = null;
+	var tabLeftButton:Null<funkin.mobile.input.TouchButton> = null;
 	
-	var tabRightButton:Null<funkin.mobile.TouchButton> = null;
+	var tabRightButton:Null<funkin.mobile.input.TouchButton> = null;
 	
 	function createMobileControls():Void
 	{
@@ -292,7 +292,7 @@ class FreeplayState extends MusicBeatState
 	
 	function getTouchTabChange():Int
 	{
-		funkin.mobile.TouchInput.poll();
+		funkin.mobile.input.TouchInput.poll();
 		
 		if (tabLeftButton != null && tabLeftButton.touchJustPressed) return -1;
 		if (tabRightButton != null && tabRightButton.touchJustPressed) return 1;
@@ -387,7 +387,7 @@ class FreeplayState extends MusicBeatState
 		var touchBlocksAccept:Bool = false;
 		
 		#if mobile
-		if (funkin.mobile.TouchUtil.tapped)
+		if (funkin.mobile.util.TouchUtil.tapped)
 		{
 			final tappedIndex = getTappedSong();
 			touchBlocksAccept = tappedIndex != curSelected;
@@ -499,12 +499,12 @@ class FreeplayState extends MusicBeatState
 	{
 		for (idx => item in grpSongs.members)
 		{
-			if (item != null && item.visible && funkin.mobile.TouchUtil.tappedOn(item)) return idx;
+			if (item != null && item.visible && funkin.mobile.util.TouchUtil.tappedOn(item)) return idx;
 		}
 		
 		for (idx => icon in grpIcons.members)
 		{
-			if (icon != null && icon.visible && funkin.mobile.TouchUtil.tappedOn(icon)) return idx;
+			if (icon != null && icon.visible && funkin.mobile.util.TouchUtil.tappedOn(icon)) return idx;
 		}
 		
 		return -1;

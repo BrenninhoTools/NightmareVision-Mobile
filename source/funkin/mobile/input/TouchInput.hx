@@ -1,4 +1,4 @@
-package funkin.mobile;
+package funkin.mobile.input;
 
 import funkin.mobile.haptics.Haptics;
 import flixel.FlxG;

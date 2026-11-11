@@ -214,7 +214,7 @@ class AntiCrash
 	static function getLogDirectory():String
 	{
 		#if mobile
-		if (funkin.mobile.StorageUtil.directory.length > 0) return funkin.mobile.StorageUtil.directory;
+		if (funkin.mobile.backend.StorageUtil.directory.length > 0) return funkin.mobile.backend.StorageUtil.directory;
 		return lime.system.System.applicationStorageDirectory;
 		#elseif sys
 		return Sys.getCwd();

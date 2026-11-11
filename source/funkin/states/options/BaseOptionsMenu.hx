@@ -150,8 +150,8 @@ class BaseOptionsMenu extends MusicBeatSubstate
 		var touchCycle = false;
 		
 		#if mobile
-		final tapped = funkin.mobile.TouchUtil.getMenuTap(cast grpOptions.members);
-		if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+		final tapped = funkin.mobile.util.TouchUtil.getMenuTap(cast grpOptions.members);
+		if (tapped != funkin.mobile.util.TouchUtil.NO_TAP)
 		{
 			touchBlocksAccept = tapped != curSelected;
 			if (tapped >= 0 && tapped != curSelected) changeSelection(tapped - curSelected);

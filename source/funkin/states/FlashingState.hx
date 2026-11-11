@@ -74,10 +74,10 @@ class FlashingState extends MusicBeatState
 			var back = controls.BACK;
 			
 			#if mobile
-			if (funkin.mobile.TouchUtil.tapped)
+			if (funkin.mobile.util.TouchUtil.tapped)
 			{
-				accept = funkin.mobile.TouchUtil.tappedOn(disableText);
-				back = back || funkin.mobile.TouchUtil.tappedOn(ignoreText);
+				accept = funkin.mobile.util.TouchUtil.tappedOn(disableText);
+				back = back || funkin.mobile.util.TouchUtil.tappedOn(ignoreText);
 			}
 			#end
 			

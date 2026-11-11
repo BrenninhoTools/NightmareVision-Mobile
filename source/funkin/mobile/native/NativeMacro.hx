@@ -1,4 +1,4 @@
-package funkin.mobile;
+package funkin.mobile.native;
 
 #if macro
 import haxe.io.Path;
@@ -13,8 +13,14 @@ class NativeMacro
 		
 		final cls = Context.getLocalClass().get();
 		final file = sys.FileSystem.absolutePath(Context.getPosInfos(cls.pos).file);
-		final root = Path.normalize(Path.join([Path.directory(file), '..', '..', '..']));
-		final folder = Path.join([root, 'projFiles', 'ios']);
+		var root = Path.directory(file);
+		while (root.length > 1 && !sys.FileSystem.exists(Path.join([root, 'projFiles', 'ios'])))
+		{
+			final parent = Path.directory(root);
+			if (parent == root || parent.length == 0) break;
+			root = parent;
+		}
+		final folder = Path.join([Path.normalize(root), 'projFiles', 'ios']);
 		
 		final xml = '<files id="nmv-native-ios" dir="$folder">'
 			+ '<compilerflag value="-fobjc-arc"/>'

@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import funkin.mobile.util.TouchUtil;
+
 import flixel.FlxCamera;
 import flixel.FlxG;
 import flixel.FlxSprite;

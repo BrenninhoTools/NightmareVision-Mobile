@@ -1,4 +1,6 @@
-package funkin.mobile;
+package funkin.mobile.input;
+
+import funkin.mobile.util.TouchUtil;
 
 import funkin.mobile.haptics.Haptics;
 import flixel.FlxG;
@@ -57,7 +59,7 @@ class TouchButton extends FlxSprite
 
 	var lastHeldFrame:Int = -1;
 
-	@:allow(funkin.mobile.TouchInput)
+	@:allow(funkin.mobile.input.TouchInput)
 	function captureRelease(time:Float):Void
 	{
 		final frame = TouchInput.currentFrame;
@@ -105,21 +107,21 @@ class TouchButton extends FlxSprite
 		return viewX >= x - padding && viewX < x + width + padding && viewY >= y - padding && viewY < y + height + padding;
 	}
 
-	@:allow(funkin.mobile.TouchInput)
+	@:allow(funkin.mobile.input.TouchInput)
 	function beginPoll():Void
 	{
 		held = false;
 		captureTime = -1;
 	}
 
-	@:allow(funkin.mobile.TouchInput)
+	@:allow(funkin.mobile.input.TouchInput)
 	function capture(time:Float = -1):Void
 	{
 		held = true;
 		if (time >= 0 && (captureTime < 0 || time < captureTime)) captureTime = time;
 	}
 
-	@:allow(funkin.mobile.TouchInput)
+	@:allow(funkin.mobile.input.TouchInput)
 	function endPoll():Void
 	{
 		if (!isTouchable()) held = false;

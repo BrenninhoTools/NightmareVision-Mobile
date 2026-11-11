@@ -1,4 +1,4 @@
-package funkin.mobile;
+package funkin.mobile.native;
 
 import flixel.FlxG;
 
@@ -23,7 +23,7 @@ extern "C" int nmv_native_external_input();
 extern "C" const char *nmv_native_safe_insets();
 ')
 #end
-@:build(funkin.mobile.NativeMacro.build())
+@:build(funkin.mobile.native.NativeMacro.build())
 class NativeUtil
 {
 	public static var hapticsEnabled:Bool = true;

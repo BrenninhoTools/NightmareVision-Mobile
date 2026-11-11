@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import funkin.mobile.input.TouchButton;
+
 import flixel.FlxG;
 import flixel.FlxCamera;
 import flixel.util.FlxColor;

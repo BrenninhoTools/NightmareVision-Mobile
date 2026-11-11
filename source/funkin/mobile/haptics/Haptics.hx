@@ -2,7 +2,7 @@ package funkin.mobile.haptics;
 
 import flixel.FlxG;
 
-import funkin.mobile.NativeUtil;
+import funkin.mobile.native.NativeUtil;
 
 enum HapticType
 {

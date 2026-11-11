@@ -10,7 +10,7 @@ import flixel.input.gamepad.FlxGamepadInputID;
 import flixel.input.keyboard.FlxKey;
 
 import funkin.states.options.ControlsSubState;
-import funkin.mobile.TouchInput;
+import funkin.mobile.input.TouchInput;
 
 // at some point i do wanna rework this to be simpler and easier to work with
 

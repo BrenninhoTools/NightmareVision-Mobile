@@ -1,5 +1,7 @@
 package funkin.mobile;
 
+import funkin.mobile.backend.StorageUtil;
+
 import flixel.FlxG;
 import flixel.FlxState;
 import flixel.text.FlxText;
@@ -102,7 +104,7 @@ class CopyState extends FlxState
 		updateLabel();
 	}
 
-	var job:Null<StorageUtil.CopyJob> = null;
+	var job:Null<funkin.mobile.backend.StorageUtil.CopyJob> = null;
 
 	override function update(elapsed:Float):Void
 	{

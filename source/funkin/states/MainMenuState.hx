@@ -36,15 +36,15 @@ class MainMenuState extends MusicBeatState
 	var magenta:Null<FlxSprite> = null;
 	
 	#if mobile
-	var editorButton:Null<funkin.mobile.TouchButton> = null;
+	var editorButton:Null<funkin.mobile.input.TouchButton> = null;
 	
 	function getTouchedItem():Int
 	{
-		if (menuItems == null || !funkin.mobile.TouchUtil.tapped) return -2;
+		if (menuItems == null || !funkin.mobile.util.TouchUtil.tapped) return -2;
 		
 		for (item in menuItems.members)
 		{
-			if (item != null && item.visible && funkin.mobile.TouchUtil.tappedOn(item)) return item.ID;
+			if (item != null && item.visible && funkin.mobile.util.TouchUtil.tappedOn(item)) return item.ID;
 		}
 		
 		return -1;
@@ -130,7 +130,7 @@ class MainMenuState extends MusicBeatState
 		final backButton = funkin.mobile.MobileUtil.createBackButton(mobileCamera);
 		add(backButton);
 		
-		editorButton = new funkin.mobile.TouchButton(0, 0, [], 2);
+		editorButton = new funkin.mobile.input.TouchButton(0, 0, [], 2);
 		editorButton.loadGraphic(Paths.image('mobile/editorButton'));
 		editorButton.setGraphicSize(Std.int(backButton.height * 0.8));
 		editorButton.updateHitbox();
@@ -190,7 +190,7 @@ class MainMenuState extends MusicBeatState
 				}
 			}
 			
-			funkin.mobile.TouchInput.poll();
+			funkin.mobile.input.TouchInput.poll();
 			
 			if (editorButton != null && editorButton.touchJustPressed)
 			{

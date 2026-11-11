@@ -1,5 +1,8 @@
 package funkin.mobile;
 
+import funkin.mobile.input.TouchButton;
+import funkin.mobile.util.Hitbox;
+
 import openfl.display.BitmapData;
 import openfl.display.Shape;
 import openfl.events.KeyboardEvent;

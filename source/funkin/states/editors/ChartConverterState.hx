@@ -89,8 +89,8 @@ class ChartConverterState extends MusicBeatState
 			var touchBlocksAccept = false;
 			
 			#if mobile
-			final tapped = funkin.mobile.TouchUtil.getMenuTap(cast txtGroup.members);
-			if (tapped != funkin.mobile.TouchUtil.NO_TAP)
+			final tapped = funkin.mobile.util.TouchUtil.getMenuTap(cast txtGroup.members);
+			if (tapped != funkin.mobile.util.TouchUtil.NO_TAP)
 			{
 				touchBlocksAccept = tapped != curSelection;
 				if (tapped >= 0 && tapped != curSelection) changeSel(tapped - curSelection);

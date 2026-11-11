@@ -2,7 +2,7 @@ package funkin.states.options;
 
 import funkin.states.options.Option;
 #if android
-import funkin.mobile.StorageUtil;
+import funkin.mobile.backend.StorageUtil;
 import funkin.mobile.RestartPrompt;
 #end
 
@@ -55,7 +55,7 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.callback = openHitboxCustom;
 		addOption(option);
 		
-		hitboxModeOption = new Option('Hitbox Mode', 'Four Lanes / Triangle: four touch areas. Arrows: tap the strums.\nD-Pad: a four note pad on the left, right or both sides.', 'hitboxMode', STRING, 'Four Lanes', funkin.mobile.Hitbox.MODES.copy());
+		hitboxModeOption = new Option('Hitbox Mode', 'Four Lanes / Triangle: four touch areas. Arrows: tap the strums.\nD-Pad: a four note pad on the left, right or both sides.', 'hitboxMode', STRING, 'Four Lanes', funkin.mobile.util.Hitbox.MODES.copy());
 		addOption(hitboxModeOption);
 		
 		var option:Option = new Option('Invisible Hitbox', 'If checked, the hitbox lanes stay invisible while you play,\nbut they still work.', 'invisibleHitbox', BOOL, false);
@@ -109,7 +109,7 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		
 		#if mobile
 		var option:Option = new Option('Repair Game Files', 'Checks every game file again and copies back anything\nthat is missing or broken. Your mods are kept.', 'storageType', BUTTON);
-		option.callback = funkin.mobile.StorageUtil.repair;
+		option.callback = funkin.mobile.backend.StorageUtil.repair;
 		addOption(option);
 		#end
 		

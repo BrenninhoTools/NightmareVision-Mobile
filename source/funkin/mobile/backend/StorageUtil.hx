@@ -1,4 +1,8 @@
-package funkin.mobile;
+package funkin.mobile.backend;
+
+import funkin.mobile.CopyState;
+import funkin.mobile.LogcatUtil;
+import funkin.mobile.native.NativeUtil;
 
 import flixel.FlxG;
 

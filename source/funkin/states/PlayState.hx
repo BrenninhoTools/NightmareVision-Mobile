@@ -566,15 +566,15 @@ class PlayState extends MusicBeatState
 	#if mobile
 	public var camMobile:FlxCamera;
 	
-	public var hitbox:funkin.mobile.Hitbox;
+	public var hitbox:funkin.mobile.util.Hitbox;
 	
-	public var pauseButton:funkin.mobile.TouchButton;
+	public var pauseButton:funkin.mobile.input.TouchButton;
 	
 	function createMobileControls():Void
 	{
 		camMobile = funkin.mobile.MobileUtil.createCamera();
 		
-		hitbox = funkin.mobile.Hitbox.build([for (action in InputSystem.ACTION_LIST) (action : String)], camMobile);
+		hitbox = funkin.mobile.util.Hitbox.build([for (action in InputSystem.ACTION_LIST) (action : String)], camMobile);
 		hitbox.onLaneDown.add((lane) -> scripts?.call('onHitboxPress', [lane]));
 		hitbox.onLaneUp.add((lane) -> scripts?.call('onHitboxRelease', [lane]));
 		add(hitbox);

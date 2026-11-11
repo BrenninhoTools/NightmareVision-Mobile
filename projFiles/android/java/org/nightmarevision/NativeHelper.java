@@ -102,7 +102,7 @@ public class NativeHelper extends Extension
 			public void run()
 			{
 				if (android.os.SystemClock.uptimeMillis() - queued > HAPTIC_STALE_MS) return;
-				playHaptic(type, Math.min(1f, intensity));
+				playHaptic(type, Math.min(5f, intensity));
 			}
 		});
 	}
@@ -145,25 +145,49 @@ public class NativeHelper extends Extension
 		return -1;
 	}
 
-	private static void playConfirm(Vibrator target, float intensity)
+	private static long scaled(long milliseconds, float boost)
 	{
+		return Math.max(1, Math.round(milliseconds * Math.min(3f, boost)));
+	}
+
+	private static void playConfirm(Vibrator target, float intensity, float boost)
+	{
+		long first = scaled(70, boost);
+		long second = scaled(150, boost);
+		long tail = scaled(60, boost);
+
 		if (Build.VERSION.SDK_INT >= 26)
 		{
 			if (target.hasAmplitudeControl())
 			{
 				int strong = Math.max(1, Math.min(255, Math.round(intensity * 255)));
 				int soft = Math.max(1, Math.round(strong * 0.6f));
-				deliver(target, VibrationEffect.createWaveform(new long[] {0, 70, 45, 150, 30, 60}, new int[] {0, strong, 0, strong, 0, soft}, -1));
+				deliver(target, VibrationEffect.createWaveform(new long[] {0, first, 45, second, 30, tail}, new int[] {0, strong, 0, strong, 0, soft}, -1));
 			}
 			else
 			{
-				deliver(target, VibrationEffect.createWaveform(new long[] {0, 70, 45, 150}, -1));
+				deliver(target, VibrationEffect.createWaveform(new long[] {0, first, 45, second}, -1));
 			}
 			return;
 		}
 
 		target.cancel();
-		target.vibrate(new long[] {0, 70, 45, 150}, -1);
+		target.vibrate(new long[] {0, first, 45, second}, -1);
+	}
+
+	private static void playRumble(Vibrator target, float intensity, float boost)
+	{
+		long duration = scaled(110, boost);
+
+		if (Build.VERSION.SDK_INT >= 26)
+		{
+			int amplitude = VibrationEffect.DEFAULT_AMPLITUDE;
+			if (target.hasAmplitudeControl()) amplitude = Math.max(1, Math.min(255, Math.round(intensity * 255)));
+			deliver(target, VibrationEffect.createOneShot(duration, amplitude));
+			return;
+		}
+
+		target.vibrate(duration);
 	}
 
 	private static void playHaptic(int type, float intensity)
@@ -173,9 +197,18 @@ public class NativeHelper extends Extension
 			Vibrator target = getVibrator();
 			if (target == null) return;
 
+			float boost = Math.max(1f, intensity);
+			intensity = Math.min(1f, intensity);
+
 			if (type == 5)
 			{
-				playConfirm(target, intensity);
+				playConfirm(target, intensity, boost);
+				return;
+			}
+
+			if (type == 6)
+			{
+				playRumble(target, intensity, boost);
 				return;
 			}
 
@@ -184,11 +217,14 @@ public class NativeHelper extends Extension
 			{
 				VibrationEffect.Composition composition = VibrationEffect.startComposition().addPrimitive(primitive, intensity);
 				if (type == 4) composition.addPrimitive(primitive, intensity * 0.8f, 60);
+				int repeats = Math.min(4, Math.round(boost) - 1);
+				for (int i = 0; i < repeats; i++)
+					composition.addPrimitive(primitive, intensity, 25);
 				deliver(target, composition.compose());
 				return;
 			}
 
-			if (Build.VERSION.SDK_INT >= 29 && intensity >= 0.85f && type != 4)
+			if (Build.VERSION.SDK_INT >= 29 && intensity >= 0.85f && boost <= 1.05f && type != 4)
 			{
 				int effect;
 				switch (type)
@@ -215,13 +251,13 @@ public class NativeHelper extends Extension
 				int amplitude = VibrationEffect.DEFAULT_AMPLITUDE;
 				if (target.hasAmplitudeControl()) amplitude = Math.max(1, Math.min(255, Math.round(intensity * 255)));
 
-				if (type == 4) deliver(target, VibrationEffect.createWaveform(new long[] {0, 12, 60, 12}, new int[] {0, amplitude, 0, amplitude}, -1));
-				else deliver(target, VibrationEffect.createOneShot(duration, amplitude));
+				if (type == 4) deliver(target, VibrationEffect.createWaveform(new long[] {0, scaled(12, boost), 60, scaled(12, boost)}, new int[] {0, amplitude, 0, amplitude}, -1));
+				else deliver(target, VibrationEffect.createOneShot(scaled(duration, boost), amplitude));
 			}
 			else
 			{
 				target.cancel();
-				target.vibrate(Math.max(1, Math.round(duration * intensity)));
+				target.vibrate(Math.max(1, Math.round(duration * intensity * Math.min(3f, boost))));
 			}
 		}
 		catch (Throwable e) {}

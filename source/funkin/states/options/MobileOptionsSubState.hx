@@ -78,9 +78,10 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);
 		addOption(option);
 		
-		var option:Option = new Option('Haptics Intensity', 'How strong the vibration feels.', 'hapticsIntensity', PERCENT, 0.6);
+		var option:Option = new Option('Haptics Intensity', 'How strong the vibration feels.\nAbove 1.0 the vibrations also get longer.', 'hapticsIntensity', FLOAT, 0.6);
+		option.displayFormat = '%vx';
 		option.minValue = 0.1;
-		option.maxValue = 1;
+		option.maxValue = 5;
 		option.changeValue = 0.1;
 		option.decimals = 1;
 		option.onChange = () -> funkin.mobile.Haptics.preview(ClientPrefs.hapticsIntensity);

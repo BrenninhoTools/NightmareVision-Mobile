@@ -57,11 +57,13 @@ class NativeUtil
 	
 	static var polling:Bool = false;
 	
+	public static inline final MAX_INTENSITY:Float = 5;
+	
 	public static function haptic(type:Int, intensity:Float = 1):Void
 	{
 		if (!hapticsEnabled || intensity <= 0) return;
 		
-		final clamped = Math.min(1, intensity);
+		final clamped = Math.min(MAX_INTENSITY, intensity);
 		
 		#if android
 		final func = jni('haptic', '(IF)V');

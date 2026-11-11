@@ -276,8 +276,23 @@ extern "C" void nmv_native_haptic(int type, double intensity)
 	if (intensity <= 0) return;
 
 	CGFloat value = (CGFloat)(intensity > 1 ? 1 : intensity);
+	int repeats = intensity > 1 ? (int)fmin(4, round(intensity) - 1) : 0;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
+		if (type == 6)
+		{
+			UIImpactFeedbackGenerator *heavy = nmvImpactGenerator(45);
+			[heavy impactOccurredWithIntensity:value];
+			for (int i = 1; i <= repeats; i++)
+			{
+				dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03 * i * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+					[heavy impactOccurredWithIntensity:value];
+				});
+			}
+			[heavy prepare];
+			return;
+		}
+
 		if (type == 0)
 		{
 			if (nmvSelectionGenerator == nil) nmvSelectionGenerator = [[UISelectionFeedbackGenerator alloc] init];
@@ -315,6 +330,12 @@ extern "C" void nmv_native_haptic(int type, double intensity)
 		int milliseconds = type == 1 ? 10 : (type == 2 ? 25 : 45);
 		UIImpactFeedbackGenerator *generator = nmvImpactGenerator(milliseconds);
 		[generator impactOccurredWithIntensity:value];
+		for (int i = 1; i <= repeats; i++)
+		{
+			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.035 * i * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+				[generator impactOccurredWithIntensity:value];
+			});
+		}
 		[generator prepare];
 	});
 }

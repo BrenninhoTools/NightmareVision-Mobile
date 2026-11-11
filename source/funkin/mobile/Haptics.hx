@@ -10,6 +10,7 @@ enum HapticType
 	HEAVY;
 	DOUBLE;
 	CONFIRM;
+	RUMBLE;
 }
 
 class Haptics
@@ -45,6 +46,7 @@ class Haptics
 			case HEAVY: 1.0;
 			case DOUBLE: 0.6;
 			case CONFIRM: 1.0;
+			case RUMBLE: 1.0;
 		}
 
 		NativeUtil.haptic(typeId(type), base * scale * ClientPrefs.hapticsIntensity);
@@ -63,10 +65,49 @@ class Haptics
 		play(HEAVY, 0.85);
 	}
 
+	static var sustainStart:Float = -1000;
+
+	static var lastSustain:Float = -1000;
+
 	public static function sustain():Void
 	{
-		if (level < 2 || !throttle(SCROLL, 90)) return;
-		play(SELECTION, 0.8);
+		#if mobile
+		if (!enabled) return;
+
+		final now = FlxG.game != null ? FlxG.game.ticks : 0;
+		if (now - lastSustain < 45) return;
+		if (now - lastSustain > 250) sustainStart = now;
+		lastSustain = now;
+
+		final held = now - sustainStart;
+		final build = Math.min(1, 0.55 + held / 900);
+		final tug = 0.82 + Math.sin(held * 0.022) * 0.18;
+
+		NativeUtil.haptic(typeId(RUMBLE), build * tug * ClientPrefs.hapticsIntensity * 1.4);
+		#end
+	}
+
+	static var lastAmbient:Float = -1000;
+
+	public static function rumble(strength:Float, interval:Float = 60):Void
+	{
+		#if mobile
+		if (!enabled || notesOnly || strength <= 0) return;
+
+		final now = FlxG.game != null ? FlxG.game.ticks : 0;
+		if (now - lastAmbient < interval) return;
+		lastAmbient = now;
+
+		NativeUtil.haptic(typeId(RUMBLE), strength * ClientPrefs.hapticsIntensity * 1.4);
+		#end
+	}
+
+	public static function impact(strength:Float = 1):Void
+	{
+		#if mobile
+		if (!enabled || notesOnly || strength <= 0) return;
+		NativeUtil.haptic(typeId(HEAVY), strength * ClientPrefs.hapticsIntensity * 1.4);
+		#end
 	}
 
 	public static function confirm():Void
@@ -79,7 +120,7 @@ class Haptics
 		lastConfirm = now;
 		lastMenu = now;
 
-		NativeUtil.haptic(typeId(CONFIRM), Math.min(1, Math.max(0.55, 1.6 * ClientPrefs.hapticsIntensity)));
+		NativeUtil.haptic(typeId(CONFIRM), Math.max(0.55, 1.6 * ClientPrefs.hapticsIntensity));
 		#end
 	}
 
@@ -162,6 +203,7 @@ class Haptics
 			case HEAVY: 3;
 			case DOUBLE: 4;
 			case CONFIRM: 5;
+			case RUMBLE: 6;
 		}
 	}
 

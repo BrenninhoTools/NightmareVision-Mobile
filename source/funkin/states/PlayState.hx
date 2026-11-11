@@ -958,6 +958,7 @@ class PlayState extends MusicBeatState
 		
 		#if mobile
 		createMobileControls();
+		trainHaptics = new funkin.mobile.TrainHaptics();
 		#end
 		
 		Conductor.safeZoneOffset = (ClientPrefs.safeFrames / 60) * 1000;
@@ -1865,10 +1866,15 @@ class PlayState extends MusicBeatState
 		return pos;
 	}
 	
+	#if mobile
+	var trainHaptics:Null<funkin.mobile.TrainHaptics> = null;
+	#end
+
 	override public function update(elapsed:Float):Void
 	{
 		#if mobile
 		updateArrowsHitbox();
+		if (trainHaptics != null && !paused) trainHaptics.update();
 		#end
 
 		if (cameraLerping && !inCutscene) FlxG.camera.followLerp = (.04 * cameraSpeed);

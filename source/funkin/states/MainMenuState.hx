@@ -126,16 +126,16 @@ class MainMenuState extends MusicBeatState
 		changeSelection();
 		
 		#if mobile
-		final mobileCamera = funkin.mobile.MobileUtil.createCamera();
-		final backButton = funkin.mobile.MobileUtil.createBackButton(mobileCamera);
+		final mobileCamera = funkin.mobile.util.MobileUtil.createCamera();
+		final backButton = funkin.mobile.util.MobileUtil.createBackButton(mobileCamera);
 		add(backButton);
 		
 		editorButton = new funkin.mobile.input.TouchButton(0, 0, [], 2);
 		editorButton.loadGraphic(Paths.image('mobile/editorButton'));
 		editorButton.setGraphicSize(Std.int(backButton.height * 0.8));
 		editorButton.updateHitbox();
-		editorButton.setPosition(backButton.x - editorButton.width - funkin.mobile.MobileUtil.BUTTON_SPACING, backButton.y + backButton.height - editorButton.height);
-		editorButton.alpha = funkin.mobile.MobileUtil.buttonAlpha;
+		editorButton.setPosition(backButton.x - editorButton.width - funkin.mobile.util.MobileUtil.BUTTON_SPACING, backButton.y + backButton.height - editorButton.height);
+		editorButton.alpha = funkin.mobile.util.MobileUtil.buttonAlpha;
 		editorButton.cameras = [mobileCamera];
 		add(editorButton);
 		#end

@@ -100,7 +100,7 @@ class GameOverSubstate extends MusicBeatSubstate
 		}
 		
 		#if mobile
-		add(funkin.mobile.MobileUtil.createBackButton());
+		add(funkin.mobile.util.MobileUtil.createBackButton());
 		#end
 		
 		super.create();

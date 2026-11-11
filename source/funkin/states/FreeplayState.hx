@@ -272,15 +272,15 @@ class FreeplayState extends MusicBeatState
 	
 	function createMobileControls():Void
 	{
-		final camera = funkin.mobile.MobileUtil.createCamera();
+		final camera = funkin.mobile.util.MobileUtil.createCamera();
 		
-		final back = funkin.mobile.MobileUtil.createBackButton(camera);
+		final back = funkin.mobile.util.MobileUtil.createBackButton(camera);
 		back.alpha = 0.3;
 		add(back);
 		
 		if (freeplayTabs.length > 1)
 		{
-			final arrows = funkin.mobile.MobileUtil.createArrowButtons(camera, back.x - funkin.mobile.MobileUtil.BUTTON_SPACING, back.y + back.height);
+			final arrows = funkin.mobile.util.MobileUtil.createArrowButtons(camera, back.x - funkin.mobile.util.MobileUtil.BUTTON_SPACING, back.y + back.height);
 			tabLeftButton = arrows.left;
 			tabRightButton = arrows.right;
 			add(tabLeftButton);

@@ -20,7 +20,7 @@ import haxe.ui.core.Component;
 import haxe.ui.core.Screen;
 
 import funkin.mobile.util.Hitbox;
-import funkin.mobile.MobileUtil;
+import funkin.mobile.util.MobileUtil;
 import funkin.objects.note.Note;
 
 class HitboxCustomSubState extends UISubState

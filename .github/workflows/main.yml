@@ -41,6 +41,7 @@ env:
     GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.vfs.watch=false
     ANDROID_GRADLE_TASK: assembleDebug --build-cache --parallel --no-watch-fs
     CACHE_LIMIT_MB: 3500
+    OUTPUT_CACHE_VERSION: v1
 
 jobs:
     Android:
@@ -53,7 +54,15 @@ jobs:
                 submodules: true
                 fetch-depth: 1
 
+            - name: Restore build output
+              id: output
+              uses: actions/cache/restore@v4
+              with:
+                path: export/release/android/signed/NightmareVision.apk
+                key: android-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
+
             - name: Setup environment
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 10
               run: |
                 set -euo pipefail
@@ -77,23 +86,26 @@ jobs:
                 echo "ANDROID_NDK_LATEST_HOME=$NDK" >> "$GITHUB_ENV"
 
             - uses: krdlab/setup-haxe@v2.1.0
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 10
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
 
             - name: Setup haxelib
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 5
               run: haxelib setup ~/haxelib < /dev/null
 
             - name: Restore libs
               id: libs
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
                 key: android-hxpkg-v4-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
-              if: steps.libs.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
               timeout-minutes: 20
               run: |
                 set -euo pipefail
@@ -101,7 +113,7 @@ jobs:
                 haxelib run hxpkg install < /dev/null
 
             - name: Save libs
-              if: steps.libs.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
               uses: actions/cache/save@v4
               with:
                 path: .haxelib
@@ -109,13 +121,14 @@ jobs:
 
             - name: Restore Lime
               id: lime
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.LIME_DIR }}
                 key: android-lime-v4-${{ env.LIME_HASH }}-${{ env.NDK_RESOLVED }}-${{ env.ANDROID_PLATFORM }}
 
             - name: Install Linux dependencies
-              if: steps.lime.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.lime.outputs.cache-hit != 'true') }}
               timeout-minutes: 10
               run: |
                 sudo apt-get update -qq
@@ -129,7 +142,7 @@ jobs:
                   libxrandr-dev libxcursor-dev libxi-dev libxinerama-dev libxxf86vm-dev
 
             - name: Build Lime
-              if: steps.lime.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.lime.outputs.cache-hit != 'true') }}
               timeout-minutes: 40
               run: |
                 set -euo pipefail
@@ -151,17 +164,19 @@ jobs:
                 rm -rf "$LIME_DIR/.git" "$LIME_DIR/project/obj"
 
             - name: Save Lime
-              if: steps.lime.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.lime.outputs.cache-hit != 'true') }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.LIME_DIR }}
                 key: ${{ steps.lime.outputs.cache-primary-key }}
 
             - name: Link Lime
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               run: haxelib dev lime "$LIME_DIR" < /dev/null
 
             - name: Restore hxcpp cache
               id: hxcpp
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
@@ -170,6 +185,7 @@ jobs:
 
             - name: Restore Gradle cache
               id: gradle
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: |
@@ -179,6 +195,7 @@ jobs:
                 restore-keys: android-gradle-v4-
 
             - name: Configure Gradle
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               run: |
                 mkdir -p ~/.gradle/init.d
                 cat > ~/.gradle/init.d/fast-build.gradle <<'GRADLE'
@@ -192,13 +209,11 @@ jobs:
                 printf 'org.gradle.jvmargs=-Xmx4g -XX:+UseParallelGC -Dfile.encoding=UTF-8\norg.gradle.parallel=true\norg.gradle.caching=true\norg.gradle.configureondemand=true\n' > ~/.gradle/gradle.properties
 
             - name: Compile build
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 50
               run: |
                 set -euo pipefail
-                if [ -d "$HXCPP_COMPILE_CACHE" ]; then
-                  SIZE=$(du -sm "$HXCPP_COMPILE_CACHE" | cut -f1)
-                  if [ "$SIZE" -gt "$CACHE_LIMIT_MB" ]; then rm -rf "$HXCPP_COMPILE_CACHE"; fi
-                fi
+                python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
@@ -207,14 +222,14 @@ jobs:
                 haxelib run lime build Project.xml android -release -arm64 $FLAGS < /dev/null
 
             - name: Save hxcpp cache
-              if: ${{ !cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request') }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
                 key: ${{ steps.hxcpp.outputs.cache-primary-key }}
 
             - name: Save Gradle cache
-              if: ${{ !cancelled() && steps.gradle.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.gradle.outputs.cache-hit != 'true' && github.event_name != 'pull_request') }}
               uses: actions/cache/save@v4
               with:
                 path: |
@@ -223,6 +238,7 @@ jobs:
                 key: ${{ steps.gradle.outputs.cache-primary-key }}
 
             - name: Sign APK
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 10
               run: |
                 set -euo pipefail
@@ -238,6 +254,13 @@ jobs:
                 "$BUILD_TOOLS/apksigner" sign --ks release.keystore --ks-key-alias nightmarevision --ks-pass pass:android --key-pass pass:android \
                   --out export/release/android/signed/NightmareVision.apk export/release/android/signed/aligned.apk
                 rm export/release/android/signed/aligned.apk
+
+            - name: Save build output
+              if: ${{ steps.output.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              uses: actions/cache/save@v4
+              with:
+                path: export/release/android/signed/NightmareVision.apk
+                key: ${{ steps.output.outputs.cache-primary-key }}
 
             - name: Publish artifact
               uses: actions/upload-artifact@v7.0.1
@@ -256,30 +279,41 @@ jobs:
                 submodules: true
                 fetch-depth: 1
 
+            - name: Restore build output
+              id: output
+              uses: actions/cache/restore@v4
+              with:
+                path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
+                key: ios-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
+
             - name: Setup environment
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 5
               run: |
                 echo "HXCPP_COMPILE_THREADS=$(( $(sysctl -n hw.ncpu) + 1 ))" >> "$GITHUB_ENV"
                 echo "IPHONE_VER=$(xcrun --sdk iphoneos --show-sdk-version)" >> "$GITHUB_ENV"
 
             - uses: krdlab/setup-haxe@v2.1.0
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 10
               with:
                 haxe-version: ${{ env.HAXE_VERSION }}
 
             - name: Setup haxelib
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 5
               run: haxelib setup ~/haxelib < /dev/null
 
             - name: Restore libs
               id: libs
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
                 key: ios-hxpkg-v4-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
-              if: steps.libs.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
               timeout-minutes: 20
               run: |
                 set -euo pipefail
@@ -287,7 +321,7 @@ jobs:
                 haxelib run hxpkg install < /dev/null
 
             - name: Save libs
-              if: steps.libs.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
               uses: actions/cache/save@v4
               with:
                 path: .haxelib
@@ -295,13 +329,14 @@ jobs:
 
             - name: Restore Lime
               id: lime
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.LIME_DIR }}
                 key: ios-lime-v4-${{ env.LIME_HASH }}-${{ env.IPHONE_VER }}
 
             - name: Build Lime
-              if: steps.lime.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.lime.outputs.cache-hit != 'true') }}
               timeout-minutes: 40
               run: |
                 set -euo pipefail
@@ -322,17 +357,19 @@ jobs:
                 rm -rf "$LIME_DIR/.git" "$LIME_DIR/project/obj"
 
             - name: Save Lime
-              if: steps.lime.outputs.cache-hit != 'true'
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.lime.outputs.cache-hit != 'true') }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.LIME_DIR }}
                 key: ${{ steps.lime.outputs.cache-primary-key }}
 
             - name: Link Lime
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               run: haxelib dev lime "$LIME_DIR" < /dev/null
 
             - name: Restore hxcpp cache
               id: hxcpp
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
@@ -340,19 +377,18 @@ jobs:
                 restore-keys: ios-hxcpp-v4-
 
             - name: Prepare Xcode project
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 15
               run: |
                 set -euo pipefail
-                if [ -d "$HXCPP_COMPILE_CACHE" ]; then
-                  SIZE=$(du -sm "$HXCPP_COMPILE_CACHE" | cut -f1)
-                  if [ "$SIZE" -gt "$CACHE_LIMIT_MB" ]; then rm -rf "$HXCPP_COMPILE_CACHE"; fi
-                fi
+                python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
                 haxelib run lime update Project.xml ios -release -nosign $FLAGS < /dev/null
 
             - name: Compile Haxe (arm64)
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 45
               run: |
                 set -euo pipefail
@@ -370,6 +406,7 @@ jobs:
                 grep -q '^default:$' "$HAXE_DIR/makefile"
 
             - name: Link app
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 20
               run: |
                 set -euo pipefail
@@ -381,13 +418,14 @@ jobs:
                   ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO build -quiet < /dev/null
 
             - name: Save hxcpp cache
-              if: ${{ !cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request') }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
                 key: ${{ steps.hxcpp.outputs.cache-primary-key }}
 
             - name: Package IPA
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 10
               run: |
                 set -euo pipefail
@@ -396,6 +434,13 @@ jobs:
                 mkdir Payload
                 cp -R *.app Payload/
                 zip -qry NightmareVision.ipa Payload
+
+            - name: Save build output
+              if: ${{ steps.output.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              uses: actions/cache/save@v4
+              with:
+                path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
+                key: ${{ steps.output.outputs.cache-primary-key }}
 
             - name: Publish artifact
               uses: actions/upload-artifact@v7.0.1

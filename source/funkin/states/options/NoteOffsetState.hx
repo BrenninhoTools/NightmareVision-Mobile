@@ -198,7 +198,7 @@ class NoteOffsetState extends MusicBeatState
 		FunkinSound.playMusic(Paths.music('offsetSong'), 1, true);
 		
 		#if mobile
-		add(funkin.mobile.MobileUtil.createBackButton());
+		add(funkin.mobile.util.MobileUtil.createBackButton());
 		#end
 		
 		super.create();

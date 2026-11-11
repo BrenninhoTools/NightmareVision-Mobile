@@ -572,19 +572,19 @@ class PlayState extends MusicBeatState
 	
 	function createMobileControls():Void
 	{
-		camMobile = funkin.mobile.MobileUtil.createCamera();
+		camMobile = funkin.mobile.util.MobileUtil.createCamera();
 		
 		hitbox = funkin.mobile.util.Hitbox.build([for (action in InputSystem.ACTION_LIST) (action : String)], camMobile);
 		hitbox.onLaneDown.add((lane) -> scripts?.call('onHitboxPress', [lane]));
 		hitbox.onLaneUp.add((lane) -> scripts?.call('onHitboxRelease', [lane]));
 		add(hitbox);
 		
-		pauseButton = funkin.mobile.MobileUtil.createPauseButton(camMobile);
+		pauseButton = funkin.mobile.util.MobileUtil.createPauseButton(camMobile);
 		if (ClientPrefs.invisiblePauseButton) pauseButton.alpha = 0;
 		add(pauseButton);
 		
 		final strumHalf = Note.swagWidth * ModManager.arrowsOpponentScale / 2;
-		var opponentTop = funkin.mobile.MobileUtil.topEdge();
+		var opponentTop = funkin.mobile.util.MobileUtil.topEdge();
 		
 		final debug = funkin.backend.DebugDisplay.instance;
 		if (debug != null && debug.visible && FlxG.stage != null && FlxG.stage.stageHeight > 0)
@@ -593,7 +593,7 @@ class PlayState extends MusicBeatState
 			opponentTop = Math.max(opponentTop, (debug.y + debug.textUnderlay.height * debug.scaleY) * stageToGame + 6);
 		}
 		
-		ModManager.arrowsOpponentLeft = funkin.mobile.MobileUtil.leftEdge();
+		ModManager.arrowsOpponentLeft = funkin.mobile.util.MobileUtil.leftEdge();
 		ModManager.arrowsOpponentCenterY = opponentTop + strumHalf;
 	}
 	

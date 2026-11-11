@@ -106,7 +106,7 @@ class ModsState extends MusicBeatState
 		hintText.text = 'Tap the box to enable or disable a mod, hold it to make the mod top priority.\nMods folder: ' + funkin.mobile.backend.StorageUtil.getPath(Paths.MODS_DIRECTORY);
 		add(hintText);
 		
-		add(funkin.mobile.MobileUtil.createBackButton());
+		add(funkin.mobile.util.MobileUtil.createBackButton());
 		#end
 		
 		if (modList.length == 0)

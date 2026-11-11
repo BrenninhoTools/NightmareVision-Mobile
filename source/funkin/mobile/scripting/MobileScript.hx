@@ -1,6 +1,6 @@
 package funkin.mobile.scripting;
 
-import funkin.mobile.MobileUtil;
+import funkin.mobile.util.MobileUtil;
 import funkin.mobile.VirtualPad;
 import funkin.mobile.backend.StorageUtil;
 import funkin.mobile.input.TouchButton;
@@ -491,7 +491,10 @@ class MobileScript
 
 	public static function setPauseButtonPosition(x:Float, y:Float):Void
 	{
-		pauseButton?.setPosition(x, y);
+		final button = pauseButton;
+		if (button == null) return;
+		MobileUtil.release(button);
+		button.setPosition(x, y);
 	}
 
 	@:allow(funkin.backend.MusicBeatState)

@@ -3990,7 +3990,7 @@ class ChartingOptionsSubmenuOLD extends MusicBeatSubstate
 		
 		#if mobile
 		funkin.mobile.EditorTouchSupport.suspend();
-		add(funkin.mobile.MobileUtil.createBackButton());
+		add(funkin.mobile.util.MobileUtil.createBackButton());
 		#end
 	}
 	

@@ -95,11 +95,11 @@ class OptionsState extends MusicBeatState
 		changeSelection();
 		
 		#if mobile
-		final mobileCamera = funkin.mobile.MobileUtil.createCamera();
-		add(funkin.mobile.MobileUtil.createBackButton(mobileCamera));
+		final mobileCamera = funkin.mobile.util.MobileUtil.createCamera();
+		add(funkin.mobile.util.MobileUtil.createBackButton(mobileCamera));
 		
-		mobileOptionsButton = funkin.mobile.MobileUtil.createButton('mobileOptionsButton', 'mobileOptions', [], funkin.mobile.MobileUtil.optionsScale, mobileCamera);
-		mobileOptionsButton.setPosition(funkin.mobile.MobileUtil.rightEdge() - mobileOptionsButton.width, funkin.mobile.MobileUtil.topEdge());
+		mobileOptionsButton = funkin.mobile.util.MobileUtil.createButton('mobileOptionsButton', 'mobileOptions', [], funkin.mobile.util.MobileUtil.optionsScale, mobileCamera);
+		mobileOptionsButton.setPosition(funkin.mobile.util.MobileUtil.rightEdge() - mobileOptionsButton.width, funkin.mobile.util.MobileUtil.topEdge());
 		add(mobileOptionsButton);
 		#end
 		

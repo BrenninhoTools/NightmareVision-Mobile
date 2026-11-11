@@ -1,6 +1,6 @@
 package funkin.mobile.util;
 
-import funkin.mobile.MobileUtil;
+import funkin.mobile.util.MobileUtil;
 import funkin.mobile.input.TouchButton;
 
 import openfl.display.BitmapData;

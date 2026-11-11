@@ -195,7 +195,7 @@ class StoryMenuState extends MusicBeatState
 		changeDifficulty();
 		
 		#if mobile
-		add(funkin.mobile.MobileUtil.createBackButton());
+		add(funkin.mobile.util.MobileUtil.createBackButton());
 		#end
 		
 		super.create();

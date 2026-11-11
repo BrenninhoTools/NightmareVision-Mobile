@@ -245,7 +245,7 @@ jobs:
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
                 mkdir -p "$HXCPP_COMPILE_CACHE"
-                echo "HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
+                HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')
                 echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
@@ -435,7 +435,7 @@ jobs:
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
                 mkdir -p "$HXCPP_COMPILE_CACHE"
-                echo "HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
+                HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')
                 echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""

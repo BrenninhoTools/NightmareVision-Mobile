@@ -28,6 +28,8 @@ class StorageUtil
 
 	public static final TEMP_SUFFIX:String = '.copying';
 
+	public static final BACKUP_SUFFIX:String = '.bak';
+
 	public static var saveInterval:Float = 1.5;
 
 	public static var directory(default, null):String = '';
@@ -85,6 +87,7 @@ class StorageUtil
 
 		loadManifest();
 		ensureFolders();
+		pruneLogs();
 		
 		#if android
 		startupStorageType = getStorageType();
@@ -135,6 +138,164 @@ class StorageUtil
 	}
 	
 	public static final DEFAULT_FOLDERS:Array<String> = ['assets', 'content', 'logcat', 'crash'];
+	
+	public static final LOG_FOLDERS:Array<String> = ['logcat', 'crash'];
+	
+	public static var maxLogFiles:Int = 25;
+	
+	public static var maxLogAgeDays:Float = 14;
+	
+	public static function pruneLogs():Int
+	{
+		var removed = 0;
+		
+		#if sys
+		final now = Date.now().getTime();
+		final maxAge = maxLogAgeDays * 86400000;
+		
+		for (folder in LOG_FOLDERS)
+		{
+			try
+			{
+				if (!FileSystem.exists(folder) || !FileSystem.isDirectory(folder)) continue;
+				
+				final entries:Array<{path:String, time:Float}> = [];
+				for (name in FileSystem.readDirectory(folder))
+				{
+					final path = Path.join([folder, name]);
+					if (FileSystem.isDirectory(path)) continue;
+					entries.push({path: path, time: FileSystem.stat(path).mtime.getTime()});
+				}
+				
+				entries.sort((a, b) -> a.time > b.time ? -1 : (a.time < b.time ? 1 : 0));
+				
+				for (index => entry in entries)
+				{
+					if (index < maxLogFiles && now - entry.time <= maxAge) continue;
+					deleteQuietly(entry.path);
+					removed++;
+				}
+			}
+			catch (e:Dynamic) {}
+		}
+		#end
+		
+		return removed;
+	}
+	
+	public static function verify():Array<String>
+	{
+		final broken:Array<String> = [];
+		
+		#if sys
+		if (!ready) return broken;
+		
+		for (path => size in manifest)
+		{
+			try
+			{
+				if (!FileSystem.exists(path) || FileSystem.isDirectory(path) || FileSystem.stat(path).size == 0) broken.push(path);
+				else if (isAlwaysUpdated(path) && FileSystem.stat(path).size != size) broken.push(path);
+			}
+			catch (e:Dynamic)
+			{
+				broken.push(path);
+			}
+		}
+		#end
+		
+		return broken;
+	}
+	
+	public static function repairBroken():Int
+	{
+		#if sys
+		if (!ready) return 0;
+		
+		final broken = verify();
+		if (broken.length == 0) return 0;
+		
+		for (path in broken)
+			refresh.set(path, true);
+		
+		dirty = true;
+		flush();
+		
+		return broken.length;
+		#else
+		return 0;
+		#end
+	}
+	
+	public static function getFolderSize(relative:String):Float
+	{
+		var total = 0.0;
+		
+		#if sys
+		final pending = [relative];
+		
+		while (pending.length > 0)
+		{
+			final folder = pending.pop();
+			try
+			{
+				if (!FileSystem.exists(folder)) continue;
+				if (!FileSystem.isDirectory(folder))
+				{
+					total += FileSystem.stat(folder).size;
+					continue;
+				}
+				
+				for (name in FileSystem.readDirectory(folder))
+					pending.push(Path.join([folder, name]));
+			}
+			catch (e:Dynamic) {}
+		}
+		#end
+		
+		return total;
+	}
+	
+	public static function getFolderSizeMB(relative:String):Float
+	{
+		return Math.round(getFolderSize(relative) / 104857.6) / 10;
+	}
+	
+	public static function saveText(relative:String, content:String):Bool
+	{
+		#if sys
+		try
+		{
+			final directoryPath = Path.directory(relative);
+			if (directoryPath.length > 0 && !FileSystem.exists(directoryPath)) FileSystem.createDirectory(directoryPath);
+			
+			final temp = relative + TEMP_SUFFIX;
+			File.saveContent(temp, content);
+			if (FileSystem.exists(relative)) FileSystem.deleteFile(relative);
+			FileSystem.rename(temp, relative);
+			return true;
+		}
+		catch (e:Dynamic)
+		{
+			deleteQuietly(relative + TEMP_SUFFIX);
+		}
+		#end
+		
+		return false;
+	}
+	
+	public static function readText(relative:String):Null<String>
+	{
+		#if sys
+		try
+		{
+			if (FileSystem.exists(relative) && !FileSystem.isDirectory(relative)) return File.getContent(relative);
+		}
+		catch (e:Dynamic) {}
+		#end
+		
+		return null;
+	}
 	
 	public static function ensureFolders():Void
 	{
@@ -928,8 +1089,13 @@ class StorageUtil
 			#end
 
 			final temp = MANIFEST_FILE + TEMP_SUFFIX;
+			final backup = MANIFEST_FILE + BACKUP_SUFFIX;
 			File.saveContent(temp, Json.stringify({version: manifestVersion, files: files, refresh: pendingRefresh}));
-			if (FileSystem.exists(MANIFEST_FILE)) FileSystem.deleteFile(MANIFEST_FILE);
+			if (FileSystem.exists(MANIFEST_FILE))
+			{
+				if (FileSystem.exists(backup)) FileSystem.deleteFile(backup);
+				FileSystem.rename(MANIFEST_FILE, backup);
+			}
 			FileSystem.rename(temp, MANIFEST_FILE);
 
 			lastSave = haxe.Timer.stamp();
@@ -960,11 +1126,13 @@ class StorageUtil
 		manifestVersion = '';
 
 		#if sys
+		var data:Dynamic = readManifestFile(MANIFEST_FILE);
+		if (data == null) data = readManifestFile(MANIFEST_FILE + BACKUP_SUFFIX);
+
 		try
 		{
-			if (FileSystem.exists(MANIFEST_FILE))
+			if (data != null)
 			{
-				final data:Dynamic = Json.parse(File.getContent(MANIFEST_FILE));
 				manifestVersion = Std.string(data.version ?? '');
 
 				final files:Dynamic = data.files;
@@ -1006,6 +1174,21 @@ class StorageUtil
 			flush();
 		}
 		#end
+	}
+
+	static function readManifestFile(path:String):Dynamic
+	{
+		#if sys
+		try
+		{
+			if (!FileSystem.exists(path)) return null;
+			final data:Dynamic = Json.parse(File.getContent(path));
+			return data != null && data.files != null ? data : null;
+		}
+		catch (e:Dynamic) {}
+		#end
+
+		return null;
 	}
 
 	static function isUnmodified(path:String, size:Int):Bool

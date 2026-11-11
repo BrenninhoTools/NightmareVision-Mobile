@@ -98,6 +98,87 @@ class TouchUtil
 		return -1;
 	}
 
+	public static function justReleasedOnAny(objects:Array<FlxBasic>, ?camera:FlxCamera):Int
+	{
+		if (objects == null) return -1;
+
+		for (index => object in objects)
+			if (object != null && object.exists && justReleasedOn(object, camera)) return index;
+
+		return -1;
+	}
+
+	public static function pressedInRect(x:Float, y:Float, width:Float, height:Float, ?camera:FlxCamera):Bool
+	{
+		#if FLX_TOUCH
+		for (touch in FlxG.touches.list)
+			if (touch.pressed && pointInRect(touch.gameX, touch.gameY, x, y, width, height, camera)) return true;
+		#end
+
+		return false;
+	}
+
+	public static function justPressedInRect(x:Float, y:Float, width:Float, height:Float, ?camera:FlxCamera):Bool
+	{
+		#if FLX_TOUCH
+		for (touch in FlxG.touches.justStarted())
+			if (pointInRect(touch.gameX, touch.gameY, x, y, width, height, camera)) return true;
+		#end
+
+		return false;
+	}
+
+	public static function tappedInRect(x:Float, y:Float, width:Float, height:Float, ?camera:FlxCamera):Bool
+	{
+		TouchInput.poll();
+		return TouchInput.justTapped && pointInRect(TouchInput.tapPosition.x, TouchInput.tapPosition.y, x, y, width, height, camera);
+	}
+
+	public static function pointInRect(gameX:Float, gameY:Float, x:Float, y:Float, width:Float, height:Float, ?camera:FlxCamera):Bool
+	{
+		final cam = camera ?? FlxG.camera;
+		final viewX = (gameX - cam.x) / cam.zoom + cam.viewMarginX;
+		final viewY = (gameY - cam.y) / cam.zoom + cam.viewMarginY;
+		return viewX >= x && viewX < x + width && viewY >= y && viewY < y + height;
+	}
+
+	public static function getPressedObjects<T:FlxBasic>(objects:Array<T>, ?camera:FlxCamera):Array<T>
+	{
+		return objects == null ? [] : [for (object in objects) if (object != null && object.exists && overlaps(object, camera)) object];
+	}
+
+	public static function closestTo(objects:Array<FlxBasic>, ?camera:FlxCamera, maxDistance:Float = 120):Int
+	{
+		TouchInput.poll();
+		if (objects == null || !TouchInput.justTapped) return -1;
+
+		var best = -1;
+		var bestDistance = maxDistance;
+
+		for (index => entry in objects)
+		{
+			if (entry == null || !Std.isOfType(entry, FlxObject)) continue;
+
+			final object:FlxObject = cast entry;
+			if (!object.exists || !object.visible) continue;
+
+			final cam = camera ?? getCamera(object);
+			final x = (TouchInput.tapPosition.x - cam.x) / cam.zoom + cam.viewMarginX + cam.scroll.x * object.scrollFactor.x;
+			final y = (TouchInput.tapPosition.y - cam.y) / cam.zoom + cam.viewMarginY + cam.scroll.y * object.scrollFactor.y;
+			final dx = Math.max(Math.max(object.x - x, 0), x - (object.x + object.width));
+			final dy = Math.max(Math.max(object.y - y, 0), y - (object.y + object.height));
+			final distance = Math.sqrt(dx * dx + dy * dy);
+
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				best = index;
+			}
+		}
+
+		return best;
+	}
+
 	public static function swipedOn(object:FlxBasic, ?direction:SwipeDirection, ?camera:FlxCamera):Bool
 	{
 		TouchInput.poll();

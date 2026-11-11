@@ -22,15 +22,27 @@ class ExternalInput
 
 	public static var gamepad(default, null):Bool = false;
 
+	public static var lastDevice(default, null):String = 'touch';
+
+	public static var touchOverride(default, null):Bool = false;
+
 	public static var autoHide:Bool = true;
 
-	public static var pollInterval:Float = 0.5;
+	public static var touchTakesOver:Bool = true;
+
+	public static var pollInterval:Float = 1;
+
+	public static var axisDeadZone:Float = 0.5;
+
+	public static final onChange:flixel.util.FlxSignal = new flixel.util.FlxSignal();
 
 	static var initialized:Bool = false;
 
 	static var timer:Float = 0;
 
 	static var banner:Null<ExternalInputBanner> = null;
+
+	static final watched:Array<lime.ui.Gamepad> = [];
 
 	public static function init():Void
 	{
@@ -41,15 +53,64 @@ class ExternalInput
 		FlxG.signals.postUpdate.add(update);
 
 		lime.ui.Gamepad.onConnect.add((device) -> {
-			device.onDisconnect.add(refresh);
+			watch(device);
 			refresh();
 		});
 
 		for (device in lime.ui.Gamepad.devices)
-			device.onDisconnect.add(refresh);
+			watch(device);
+
+		final window = lime.app.Application.current?.window;
+		if (window != null) window.onKeyDown.add(onKeyDown);
+
+		FlxG.stage.addEventListener(openfl.events.TouchEvent.TOUCH_BEGIN, onTouch, false, 30000);
 
 		refresh();
 		#end
+	}
+
+	static function watch(device:lime.ui.Gamepad):Void
+	{
+		if (device == null || watched.contains(device)) return;
+		watched.push(device);
+
+		device.onDisconnect.add(() -> {
+			watched.remove(device);
+			refresh();
+		});
+		device.onButtonDown.add((_) -> usedDevice('gamepad'));
+		device.onAxisMove.add((_, value) -> {
+			if (Math.abs(value) >= axisDeadZone) usedDevice('gamepad');
+		});
+	}
+
+	static function onKeyDown(key:lime.ui.KeyCode, modifier:lime.ui.KeyModifier):Void
+	{
+		switch (key)
+		{
+			case APP_CONTROL_BACK | VOLUME_UP | VOLUME_DOWN | MUTE:
+				return;
+			default:
+				usedDevice('keyboard');
+		}
+	}
+
+	static function onTouch(_:openfl.events.TouchEvent):Void
+	{
+		lastDevice = 'touch';
+		if (!touchTakesOver || !active) return;
+
+		touchOverride = true;
+		setActive(false);
+	}
+
+	static function usedDevice(device:String):Void
+	{
+		lastDevice = device;
+		if (!touchOverride) return;
+
+		touchOverride = false;
+		setActive(autoHide && (keyboard || gamepad));
 	}
 
 	static function update():Void
@@ -92,7 +153,10 @@ class ExternalInput
 		keyboard = hasKeyboard;
 		gamepad = hasGamepad;
 
-		setActive(autoHide && (keyboard || gamepad));
+		if (addedKeyboard || addedGamepad) touchOverride = false;
+		if (!keyboard && !gamepad) touchOverride = false;
+
+		setActive(autoHide && (keyboard || gamepad) && !touchOverride);
 
 		if (addedKeyboard || addedGamepad) notify(describe(addedKeyboard, addedGamepad) + ' Connected');
 		else if (removedKeyboard || removedGamepad) notify(describe(removedKeyboard, removedGamepad) + ' Disconnected');
@@ -105,6 +169,7 @@ class ExternalInput
 		if (value) TouchInput.releaseAll();
 		active = value;
 		TouchInput.enabled = !value;
+		onChange.dispatch();
 	}
 
 	static function describe(hasKeyboard:Bool, hasGamepad:Bool):String

@@ -3,6 +3,7 @@
 #import <GameController/GameController.h>
 
 #include <string>
+#include <sys/utsname.h>
 
 static NSString *nmvPickState = @"idle";
 static NSString *nmvPickedFiles = @"";
@@ -436,4 +437,107 @@ extern "C" void nmv_native_share_file(const char *path)
 		share.popoverPresentationController.sourceRect = CGRectMake(controller.view.bounds.size.width / 2, controller.view.bounds.size.height / 2, 1, 1);
 		[controller presentViewController:share animated:YES completion:nil];
 	});
+}
+
+static std::string nmvModelBuffer;
+static std::string nmvVersionBuffer;
+static std::string nmvClipboardBuffer;
+
+static void nmvOnMain(void (^block)(void))
+{
+	if ([NSThread isMainThread]) block();
+	else dispatch_sync(dispatch_get_main_queue(), block);
+}
+
+extern "C" const char *nmv_native_device_model()
+{
+	struct utsname info;
+	uname(&info);
+	nmvModelBuffer = std::string(info.machine);
+	return nmvModelBuffer.c_str();
+}
+
+extern "C" const char *nmv_native_os_version()
+{
+	__block NSString *version = @"";
+	nmvOnMain(^{
+		UIDevice *device = [UIDevice currentDevice];
+		version = [NSString stringWithFormat:@"%@ %@", device.systemName, device.systemVersion];
+	});
+	nmvVersionBuffer = std::string(version.UTF8String ?: "");
+	return nmvVersionBuffer.c_str();
+}
+
+extern "C" int nmv_native_battery_level()
+{
+	__block float level = -1;
+	nmvOnMain(^{
+		UIDevice *device = [UIDevice currentDevice];
+		device.batteryMonitoringEnabled = YES;
+		level = device.batteryLevel;
+	});
+	return level < 0 ? -1 : (int)roundf(level * 100);
+}
+
+extern "C" int nmv_native_is_charging()
+{
+	__block UIDeviceBatteryState state = UIDeviceBatteryStateUnknown;
+	nmvOnMain(^{
+		UIDevice *device = [UIDevice currentDevice];
+		device.batteryMonitoringEnabled = YES;
+		state = device.batteryState;
+	});
+	return state == UIDeviceBatteryStateCharging || state == UIDeviceBatteryStateFull ? 1 : 0;
+}
+
+extern "C" int nmv_native_power_save()
+{
+	return [NSProcessInfo processInfo].lowPowerModeEnabled ? 1 : 0;
+}
+
+extern "C" void nmv_native_keep_screen_on(int value)
+{
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[UIApplication sharedApplication].idleTimerDisabled = value != 0;
+	});
+}
+
+extern "C" int nmv_native_open_url(const char *url)
+{
+	if (url == NULL) return 0;
+
+	NSURL *target = [NSURL URLWithString:[NSString stringWithUTF8String:url]];
+	if (target == nil) return 0;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[[UIApplication sharedApplication] openURL:target options:@{} completionHandler:nil];
+	});
+	return 1;
+}
+
+extern "C" void nmv_native_set_clipboard(const char *text)
+{
+	NSString *value = text != NULL ? [NSString stringWithUTF8String:text] : @"";
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[UIPasteboard generalPasteboard].string = value ?: @"";
+	});
+}
+
+extern "C" const char *nmv_native_get_clipboard()
+{
+	__block NSString *value = @"";
+	nmvOnMain(^{
+		value = [UIPasteboard generalPasteboard].string ?: @"";
+	});
+	nmvClipboardBuffer = std::string(value.UTF8String ?: "");
+	return nmvClipboardBuffer.c_str();
+}
+
+extern "C" double nmv_native_refresh_rate()
+{
+	__block NSInteger rate = 60;
+	nmvOnMain(^{
+		rate = [UIScreen mainScreen].maximumFramesPerSecond;
+	});
+	return (double)rate;
 }

@@ -1,6 +1,8 @@
 package funkin.mobile.input;
 
+import funkin.mobile.ScreenStyle;
 import funkin.mobile.haptics.Haptics;
+
 import flixel.FlxG;
 import flixel.math.FlxPoint;
 #if FLX_TOUCH
@@ -34,6 +36,7 @@ typedef TouchGesture =
 	var steps:Int;
 	var blocked:Bool;
 	var primary:Bool;
+	var edge:Bool;
 }
 
 class TouchInput
@@ -146,6 +149,17 @@ class TouchInput
 	public static var lastReleaseTime(default, null):Float = -1;
 
 	public static var swipeAxisRatio:Float = 1.25;
+
+	public static var edgeDeadZone:Float = 24;
+
+	public static final onTap:flixel.util.FlxSignal.FlxTypedSignal<Float->Float->Void> = new flixel.util.FlxSignal.FlxTypedSignal<Float->Float->Void>();
+
+	public static final onSwipe:flixel.util.FlxSignal.FlxTypedSignal<SwipeDirection->Void> = new flixel.util.FlxSignal.FlxTypedSignal<SwipeDirection->Void>();
+
+	static function nearEdge(y:Float):Bool
+	{
+		return edgeDeadZone > 0 && (y < edgeDeadZone + ScreenStyle.safeTop || y > FlxG.height - edgeDeadZone - ScreenStyle.safeBottom);
+	}
 
 	public static inline function now():Float
 	{
@@ -543,7 +557,8 @@ class TouchInput
 					direction: NONE,
 					steps: 0,
 					blocked: zone != null,
-					primary: primary
+					primary: primary,
+					edge: nearEdge(touch.gameY)
 				});
 
 			if (!quick)
@@ -603,7 +618,7 @@ class TouchInput
 
 			final distance = Math.sqrt(Math.pow(touch.gameX - gesture.startX, 2) + Math.pow(touch.gameY - gesture.startY, 2));
 
-			if (quickSwipe(gesture, touch.gameX - gesture.startX, touch.gameY - gesture.startY, now)) return;
+			if (!gesture.edge && quickSwipe(gesture, touch.gameX - gesture.startX, touch.gameY - gesture.startY, now)) return;
 
 			if (distance <= tapDistance && now - gesture.startTime <= tapTime)
 			{
@@ -622,12 +637,13 @@ class TouchInput
 				tapPosition.set(touch.gameX, touch.gameY);
 				pulse('accept');
 				Haptics.select();
+				onTap.dispatch(touch.gameX, touch.gameY);
 			}
 
 			return;
 		}
 
-		if (!allowGestures || gesture.blocked || !gesture.primary || maxFingers > 1) return;
+		if (!allowGestures || gesture.blocked || gesture.edge || !gesture.primary || maxFingers > 1) return;
 
 		final deltaX = touch.gameX - gesture.anchorX;
 		final deltaY = touch.gameY - gesture.anchorY;
@@ -711,6 +727,7 @@ class TouchInput
 		lastSwipe = direction;
 		pulse(actionFor(direction));
 		Haptics.scroll();
+		onSwipe.dispatch(direction);
 	}
 
 	static function flick(gesture:TouchGesture):Void

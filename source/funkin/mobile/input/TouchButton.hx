@@ -1,8 +1,8 @@
 package funkin.mobile.input;
 
+import funkin.mobile.haptics.Haptics;
 import funkin.mobile.util.TouchUtil;
 
-import funkin.mobile.haptics.Haptics;
 import flixel.FlxG;
 import flixel.FlxCamera;
 import flixel.math.FlxPoint;

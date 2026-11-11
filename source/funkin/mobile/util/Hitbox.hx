@@ -112,7 +112,9 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 
 		lane.onUp.add(() -> {
 			fades.get(lane)?.cancel();
-			fades.set(lane, FlxTween.tween(lane, {alpha: shownAlpha(idleAlpha)}, releaseDuration));
+			final held = (lane.releaseTime - lane.pressTime) / 1000;
+			final duration = held < 0.12 ? releaseDuration * 0.7 : releaseDuration;
+			fades.set(lane, FlxTween.tween(lane, {alpha: shownAlpha(idleAlpha)}, duration, {ease: FlxEase.quadOut}));
 			onLaneUp.dispatch(lane.ID);
 		});
 
@@ -439,6 +441,53 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 			lane.cameras = [camera];
 
 		return this;
+	}
+
+	public function getLaneAt(x:Float, y:Float):Int
+	{
+		for (lane in members)
+			if (lane != null && lane.exists && lane.containsPoint(x, y)) return lane.ID;
+		return -1;
+	}
+
+	public function getLanes(index:Int):Array<TouchButton>
+	{
+		return [for (lane in members) if (lane != null && lane.ID == index) lane];
+	}
+
+	public function flashLane(index:Int, duration:Float = 0.25, ?color:FlxColor):Void
+	{
+		for (lane in getLanes(index))
+		{
+			if (lane.touchPressed) continue;
+
+			fades.get(lane)?.cancel();
+			final previous = lane.color;
+			if (color != null) lane.color = color;
+			lane.alpha = shownAlpha(lanePressedAlpha);
+			fades.set(lane, FlxTween.tween(lane, {alpha: shownAlpha(idleAlpha)}, duration, {
+				ease: FlxEase.quadOut,
+				onComplete: (_) -> lane.color = previous
+			}));
+		}
+	}
+
+	public function setLaneVisible(index:Int, value:Bool):Void
+	{
+		for (lane in getLanes(index))
+		{
+			lane.visible = value;
+			if (!value) lane.touchEnabled = false;
+			else lane.touchEnabled = enabled;
+		}
+	}
+
+	public function pressedLanes():Array<Int>
+	{
+		final pressed:Array<Int> = [];
+		for (lane in members)
+			if (lane != null && lane.touchPressed && !pressed.contains(lane.ID)) pressed.push(lane.ID);
+		return pressed;
 	}
 
 	public function getLane(index:Int):Null<TouchButton>

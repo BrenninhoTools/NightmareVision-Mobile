@@ -1,12 +1,16 @@
 package org.nightmarevision;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
+import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.OpenableColumns;
@@ -770,5 +774,171 @@ public class NativeHelper extends Extension
 
 		if (name == null || name.length() == 0) name = "imported_" + System.currentTimeMillis();
 		return name.replace('/', '_').replace('\\', '_');
+	}
+
+	private static <T> T onUiThread(final java.util.concurrent.Callable<T> task, T fallback)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null) return fallback;
+
+		try
+		{
+			java.util.concurrent.FutureTask<T> future = new java.util.concurrent.FutureTask<T>(task);
+			activity.runOnUiThread(future);
+			T result = future.get(500, java.util.concurrent.TimeUnit.MILLISECONDS);
+			return result != null ? result : fallback;
+		}
+		catch (Throwable e)
+		{
+			return fallback;
+		}
+	}
+
+	public static String getDeviceModel()
+	{
+		String manufacturer = Build.MANUFACTURER != null ? Build.MANUFACTURER : "";
+		String model = Build.MODEL != null ? Build.MODEL : "";
+		if (model.toLowerCase().startsWith(manufacturer.toLowerCase())) return model;
+		return (manufacturer + " " + model).trim();
+	}
+
+	public static String getOSVersion()
+	{
+		return "Android " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")";
+	}
+
+	public static int getBatteryLevel()
+	{
+		try
+		{
+			BatteryManager manager = (BatteryManager) Extension.mainContext.getSystemService(Context.BATTERY_SERVICE);
+			if (manager == null) return -1;
+			int level = manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+			return level >= 0 && level <= 100 ? level : -1;
+		}
+		catch (Throwable e)
+		{
+			return -1;
+		}
+	}
+
+	public static boolean isCharging()
+	{
+		try
+		{
+			Intent battery = Extension.mainContext.registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+			if (battery == null) return false;
+			int status = battery.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+			return status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
+		}
+		catch (Throwable e)
+		{
+			return false;
+		}
+	}
+
+	public static boolean isPowerSaveMode()
+	{
+		try
+		{
+			PowerManager manager = (PowerManager) Extension.mainContext.getSystemService(Context.POWER_SERVICE);
+			return manager != null && manager.isPowerSaveMode();
+		}
+		catch (Throwable e)
+		{
+			return false;
+		}
+	}
+
+	public static void setKeepScreenOn(final boolean value)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null) return;
+
+		activity.runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				try
+				{
+					if (value) activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+					else activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+				}
+				catch (Throwable e) {}
+			}
+		});
+	}
+
+	public static boolean openURL(final String url)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null || url == null || url.length() == 0) return false;
+
+		try
+		{
+			Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			activity.startActivity(intent);
+			return true;
+		}
+		catch (Throwable e)
+		{
+			return false;
+		}
+	}
+
+	public static void setClipboard(final String text)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null) return;
+
+		activity.runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				try
+				{
+					ClipboardManager manager = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+					if (manager != null) manager.setPrimaryClip(ClipData.newPlainText("NightmareVision", text != null ? text : ""));
+				}
+				catch (Throwable e) {}
+			}
+		});
+	}
+
+	public static String getClipboard()
+	{
+		return onUiThread(new java.util.concurrent.Callable<String>()
+		{
+			@Override
+			public String call()
+			{
+				final Activity activity = Extension.mainActivity;
+				ClipboardManager manager = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+				if (manager == null || !manager.hasPrimaryClip()) return "";
+				ClipData clip = manager.getPrimaryClip();
+				if (clip == null || clip.getItemCount() == 0) return "";
+				CharSequence text = clip.getItemAt(0).coerceToText(activity);
+				return text != null ? text.toString() : "";
+			}
+		}, "");
+	}
+
+	public static float getRefreshRate()
+	{
+		Float rate = onUiThread(new java.util.concurrent.Callable<Float>()
+		{
+			@Override
+			public Float call()
+			{
+				final Activity activity = Extension.mainActivity;
+				android.view.Display display = Build.VERSION.SDK_INT >= 30 ? activity.getDisplay() : activity.getWindowManager().getDefaultDisplay();
+				if (display == null) return 60f;
+				return display.getRefreshRate();
+			}
+		}, 60f);
+		return rate;
 	}
 }

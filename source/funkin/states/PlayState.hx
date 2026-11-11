@@ -959,6 +959,7 @@ class PlayState extends MusicBeatState
 		#if mobile
 		createMobileControls();
 		stageHaptics = new funkin.mobile.haptics.StageHaptics();
+		funkin.mobile.native.NativeUtil.setKeepScreenOn(true);
 		#end
 		
 		Conductor.safeZoneOffset = (ClientPrefs.safeFrames / 60) * 1000;
@@ -3084,6 +3085,7 @@ class PlayState extends MusicBeatState
 		
 		#if mobile
 		restoreArrowsMode();
+		funkin.mobile.native.NativeUtil.setKeepScreenOn(false);
 		#end
 		
 		scripts.call('onDestroy', [], true);

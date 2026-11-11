@@ -6,9 +6,9 @@ import funkin.mobile.input.TouchInput;
 import funkin.mobile.native.NativeUtil;
 import funkin.mobile.util.Hitbox;
 import funkin.mobile.util.TouchUtil;
-
 import funkin.mobile.haptics.Haptics;
 import funkin.mobile.haptics.Haptics.HapticType;
+
 import flixel.FlxBasic;
 import flixel.FlxCamera;
 import flixel.FlxG;
@@ -328,6 +328,67 @@ class MobileScript
 	public static function isHitboxLanePressed(lane:Int):Bool
 	{
 		return hitbox?.isLanePressed(lane) ?? false;
+	}
+
+	public static function flashHitboxLane(lane:Int, duration:Float = 0.25, ?color:Int):Void
+	{
+		final hitbox = get_hitbox();
+		if (hitbox != null) hitbox.flashLane(lane, duration, color);
+	}
+
+	public static function getDeviceModel():String
+	{
+		return NativeUtil.getDeviceModel();
+	}
+
+	public static function getOSVersion():String
+	{
+		return NativeUtil.getOSVersion();
+	}
+
+	public static function getBatteryLevel():Int
+	{
+		return NativeUtil.getBatteryLevel();
+	}
+
+	public static function isCharging():Bool
+	{
+		return NativeUtil.isCharging();
+	}
+
+	public static function isPowerSaveMode():Bool
+	{
+		return NativeUtil.isPowerSaveMode();
+	}
+
+	public static function getRefreshRate():Float
+	{
+		return NativeUtil.getRefreshRate();
+	}
+
+	public static function openURL(url:String):Bool
+	{
+		return NativeUtil.openURL(url);
+	}
+
+	public static function setClipboard(text:String):Void
+	{
+		NativeUtil.setClipboard(text);
+	}
+
+	public static function getClipboard():String
+	{
+		return NativeUtil.getClipboard();
+	}
+
+	public static function setKeepScreenOn(value:Bool):Void
+	{
+		NativeUtil.setKeepScreenOn(value);
+	}
+
+	public static function isExternalInputActive():Bool
+	{
+		return funkin.mobile.input.ExternalInput.active;
 	}
 
 	public static function setPauseButtonVisible(value:Bool):Void

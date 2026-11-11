@@ -21,6 +21,16 @@ extern "C" void nmv_native_reset_save();
 extern "C" long long nmv_native_free_space();
 extern "C" int nmv_native_external_input();
 extern "C" const char *nmv_native_safe_insets();
+extern "C" const char *nmv_native_device_model();
+extern "C" const char *nmv_native_os_version();
+extern "C" int nmv_native_battery_level();
+extern "C" int nmv_native_is_charging();
+extern "C" int nmv_native_power_save();
+extern "C" void nmv_native_keep_screen_on(int value);
+extern "C" int nmv_native_open_url(const char *url);
+extern "C" void nmv_native_set_clipboard(const char *text);
+extern "C" const char *nmv_native_get_clipboard();
+extern "C" double nmv_native_refresh_rate();
 ')
 #end
 @:build(funkin.mobile.native.NativeMacro.build())
@@ -163,6 +173,142 @@ class NativeUtil
 		#else
 		return 0;
 		#end
+	}
+	
+	public static function getDeviceModel():String
+	{
+		#if android
+		final func = jni('getDeviceModel', '()Ljava/lang/String;');
+		final value:Null<String> = func != null ? func() : null;
+		return value ?? 'Unknown';
+		#elseif ios
+		final value:String = untyped __cpp__('::String(nmv_native_device_model())');
+		return value ?? 'Unknown';
+		#else
+		return lime.system.System.deviceModel ?? 'Unknown';
+		#end
+	}
+	
+	public static function getOSVersion():String
+	{
+		#if android
+		final func = jni('getOSVersion', '()Ljava/lang/String;');
+		final value:Null<String> = func != null ? func() : null;
+		return value ?? 'Android';
+		#elseif ios
+		final value:String = untyped __cpp__('::String(nmv_native_os_version())');
+		return value ?? 'iOS';
+		#else
+		return lime.system.System.platformLabel ?? 'Unknown';
+		#end
+	}
+	
+	public static function getBatteryLevel():Int
+	{
+		#if android
+		final func = jni('getBatteryLevel', '()I');
+		return func != null ? func() : -1;
+		#elseif ios
+		return untyped __cpp__('nmv_native_battery_level()');
+		#else
+		return -1;
+		#end
+	}
+	
+	public static function isCharging():Bool
+	{
+		#if android
+		final func = jni('isCharging', '()Z');
+		return func != null && func() == true;
+		#elseif ios
+		return untyped __cpp__('nmv_native_is_charging() != 0');
+		#else
+		return false;
+		#end
+	}
+	
+	public static function isPowerSaveMode():Bool
+	{
+		#if android
+		final func = jni('isPowerSaveMode', '()Z');
+		return func != null && func() == true;
+		#elseif ios
+		return untyped __cpp__('nmv_native_power_save() != 0');
+		#else
+		return false;
+		#end
+	}
+	
+	public static function setKeepScreenOn(value:Bool):Void
+	{
+		#if android
+		final func = jni('setKeepScreenOn', '(Z)V');
+		if (func != null) func(value);
+		#elseif ios
+		untyped __cpp__('nmv_native_keep_screen_on({0} ? 1 : 0)', value);
+		#end
+	}
+	
+	public static function openURL(url:String):Bool
+	{
+		if (url == null || url.length == 0) return false;
+		
+		#if android
+		final func = jni('openURL', '(Ljava/lang/String;)Z');
+		return func != null && func(url) == true;
+		#elseif ios
+		return untyped __cpp__('nmv_native_open_url({0}.utf8_str()) != 0', url);
+		#else
+		FlxG.openURL(url);
+		return true;
+		#end
+	}
+	
+	public static function setClipboard(text:String):Void
+	{
+		#if android
+		final func = jni('setClipboard', '(Ljava/lang/String;)V');
+		if (func != null) func(text ?? '');
+		#elseif ios
+		untyped __cpp__('nmv_native_set_clipboard({0}.utf8_str())', text ?? '');
+		#else
+		lime.system.Clipboard.text = text ?? '';
+		#end
+	}
+	
+	public static function getClipboard():String
+	{
+		#if android
+		final func = jni('getClipboard', '()Ljava/lang/String;');
+		final value:Null<String> = func != null ? func() : null;
+		return value ?? '';
+		#elseif ios
+		final value:String = untyped __cpp__('::String(nmv_native_get_clipboard())');
+		return value ?? '';
+		#else
+		return lime.system.Clipboard.text ?? '';
+		#end
+	}
+	
+	public static function getRefreshRate():Float
+	{
+		#if android
+		final func = jni('getRefreshRate', '()F');
+		final value:Null<Float> = func != null ? func() : null;
+		return value != null && value > 0 ? value : 60;
+		#elseif ios
+		final value:Float = untyped __cpp__('nmv_native_refresh_rate()');
+		return value > 0 ? value : 60;
+		#else
+		final display = lime.system.System.getDisplay(0);
+		return display != null && display.currentMode != null && display.currentMode.refreshRate > 0 ? display.currentMode.refreshRate : 60;
+		#end
+	}
+	
+	public static function getDeviceSummary():String
+	{
+		final battery = getBatteryLevel();
+		return getDeviceModel() + ' | ' + getOSVersion() + (battery >= 0 ? ' | Battery ' + battery + '%' + (isCharging() ? ' (charging)' : '') : '') + ' | ' + Std.int(getRefreshRate()) + 'Hz';
 	}
 	
 	public static function getFreeSpaceMB():Int

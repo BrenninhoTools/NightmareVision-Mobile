@@ -18,6 +18,56 @@ class EditorTouchSupport
 	
 	public static var current(default, null):Null<TouchButton> = null;
 
+	public static var pad(default, null):Null<VirtualPad> = null;
+
+	static inline function letter(image:String, key:FlxKey, ?charCode:Int):VirtualPad.VirtualKey
+	{
+		return VirtualPad.letter(image, key, charCode);
+	}
+
+	static inline function toggle(image:String, key:FlxKey):VirtualPad.VirtualKey
+	{
+		return VirtualPad.toggleKey(image, key);
+	}
+
+	public static function layoutFor(name:String):Null<Array<Array<VirtualPad.VirtualKey>>>
+	{
+		return switch (name)
+		{
+			case 'funkin.states.editors.ChartEditorState' | 'funkin.states.editors.OLDChartEditorState':
+				[
+					[letter('e', E), letter('d', Q, 'q'.code), letter('f', S, 's'.code)],
+					[letter('z', Z), letter('x', X), letter('v', SPACE, 32)],
+					[toggle('s', SHIFT), toggle('c', CONTROL), letter('a', ENTER, 13)]
+				];
+			case 'funkin.states.editors.CharacterEditorState':
+				[
+					[letter('a', A), letter('y', W, 'w'.code), letter('s', S), letter('d', D)],
+					[letter('z', Z), letter('x', X), letter('c', C), letter('v', SPACE, 32)],
+					[letter('e', E), letter('g', Q, 'q'.code), toggle('b', SHIFT), toggle('f', CONTROL)]
+				];
+			case 'funkin.states.editors.MenuCharacterEditorState':
+				[[letter('a', ENTER, 13), letter('v', SPACE, 32), toggle('s', SHIFT)]];
+			case 'funkin.states.editors.WeekEditorState':
+				[[letter('a', ENTER, 13)]];
+			case 'funkin.states.editors.SongMetaEditor':
+				[[toggle('c', CONTROL), letter('s', S)]];
+			case 'funkin.states.editors.WIPNoteSkinEditor':
+				[[letter('e', E), letter('d', Q, 'q'.code), letter('y', R, 'r'.code)], [toggle('s', SHIFT), toggle('c', CONTROL)]];
+			default:
+				null;
+		}
+	}
+
+	public static function hasDPad(name:String):Bool
+	{
+		return switch (name)
+		{
+			case 'funkin.states.editors.SongMetaEditor' | 'funkin.states.editors.WeekEditorState': false;
+			default: true;
+		}
+	}
+
 	static var escapeHeld:Bool = false;
 	
 	static var initialized:Bool = false;
@@ -110,6 +160,7 @@ class EditorTouchSupport
 			releaseEscape();
 			current.visible = false;
 		}
+		if (pad != null) pad.suspended = true;
 	}
 
 	public static function resume():Void
@@ -119,6 +170,7 @@ class EditorTouchSupport
 
 		TouchInput.gesturesEnabled = gesturesBeforeSuspend;
 		if (current != null) current.visible = true;
+		if (pad != null) pad.suspended = false;
 	}
 
 	static function onPreSwitch():Void
@@ -130,6 +182,7 @@ class EditorTouchSupport
 		}
 		releaseEscape();
 		current = null;
+		pad = null;
 		ChartTouchControls.detach();
 	}
 	
@@ -157,6 +210,11 @@ class EditorTouchSupport
 		
 		current = createEditorBackButton(camera, state);
 		state.add(current);
+
+		final dpad = hasDPad(name) ? VirtualPad.DEFAULT_DPAD : [];
+		final actions = layoutFor(name) ?? VirtualPad.DEFAULT_ACTIONS;
+		pad = new VirtualPad(camera, dpad, actions, null, current.x - VirtualPad.gap * 2);
+		state.add(pad);
 		
 		if (CHART_EDITORS.contains(name)) ChartTouchControls.attach(state);
 	}
@@ -174,6 +232,7 @@ class EditorTouchSupport
 	
 	public static function hitsButton(stageX:Float, stageY:Float):Bool
 	{
+		if (pad != null && pad.exists && pad.hitsButton(stageX, stageY)) return true;
 		if (current == null || !current.exists || !current.visible) return false;
 		
 		final camera = TouchUtil.getCamera(current);

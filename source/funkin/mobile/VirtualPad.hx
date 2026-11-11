@@ -4,13 +4,16 @@ import openfl.display.BitmapData;
 import openfl.display.Shape;
 import openfl.events.KeyboardEvent;
 import openfl.events.MouseEvent;
+import openfl.geom.Point;
+import openfl.geom.Rectangle;
 import openfl.ui.KeyLocation;
 
 import flixel.FlxCamera;
 import flixel.FlxG;
+import flixel.graphics.FlxGraphic;
+import flixel.graphics.frames.FlxAtlasFrames;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.input.keyboard.FlxKey;
-import flixel.math.FlxPoint;
 import flixel.text.FlxText;
 import flixel.util.FlxColor;
 
@@ -23,6 +26,7 @@ typedef VirtualKey =
 	var ?toggle:Bool;
 	var ?action:Void->Void;
 	var ?repeat:Bool;
+	var ?color:FlxColor;
 }
 
 class VirtualPadButton extends TouchButton
@@ -33,13 +37,11 @@ class VirtualPadButton extends TouchButton
 
 	public var group:String = 'actions';
 
-	public var page:Int = -1;
-
-	var baseScale:Float = 1;
-
 	var holdTimer:Float = 0;
 
 	var repeatTimer:Float = 0;
+
+	var animated:Bool = false;
 
 	public function new(x:Float, y:Float, size:Int, key:VirtualKey)
 	{
@@ -48,22 +50,25 @@ class VirtualPadButton extends TouchButton
 		this.key = key;
 		blocksGestures = true;
 
-		final noteIndex = switch (key.key)
+		final graphic = key.image != null ? VirtualPad.getStateGraphic(key.image) : null;
+
+		if (graphic != null)
 		{
-			case LEFT: 0;
-			case DOWN: 1;
-			case UP: 2;
-			case RIGHT: 3;
-			default: -1;
+			loadGraphic(graphic, true, VirtualPad.STATE_WIDTH, VirtualPad.STATE_HEIGHT);
+			animation.add('idle', [0], 0, false);
+			animation.add('latched', [1], 0, false);
+			animation.add('pressed', [2], 0, false);
+			animation.play('idle');
+			animated = true;
+			setGraphicSize(size, Std.int(size * VirtualPad.STATE_HEIGHT / VirtualPad.STATE_WIDTH));
+			color = key.color ?? VirtualPad.colorFor(key);
+		}
+		else
+		{
+			loadGraphic(createGraphic(size, key.label), false, 0, 0, true);
 		}
 
-		if (noteIndex >= 0 && VirtualPad.noteAtlas != null)
-			loadGraphic(Hitbox.createDPadGraphic(size, Hitbox.COLORS[noteIndex], VirtualPad.noteAtlas, Hitbox.DPAD_NOTES[noteIndex]), false, 0, 0, true);
-		else
-			loadGraphic(createGraphic(size, key.label), false, 0, 0, true);
-
 		updateHitbox();
-		baseScale = scale.x;
 		alpha = VirtualPad.idleAlpha;
 
 		onDown.add(press);
@@ -74,7 +79,7 @@ class VirtualPadButton extends TouchButton
 	{
 		super.update(elapsed);
 
-		if (!touchPressed || key.action != null || key.toggle == true || key.repeat == false || VirtualPad.moveMode) return;
+		if (!touchPressed || key.action != null || key.toggle == true || key.repeat == false) return;
 
 		holdTimer += elapsed;
 		if (holdTimer < VirtualPad.repeatDelay) return;
@@ -87,16 +92,21 @@ class VirtualPadButton extends TouchButton
 		}
 	}
 
+	function show(state:String):Void
+	{
+		if (animated) animation.play(state);
+
+		alpha = state == 'idle' ? VirtualPad.idleAlpha : 1;
+	}
+
 	function press():Void
 	{
 		holdTimer = repeatTimer = 0;
 
-		if (VirtualPad.moveMode && key.action == null) return;
-
 		if (key.action != null)
 		{
 			key.action();
-			flash();
+			show('pressed');
 			return;
 		}
 
@@ -107,36 +117,27 @@ class VirtualPadButton extends TouchButton
 		}
 
 		VirtualPad.sendKey(key, true);
-		alpha = 1;
-		scale.set(baseScale * 0.9, baseScale * 0.9);
+		show('pressed');
 	}
 
 	function release():Void
 	{
-		if (key.action != null || key.toggle == true) return;
+		if (key.toggle == true)
+		{
+			show(latched ? 'latched' : 'idle');
+			return;
+		}
 
-		if (!VirtualPad.moveMode) VirtualPad.sendKey(key, false);
-		alpha = VirtualPad.idleAlpha;
-		scale.set(baseScale, baseScale);
+		if (key.action == null) VirtualPad.sendKey(key, false);
+		show('idle');
 	}
 
 	public function setLatched(value:Bool, notify:Bool = true):Void
 	{
 		latched = value;
 		if (notify && key.key != NONE) VirtualPad.sendKey(key, latched);
-		alpha = latched ? 1 : VirtualPad.idleAlpha;
-		color = latched ? 0xFFFFE066 : FlxColor.WHITE;
-	}
-
-	function flash():Void
-	{
-		alpha = 1;
-		scale.set(baseScale * 0.9, baseScale * 0.9);
-		FlxTimer.wait(0.1, () -> {
-			if (!exists) return;
-			alpha = latched ? 1 : VirtualPad.idleAlpha;
-			scale.set(baseScale, baseScale);
-		});
+		show(latched ? 'latched' : 'idle');
+		if (!animated) color = latched ? 0xFFFFE066 : FlxColor.WHITE;
 	}
 
 	public function releaseAll():Void
@@ -145,9 +146,8 @@ class VirtualPadButton extends TouchButton
 
 		if (latched || touchPressed) VirtualPad.sendKey(key, false);
 		latched = false;
-		color = FlxColor.WHITE;
-		alpha = VirtualPad.idleAlpha;
-		scale.set(baseScale, baseScale);
+		if (!animated) color = FlxColor.WHITE;
+		show('idle');
 	}
 
 	public static var keyColor:FlxColor = 0xFF3B3B52;
@@ -169,17 +169,12 @@ class VirtualPadButton extends TouchButton
 		g.drawRoundRect(5, 5, size - 10, size - 10, radius * 0.85, radius * 0.85);
 		g.endFill();
 
-		g.beginFill(0xFFFFFF, 0.14);
-		g.drawRoundRect(9, 9, size - 18, (size - 18) * 0.45, radius * 0.7, radius * 0.7);
-		g.endFill();
-
 		final bitmap = new BitmapData(size, size, true, 0);
 		bitmap.draw(shape);
 
 		final fontSize = label.length <= 1 ? Std.int(size * 0.44) : Std.int(Math.min(size * 0.27, (size - 22) / (label.length * 0.62)));
 		final text = new FlxText(0, 0, size, label, fontSize);
 		text.setFormat(Paths.DEFAULT_FONT, fontSize, FlxColor.WHITE, CENTER, OUTLINE, FlxColor.BLACK);
-		text.borderSize = Math.max(1.5, size / 40);
 		text.drawFrame(true);
 
 		final pixels = text.pixels;
@@ -198,27 +193,36 @@ class VirtualPadButton extends TouchButton
 
 class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 {
-	public static var idleAlpha:Float = 0.55;
+	public static inline final ATLAS:String = 'mobile/virtualpad';
 
-	public static var noteAtlas(default, null):Null<flixel.graphics.frames.FlxAtlasFrames> = null;
+	public static inline final STATE_WIDTH:Int = 132;
 
-	public static var buttonSize:Int = 84;
+	public static inline final STATE_HEIGHT:Int = 127;
 
-	public static var margin:Float = 18;
+	public static var idleAlpha:Float = 0.6;
 
-	public static var gap:Float = 8;
+	public static var buttonSize:Int = 80;
+
+	public static var gap:Float = 6;
 
 	public static var repeatDelay:Float = 0.35;
 
 	public static var repeatInterval:Float = 0.05;
 
-	public static var moveMode(default, null):Bool = false;
-
-	public static var mouseMode(default, null):Int = 0;
-
-	public static var rightClickMode(get, never):Bool;
-
-	static inline function get_rightClickMode():Bool return mouseMode == 1;
+	public static final LETTER_COLORS:Map<String, FlxColor> = [
+		'a' => 0xFF4CD964,
+		'b' => 0xFFFF4D4D,
+		'c' => 0xFF44C4FF,
+		'd' => 0xFFFF9F3A,
+		'e' => 0xFFB57BFF,
+		'f' => 0xFFFF66B2,
+		'g' => 0xFF66E0C8,
+		's' => 0xFFFFD84D,
+		'v' => 0xFF8FA8FF,
+		'x' => 0xFFFF7070,
+		'y' => 0xFFFFE066,
+		'z' => 0xFF7CFF8F
+	];
 
 	static var shiftDown:Bool = false;
 
@@ -226,36 +230,29 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 
 	static var altDown:Bool = false;
 
-	static final offsets:Map<String, FlxPoint> = [];
+	static var atlas:Null<FlxAtlasFrames> = null;
 
-	public static final DEFAULT_PAGES:Array<Array<Array<VirtualKey>>> = [
-		[
-			[key('Q', 'q', Q), key('E', 'e', E), {label: 'ENTER', image: 'enter', key: ENTER, charCode: 13}, {label: 'ESC', image: 'esc', key: ESCAPE, charCode: 27}],
-			[{label: 'SHIFT', image: 'shift', key: SHIFT, toggle: true}, {label: 'CTRL', image: 'ctrl', key: CONTROL, toggle: true}, {label: 'SPACE', image: 'space', key: SPACE, charCode: 32}]
-		],
-		[
-			[key('Z', 'z', Z), key('X', 'x', X), key('C', 'c', C), key('V', 'v', V)],
-			[key('A', 'a', A), key('S', 's', S), key('D', 'd', D), key('W', 'w', W)]
-		],
-		[
-			[key('I', 'i', I), key('J', 'j', J), key('K', 'k', K), key('L', 'l', L)],
-			[key('R', 'r', R), key('F', 'f', F), key('T', 't', T), key('G', 'g', G)]
-		],
-		[
-			[key('1', 'one', ONE), key('2', 'two', TWO), key('3', 'three', THREE), key('4', 'four', FOUR)],
-			[{label: '-', image: 'minus', key: MINUS, charCode: '-'.code}, {label: '+', image: 'plus', key: PLUS, charCode: '+'.code}, {label: 'TAB', image: 'tab', key: TAB, charCode: 9},
-				{label: 'ALT', image: 'alt', key: ALT, toggle: true}],
-			[{label: 'DEL', image: 'del', key: DELETE, charCode: 127}, {label: 'BKSP', image: 'bksp', key: BACKSPACE, charCode: 8}]
-		]
+	static final stateGraphics:Map<String, FlxGraphic> = [];
+
+	public static final DEFAULT_DPAD:Array<VirtualKey> = [
+		{label: '<', image: 'left', key: LEFT},
+		{label: 'v', image: 'down', key: DOWN},
+		{label: '^', image: 'up', key: UP},
+		{label: '>', image: 'right', key: RIGHT}
+	];
+
+	public static final DEFAULT_ACTIONS:Array<Array<VirtualKey>> = [
+		[letter('a', ENTER, 13), letter('v', SPACE, 32), letter('z', Z), letter('x', X)],
+		[toggleKey('s', SHIFT), toggleKey('c', CONTROL)]
 	];
 
 	public var shown(default, set):Bool = true;
 
 	public var page(default, null):Int = 0;
 
-	public final toolbar:Array<VirtualPadButton> = [];
+	public final dpadButtons:Array<VirtualPadButton> = [];
 
-	public final pageLabel:FlxText;
+	public final actionButtons:Array<VirtualPadButton> = [];
 
 	final padCamera:FlxCamera;
 
@@ -263,97 +260,111 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 
 	final pageButtons:Array<Array<VirtualPadButton>> = [];
 
-	final dpadButtons:Array<VirtualPadButton> = [];
-
 	var mouseBlocked:Bool = false;
 
-	var redirectedDown:Bool = false;
-
-	var dragButton:Null<VirtualPadButton> = null;
-
-	var dragLast:FlxPoint = FlxPoint.get();
-
-	public static inline function key(label:String, image:String, key:FlxKey):VirtualKey
+	public static function letter(image:String, key:FlxKey, ?charCode:Int):VirtualKey
 	{
-		return {label: label, image: image, key: key, charCode: label.toLowerCase().charCodeAt(0)};
+		return {label: image.toUpperCase(), image: image, key: key, charCode: charCode ?? image.charCodeAt(0)};
 	}
 
-	public function new(camera:FlxCamera, ?dpad:Array<VirtualKey>, ?actions:Array<Array<VirtualKey>>, ?pages:Array<Array<Array<VirtualKey>>>)
+	public static function toggleKey(image:String, key:FlxKey):VirtualKey
+	{
+		return {label: image.toUpperCase(), image: image, key: key, toggle: true};
+	}
+
+	public static function colorFor(key:VirtualKey):FlxColor
+	{
+		return switch (key.image)
+		{
+			case 'left': Hitbox.COLORS[0];
+			case 'down': Hitbox.COLORS[1];
+			case 'up': Hitbox.COLORS[2];
+			case 'right': Hitbox.COLORS[3];
+			default: LETTER_COLORS.get(key.image) ?? FlxColor.WHITE;
+		}
+	}
+
+	public static function getStateGraphic(name:String):Null<FlxGraphic>
+	{
+		final cached = stateGraphics.get(name);
+		if (cached != null && cached.bitmap != null) return cached;
+
+		if (atlas == null)
+		{
+			try
+			{
+				atlas = Paths.getSparrowAtlas(ATLAS, null, false);
+			}
+			catch (e:Dynamic)
+			{
+				atlas = null;
+			}
+			if (atlas == null) return null;
+			atlas.parent.persist = true;
+			atlas.parent.destroyOnNoUse = false;
+		}
+
+		final frame = atlas.getByName(name);
+		if (frame == null || atlas.parent.bitmap == null) return null;
+
+		final source = atlas.parent.bitmap;
+		final width = STATE_WIDTH * 3;
+		final bitmap = new BitmapData(width, STATE_HEIGHT, true, 0);
+		bitmap.copyPixels(source, new Rectangle(frame.frame.x, frame.frame.y, Math.min(width, frame.frame.width), Math.min(STATE_HEIGHT, frame.frame.height)), new Point(0, 0));
+
+		final graphic = FlxGraphic.fromBitmapData(bitmap, false, 'virtualpad-' + name, false);
+		graphic.persist = true;
+		graphic.destroyOnNoUse = false;
+		stateGraphics.set(name, graphic);
+		return graphic;
+	}
+
+	public function new(camera:FlxCamera, ?dpad:Array<VirtualKey>, ?actions:Array<Array<VirtualKey>>, ?pages:Array<Array<Array<VirtualKey>>>, ?rightLimit:Float)
 	{
 		super();
 
 		padCamera = camera;
 
-		dpad ??= [
-			{label: '^', image: 'up', key: UP},
-			{label: '<', image: 'left', key: LEFT},
-			{label: '>', image: 'right', key: RIGHT},
-			{label: 'v', image: 'down', key: DOWN}
-		];
-
-		this.pages = pages ?? (actions != null ? [actions] : DEFAULT_PAGES);
-
-		noteAtlas = Hitbox.loadNoteAtlas();
-
-		loadOffsets();
+		dpad ??= DEFAULT_DPAD;
+		this.pages = pages ?? [actions ?? DEFAULT_ACTIONS];
 
 		final size = buttonSize;
-		final step = size + gap;
-		final bottom = FlxG.height - margin - size - ScreenStyle.safeBottom;
-		final left = margin + ScreenStyle.safeLeft;
-		final right = FlxG.width - margin - ScreenStyle.safeRight;
+		final height = Std.int(size * STATE_HEIGHT / STATE_WIDTH);
+		final stepX = size + gap;
+		final stepY = height + gap;
+		final bottom = MobileUtil.bottomEdge() - height;
+		final left = MobileUtil.leftEdge();
+		final right = rightLimit ?? MobileUtil.rightEdge();
 
 		if (dpad.length >= 4)
 		{
-			final positions = [[left + step, bottom - step * 2], [left, bottom - step], [left + step * 2, bottom - step], [left + step, bottom]];
+			final positions = [[left, bottom - stepY], [left + stepX, bottom], [left + stepX, bottom - stepY * 2], [left + stepX * 2, bottom - stepY]];
 			for (index in 0...4)
-				dpadButtons.push(addButton(positions[index][0], positions[index][1], dpad[index], 'dpad', -1, size));
+			{
+				final button = addButton(positions[index][0], positions[index][1], dpad[index], 'dpad', size);
+				dpadButtons.push(button);
+			}
 		}
 
-		for (pageIndex => rows in this.pages)
+		for (rows in this.pages)
 		{
 			final buttons:Array<VirtualPadButton> = [];
 
 			for (rowIndex => row in rows)
 			{
-				final y = bottom - step * (rows.length - 1 - rowIndex);
+				final y = bottom - stepY * (rows.length - 1 - rowIndex);
 				for (columnIndex => entry in row)
 				{
-					final x = right - size - step * (row.length - 1 - columnIndex);
-					buttons.push(addButton(x, y, entry, 'actions', pageIndex, size));
+					final x = right - size - stepX * (row.length - 1 - columnIndex);
+					final button = addButton(x, y, entry, 'actions', size);
+					buttons.push(button);
+					actionButtons.push(button);
 				}
 			}
 
 			pageButtons.push(buttons);
 		}
 
-		final small = Std.int(size * 0.75);
-		final top = margin + ScreenStyle.safeTop;
-		final tools:Array<VirtualKey> = [
-			{label: 'PAD', image: 'pad', key: NONE, action: () -> shown = !shown},
-			{label: 'PAGE', image: 'page', key: NONE, action: () -> setPage(page + 1)},
-			{label: 'RMB', image: 'rmb', key: NONE, action: cycleMouseMode},
-			{label: 'KB', image: 'kb', key: NONE, action: toggleKeyboard},
-			{label: 'MOVE', image: 'move', key: NONE, action: toggleMove}
-		];
-
-		for (index => tool in tools)
-		{
-			final button = new VirtualPadButton(left + (small + gap) * index, top, small, tool);
-			button.cameras = [padCamera];
-			button.group = 'toolbar';
-			toolbar.push(button);
-			add(button);
-		}
-
-		pageLabel = new FlxText(left + (small + gap) * tools.length + 4, top + small / 2 - 12, 0, '', 20);
-		pageLabel.setFormat(Paths.DEFAULT_FONT, 20, FlxColor.WHITE, LEFT, OUTLINE, FlxColor.BLACK);
-		pageLabel.cameras = [padCamera];
-
-		if (noteAtlas != null) noteAtlas.parent.destroy();
-		noteAtlas = null;
-
-		applyOffsets();
 		setPage(0);
 
 		FlxG.stage.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown, false, 10000);
@@ -361,28 +372,13 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		FlxG.stage.addEventListener(MouseEvent.CLICK, onMouseClick, false, 10000);
 	}
 
-	function addButton(x:Float, y:Float, entry:VirtualKey, group:String, pageIndex:Int, size:Int):VirtualPadButton
+	function addButton(x:Float, y:Float, entry:VirtualKey, group:String, size:Int):VirtualPadButton
 	{
 		final button = new VirtualPadButton(x, y, size, entry);
 		button.cameras = [padCamera];
 		button.group = group;
-		button.page = pageIndex;
 		add(button);
 		return button;
-	}
-
-	override function update(elapsed:Float):Void
-	{
-		super.update(elapsed);
-
-		if (moveMode) updateDrag();
-	}
-
-	override function draw():Void
-	{
-		super.draw();
-
-		if (shown && pageLabel.visible) pageLabel.draw();
 	}
 
 	public var suspended(default, set):Bool = false;
@@ -391,25 +387,23 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 	{
 		suspended = value;
 
-		if (value)
+		for (button in members)
 		{
-			for (button in members)
+			if (button == null) continue;
+
+			if (value)
 			{
-				if (button == null) continue;
 				if (button.key.toggle != true) button.releaseAll();
 				button.visible = false;
 				button.touchEnabled = false;
 			}
-			pageLabel.visible = false;
+			else
+			{
+				button.touchEnabled = true;
+			}
 		}
-		else
-		{
-			for (button in members)
-				if (button != null) button.touchEnabled = true;
 
-			toolbar[0].visible = true;
-			shown = shown;
-		}
+		if (!value) shown = shown;
 
 		return value;
 	}
@@ -422,196 +416,26 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 		{
 			for (button in buttons)
 			{
-				final active = shown && pageIndex == page;
+				final active = shown && !suspended && pageIndex == page;
 				if (!active && button.touchPressed) button.releaseAll();
 				button.visible = active;
 			}
 		}
-
-		pageLabel.text = '${page + 1}/${pages.length}';
-		pageLabel.visible = pages.length > 1;
 	}
 
 	function set_shown(value:Bool):Bool
 	{
 		shown = value;
 
-		for (button in members)
+		for (button in dpadButtons)
 		{
-			if (button == null || button == toolbar[0]) continue;
-
-			if (!value && button.key.toggle != true) button.releaseAll();
-			button.visible = value;
+			if (!value) button.releaseAll();
+			button.visible = value && !suspended;
 		}
 
-		if (value) setPage(page);
-		pageLabel.visible = value && pages.length > 1;
+		setPage(page);
 
 		return value;
-	}
-
-	function toggleKeyboard():Void
-	{
-		final window = lime.app.Application.current?.window;
-		if (window != null && window.textInputEnabled) NativeUtil.hideKeyboard();
-		else NativeUtil.showKeyboard();
-	}
-
-	function cycleMouseMode():Void
-	{
-		mouseMode = (mouseMode + 1) % 3;
-
-		for (button in toolbar)
-		{
-			if (button.key.label != 'RMB') continue;
-			button.color = switch (mouseMode)
-			{
-				case 1: 0xFFFFE066;
-				case 2: 0xFF66E0FF;
-				default: FlxColor.WHITE;
-			}
-			button.alpha = mouseMode == 0 ? idleAlpha : 1;
-		}
-
-		NativeUtil.toast(switch (mouseMode)
-		{
-			case 1: 'Touch works as right click';
-			case 2: 'Touch works as middle click';
-			default: 'Touch works as left click';
-		});
-	}
-
-	function toggleMove():Void
-	{
-		moveMode = !moveMode;
-		highlightTool('MOVE', moveMode);
-
-		if (!moveMode)
-		{
-			dragButton = null;
-			saveOffsets();
-		}
-
-		NativeUtil.toast(moveMode ? 'Drag the buttons to move them' : 'Layout saved');
-	}
-
-	function highlightTool(label:String, value:Bool):Void
-	{
-		for (button in toolbar)
-		{
-			if (button.key.label != label) continue;
-			button.color = value ? 0xFFFFE066 : FlxColor.WHITE;
-			button.alpha = value ? 1 : idleAlpha;
-		}
-	}
-
-	function updateDrag():Void
-	{
-		#if FLX_TOUCH
-		var touch:Null<flixel.input.touch.FlxTouch> = null;
-		for (candidate in FlxG.touches.list)
-			if (candidate.pressed)
-			{
-				touch = candidate;
-				break;
-			}
-
-		if (touch == null)
-		{
-			dragButton = null;
-			return;
-		}
-
-		final point = touch.getViewPosition(padCamera);
-
-		if (touch.justPressed || dragButton == null)
-		{
-			dragButton = null;
-			for (button in members)
-			{
-				if (button == null || !button.visible || button.group == 'toolbar') continue;
-				if (point.x >= button.x && point.x < button.x + button.width && point.y >= button.y && point.y < button.y + button.height)
-				{
-					dragButton = button;
-					break;
-				}
-			}
-
-			dragLast.copyFrom(point);
-			point.put();
-			return;
-		}
-
-		final dx = point.x - dragLast.x;
-		final dy = point.y - dragLast.y;
-		dragLast.copyFrom(point);
-		point.put();
-
-		if (dx == 0 && dy == 0) return;
-
-		final offset = getOffset(dragButton.group);
-		offset.x += dx;
-		offset.y += dy;
-
-		for (button in members)
-		{
-			if (button == null || button.group != dragButton.group) continue;
-			button.x += dx;
-			button.y += dy;
-		}
-		#end
-	}
-
-	static function getOffset(group:String):FlxPoint
-	{
-		var offset = offsets.get(group);
-		if (offset == null)
-		{
-			offset = FlxPoint.get();
-			offsets.set(group, offset);
-		}
-		return offset;
-	}
-
-	function applyOffsets():Void
-	{
-		for (button in members)
-		{
-			if (button == null || button.group == 'toolbar') continue;
-			final offset = getOffset(button.group);
-			button.x += offset.x;
-			button.y += offset.y;
-		}
-	}
-
-	static function loadOffsets():Void
-	{
-		final data:Dynamic = FlxG.save.data.virtualPadOffsets;
-		if (data == null) return;
-
-		for (group in ['dpad', 'actions'])
-		{
-			final entry:Dynamic = Reflect.field(data, group);
-			if (entry == null) continue;
-			getOffset(group).set(Std.parseFloat(Std.string(entry.x)), Std.parseFloat(Std.string(entry.y)));
-		}
-	}
-
-	static function saveOffsets():Void
-	{
-		final data:Dynamic = {};
-		for (group => offset in offsets)
-			Reflect.setField(data, group, {x: offset.x, y: offset.y});
-
-		FlxG.save.data.virtualPadOffsets = data;
-		FlxG.save.flush();
-	}
-
-	public static function resetLayout():Void
-	{
-		for (offset in offsets)
-			offset.set();
-		saveOffsets();
 	}
 
 	public function hitsButton(stageX:Float, stageY:Float):Bool
@@ -633,37 +457,13 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 
 	function onMouseDown(event:MouseEvent):Void
 	{
-		mouseBlocked = hitsButton(event.stageX, event.stageY) || moveMode;
-		if (mouseBlocked)
-		{
-			event.stopImmediatePropagation();
-			return;
-		}
-
-		if (mouseMode != 0)
-		{
-			event.stopImmediatePropagation();
-			redirectedDown = true;
-			final type = mouseMode == 1 ? MouseEvent.RIGHT_MOUSE_DOWN : MouseEvent.MIDDLE_MOUSE_DOWN;
-			FlxG.stage.dispatchEvent(new MouseEvent(type, true, false, event.localX, event.localY, null, event.ctrlKey, event.altKey, event.shiftKey, true));
-		}
+		mouseBlocked = hitsButton(event.stageX, event.stageY);
+		if (mouseBlocked) event.stopImmediatePropagation();
 	}
 
 	function onMouseUp(event:MouseEvent):Void
 	{
-		if (redirectedDown)
-		{
-			event.stopImmediatePropagation();
-			redirectedDown = false;
-			final upType = mouseMode == 2 ? MouseEvent.MIDDLE_MOUSE_UP : MouseEvent.RIGHT_MOUSE_UP;
-			final clickType = mouseMode == 2 ? MouseEvent.MIDDLE_CLICK : MouseEvent.RIGHT_CLICK;
-			FlxG.stage.dispatchEvent(new MouseEvent(upType, true, false, event.localX, event.localY, null, event.ctrlKey, event.altKey, event.shiftKey, false));
-			FlxG.stage.dispatchEvent(new MouseEvent(clickType, true, false, event.localX, event.localY, null, event.ctrlKey, event.altKey, event.shiftKey, false));
-			return;
-		}
-
-		if (!mouseBlocked) return;
-		event.stopImmediatePropagation();
+		if (mouseBlocked) event.stopImmediatePropagation();
 	}
 
 	function onMouseClick(event:MouseEvent):Void
@@ -695,15 +495,10 @@ class VirtualPad extends FlxTypedGroup<VirtualPadButton>
 			if (button != null) button.releaseAll();
 
 		shiftDown = ctrlDown = altDown = false;
-		moveMode = false;
-		mouseMode = 0;
 
 		FlxG.stage.removeEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
 		FlxG.stage.removeEventListener(MouseEvent.MOUSE_UP, onMouseUp);
 		FlxG.stage.removeEventListener(MouseEvent.CLICK, onMouseClick);
-
-		pageLabel.destroy();
-		dragLast.put();
 
 		super.destroy();
 	}

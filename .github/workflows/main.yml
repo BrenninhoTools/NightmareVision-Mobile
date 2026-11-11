@@ -19,11 +19,36 @@ on:
             - '.vscode/**'
 
     workflow_dispatch:
+        inputs:
+            platform:
+                description: Platforms to build
+                type: choice
+                default: both
+                options:
+                    - both
+                    - android
+                    - ios
+            clean:
+                description: Ignore build caches and compile from scratch
+                type: boolean
+                default: false
+            buildFlags:
+                description: Extra define passed with -D
+                required: false
+                type: string
     workflow_call:
         inputs:
             buildFlags:
                 required: false
                 type: string
+            platform:
+                required: false
+                type: string
+                default: both
+            clean:
+                required: false
+                type: boolean
+                default: false
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,10 +66,14 @@ env:
     GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.vfs.watch=false
     ANDROID_GRADLE_TASK: assembleDebug --build-cache --parallel --no-watch-fs
     CACHE_LIMIT_MB: 3500
-    OUTPUT_CACHE_VERSION: v1
+    OUTPUT_CACHE_VERSION: v2
+    CACHE_SAVE_MIN_NEW: 25
+    BUILD_MODE: release
+    CLEAN_BUILD: ${{ inputs.clean && 'true' || 'false' }}
 
 jobs:
     Android:
+        if: ${{ !inputs.platform || inputs.platform == 'both' || inputs.platform == 'android' }}
         runs-on: ubuntu-24.04
         timeout-minutes: 75
 
@@ -56,10 +85,11 @@ jobs:
 
             - name: Restore build output
               id: output
+              if: ${{ env.CLEAN_BUILD != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: export/release/android/signed/NightmareVision.apk
-                key: android-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
+                key: android-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
 
             - name: Setup environment
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
@@ -176,7 +206,7 @@ jobs:
 
             - name: Restore hxcpp cache
               id: hxcpp
-              if: ${{ steps.output.outputs.cache-hit != 'true' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.CLEAN_BUILD != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
@@ -214,15 +244,19 @@ jobs:
               run: |
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
+                mkdir -p "$HXCPP_COMPILE_CACHE"
+                echo "HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
+                echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
                 unset CC CXX
                 export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
-                haxelib run lime build Project.xml android -release -arm64 $FLAGS < /dev/null
+                haxelib run lime build Project.xml android -$BUILD_MODE -arm64 $FLAGS < /dev/null
+                echo "HXCPP_NEW_FILES=$(( $(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ') - HXCPP_FILES_BEFORE ))" >> "$GITHUB_ENV"
 
             - name: Save hxcpp cache
-              if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request') }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request' && (steps.hxcpp.outputs.cache-matched-key == '' || fromJSON(env.HXCPP_NEW_FILES || '0') >= fromJSON(env.CACHE_SAVE_MIN_NEW))) }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
@@ -269,7 +303,24 @@ jobs:
                 path: export/release/android/signed/NightmareVision.apk
                 compression-level: 0
 
+            - name: Build summary
+              if: ${{ always() }}
+              run: |
+                APK=export/release/android/signed/NightmareVision.apk
+                {
+                  echo "### Android"
+                  echo "| Item | Value |"
+                  echo "|---|---|"
+                  echo "| Mode | $BUILD_MODE |"
+                  echo "| Output cache | ${{ steps.output.outputs.cache-hit == 'true' && 'hit (build skipped)' || 'miss' }} |"
+                  echo "| hxcpp cache | ${{ steps.hxcpp.outputs.cache-hit == 'true' && 'exact' || (steps.hxcpp.outputs.cache-matched-key != '' && 'partial' || 'none') }} |"
+                  echo "| New compiled objects | ${HXCPP_NEW_FILES:-0} |"
+                  if [ -n "${BUILD_STARTED:-}" ]; then echo "| Compile time | $(( $(date +%s) - BUILD_STARTED ))s |"; fi
+                  if [ -f "$APK" ]; then echo "| APK size | $(du -h "$APK" | cut -f1) |"; fi
+                } >> "$GITHUB_STEP_SUMMARY"
+
     iOS:
+        if: ${{ !inputs.platform || inputs.platform == 'both' || inputs.platform == 'ios' }}
         runs-on: macos-latest
         timeout-minutes: 90
 
@@ -281,10 +332,11 @@ jobs:
 
             - name: Restore build output
               id: output
+              if: ${{ env.CLEAN_BUILD != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
-                key: ios-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
+                key: ios-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
 
             - name: Setup environment
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
@@ -369,7 +421,7 @@ jobs:
 
             - name: Restore hxcpp cache
               id: hxcpp
-              if: ${{ steps.output.outputs.cache-hit != 'true' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.CLEAN_BUILD != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
@@ -382,10 +434,13 @@ jobs:
               run: |
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
+                mkdir -p "$HXCPP_COMPILE_CACHE"
+                echo "HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
+                echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
-                haxelib run lime update Project.xml ios -release -nosign $FLAGS < /dev/null
+                haxelib run lime update Project.xml ios -$BUILD_MODE -nosign $FLAGS < /dev/null
 
             - name: Compile Haxe (arm64)
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
@@ -402,6 +457,7 @@ jobs:
                 haxelib run hxcpp Build.xml haxe -Ddestination="$LIB_DIR/libApplicationMain.a" -options Options.txt < /dev/null
                 env -u HXCPP_COMPILE_CACHE haxelib run hxcpp "$HAXE_DIR/BuildHxcppMbedtls.xml" -Ddestination="$LIB_DIR/libmbedtls_hxcpp.a" -options "$BUILD_DIR/Options.txt" < /dev/null
                 ls -la "$LIB_DIR"
+                echo "HXCPP_NEW_FILES=$(( $(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ') - HXCPP_FILES_BEFORE ))" >> "$GITHUB_ENV"
                 sed -i '' 's/^default: \$(HAXE_BUILDS)$/default:/' "$HAXE_DIR/makefile"
                 grep -q '^default:$' "$HAXE_DIR/makefile"
 
@@ -418,7 +474,7 @@ jobs:
                   ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO build -quiet < /dev/null
 
             - name: Save hxcpp cache
-              if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request') }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request' && (steps.hxcpp.outputs.cache-matched-key == '' || fromJSON(env.HXCPP_NEW_FILES || '0') >= fromJSON(env.CACHE_SAVE_MIN_NEW))) }}
               uses: actions/cache/save@v4
               with:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
@@ -448,3 +504,19 @@ jobs:
                 name: NightmareVision (iOS)
                 path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
                 compression-level: 0
+
+            - name: Build summary
+              if: ${{ always() }}
+              run: |
+                IPA=export/release/ios/build/Release-iphoneos/NightmareVision.ipa
+                {
+                  echo "### iOS"
+                  echo "| Item | Value |"
+                  echo "|---|---|"
+                  echo "| Mode | $BUILD_MODE |"
+                  echo "| Output cache | ${{ steps.output.outputs.cache-hit == 'true' && 'hit (build skipped)' || 'miss' }} |"
+                  echo "| hxcpp cache | ${{ steps.hxcpp.outputs.cache-hit == 'true' && 'exact' || (steps.hxcpp.outputs.cache-matched-key != '' && 'partial' || 'none') }} |"
+                  echo "| New compiled objects | ${HXCPP_NEW_FILES:-0} |"
+                  if [ -n "${BUILD_STARTED:-}" ]; then echo "| Compile time | $(( $(date +%s) - BUILD_STARTED ))s |"; fi
+                  if [ -f "$IPA" ]; then echo "| IPA size | $(du -h "$IPA" | cut -f1) |"; fi
+                } >> "$GITHUB_STEP_SUMMARY"

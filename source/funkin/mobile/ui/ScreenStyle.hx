@@ -9,7 +9,7 @@ import flixel.group.FlxGroup.FlxTypedGroup;
 
 class ScreenStyle
 {
-	public static final STYLES:Array<String> = ['Original', 'Full'];
+	public static final STYLES:Array<String> = ['Original', 'Full', 'Stretch'];
 
 	public static var maxRatio:Float = 2.4;
 
@@ -29,6 +29,35 @@ class ScreenStyle
 
 	public static var contentOffset(get, never):Float;
 
+	public static var isStretch(get, never):Bool;
+
+	public static var usesWholeScreen(get, never):Bool;
+
+	public static var ignoreSafeArea:Bool = false;
+
+	public static var aspectRatio(get, never):Float;
+
+	public static var hasCutout(get, never):Bool;
+
+	public static final onChange:flixel.util.FlxSignal = new flixel.util.FlxSignal();
+
+	static var pendingRefresh:Null<haxe.Timer> = null;
+
+	public static function getSafeRect(?rect:flixel.math.FlxRect, margin:Float = 0):flixel.math.FlxRect
+	{
+		rect ??= flixel.math.FlxRect.get();
+		return rect.set(safeLeft + margin, safeTop + margin, FlxG.width - safeLeft - safeRight - margin * 2, FlxG.height - safeTop - safeBottom - margin * 2);
+	}
+
+	public static function scheduleRefresh(delay:Int = 120):Void
+	{
+		pendingRefresh?.stop();
+		pendingRefresh = haxe.Timer.delay(() -> {
+			pendingRefresh = null;
+			refreshLayout();
+		}, delay);
+	}
+
 	public static function init():Void
 	{
 		#if mobile
@@ -38,8 +67,12 @@ class ScreenStyle
 		FlxG.signals.postStateSwitch.add(onStateSwitch);
 		FlxG.signals.preStateSwitch.add(() -> covered.resize(0));
 		FlxG.signals.postUpdate.add(keepCovered);
-		FlxG.stage.addEventListener(openfl.events.Event.RESIZE, (_) -> refreshLayout());
+		FlxG.stage.addEventListener(openfl.events.Event.RESIZE, (_) -> {
+			refreshLayout();
+			scheduleRefresh(250);
+		});
 		FlxG.signals.gameResized.add((_, _) -> refreshLayout());
+		FlxG.signals.focusGained.add(() -> scheduleRefresh(200));
 
 		apply(false);
 		#end
@@ -48,7 +81,7 @@ class ScreenStyle
 	public static function apply(resetState:Bool = true):Void
 	{
 		#if mobile
-		NativeUtil.setScreenStyle(isFull);
+		NativeUtil.setScreenStyle(usesWholeScreen);
 
 		@:privateAccess FlxG.game.onResize(null);
 		refreshLayout();
@@ -76,22 +109,32 @@ class ScreenStyle
 		safeLeft = safeRight = safeTop = safeBottom = 0;
 
 		#if mobile
-		if (!isFull || FlxG.stage == null || FlxG.stage.stageWidth <= 0) return;
+		if (!usesWholeScreen || ignoreSafeArea || FlxG.stage == null || FlxG.stage.stageWidth <= 0 || FlxG.stage.stageHeight <= 0) return;
 
 		final insets = NativeUtil.getSafeInsets();
-		final scale = FlxG.width / FlxG.stage.stageWidth;
+		final scaleX = FlxG.width / FlxG.stage.stageWidth;
+		final scaleY = isStretch ? FlxG.height / FlxG.stage.stageHeight : scaleX;
 
-		safeLeft = insets[0] * scale;
-		safeTop = insets[1] * scale;
-		safeRight = insets[2] * scale;
-		safeBottom = insets[3] * scale;
+		safeLeft = insets[0] * scaleX;
+		safeTop = insets[1] * scaleY;
+		safeRight = insets[2] * scaleX;
+		safeBottom = insets[3] * scaleY;
 		#end
 	}
 
 	public static function refreshLayout():Void
 	{
+		final before = [safeLeft, safeTop, safeRight, safeBottom];
+
 		refreshInsets();
 		funkin.backend.DebugDisplay.instance?.reposition();
+
+		if (before[0] != safeLeft || before[1] != safeTop || before[2] != safeRight || before[3] != safeBottom) onChange.dispatch();
+	}
+
+	public static function fillsStretched(windowWidth:Float, windowHeight:Float):Bool
+	{
+		return isStretch && windowWidth > 0 && windowHeight > 0;
 	}
 
 	public static function fitBackgrounds(group:FlxTypedGroup<FlxBasic>):Void
@@ -185,6 +228,31 @@ class ScreenStyle
 		#else
 		return 0;
 		#end
+	}
+
+	static function get_isStretch():Bool
+	{
+		#if mobile
+		return ClientPrefs.screenStyle == 'Stretch';
+		#else
+		return false;
+		#end
+	}
+
+	static function get_usesWholeScreen():Bool
+	{
+		return isFull || isStretch;
+	}
+
+	static function get_aspectRatio():Float
+	{
+		final stage = FlxG.stage;
+		return stage != null && stage.stageHeight > 0 ? stage.stageWidth / stage.stageHeight : FlxG.width / FlxG.height;
+	}
+
+	static function get_hasCutout():Bool
+	{
+		return safeLeft > 0 || safeRight > 0 || safeTop > 0 || safeBottom > 0;
 	}
 
 	static function get_isFull():Bool

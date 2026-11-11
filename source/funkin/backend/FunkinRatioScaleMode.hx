@@ -14,6 +14,16 @@ class FunkinRatioScaleMode extends RatioScaleMode
 		lastWindowHeight = Height;
 		#end
 		
+		#if mobile
+		if (funkin.mobile.ui.ScreenStyle.fillsStretched(Width, Height))
+		{
+			gameSize.x = Width;
+			gameSize.y = Height;
+			applyGameSize();
+			return;
+		}
+		#end
+		
 		var ratio:Float = width / height;
 		var realRatio:Float = Width / Height;
 		
@@ -34,6 +44,11 @@ class FunkinRatioScaleMode extends RatioScaleMode
 			gameSize.x = Math.floor(gameSize.y * ratio);
 		}
 		
+		applyGameSize();
+	}
+	
+	function applyGameSize():Void
+	{
 		@:privateAccess {
 			for (c in FlxG.cameras.list)
 			{

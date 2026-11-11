@@ -8,6 +8,7 @@ import funkin.mobile.input.TouchInput;
 import funkin.mobile.native.NativeUtil;
 import funkin.mobile.util.Hitbox;
 import funkin.mobile.util.TouchUtil;
+import funkin.mobile.ui.ScreenStyle;
 import funkin.mobile.haptics.Haptics;
 import funkin.mobile.haptics.Haptics.HapticType;
 
@@ -74,6 +75,89 @@ class MobileScript
 	static var scriptCamera:Null<FlxCamera> = null;
 
 	static var lastTouchCount:Int = 0;
+
+	static var lastExternal:Bool = false;
+
+	static var lastSafeTop:Float = -1;
+
+	public static var screenStyle(get, never):String;
+
+	public static var safeLeft(get, never):Float;
+
+	public static var safeRight(get, never):Float;
+
+	public static var safeTop(get, never):Float;
+
+	public static var safeBottom(get, never):Float;
+
+	public static var externalInput(get, never):Bool;
+
+	public static var lastInputDevice(get, never):String;
+
+	public static var pinching(get, never):Bool;
+
+	public static var pinchScale(get, never):Float;
+
+	public static function getTouches():Array<{id:Int, x:Float, y:Float, justPressed:Bool, justReleased:Bool}>
+	{
+		final touches:Array<{id:Int, x:Float, y:Float, justPressed:Bool, justReleased:Bool}> = [];
+
+		#if FLX_TOUCH
+		for (touch in FlxG.touches.list)
+			if (touch.pressed || touch.justReleased)
+				touches.push({id: touch.touchPointID, x: touch.gameX, y: touch.gameY, justPressed: touch.justPressed, justReleased: touch.justReleased});
+		#end
+
+		return touches;
+	}
+
+	public static function touchedInRect(x:Float, y:Float, width:Float, height:Float, ?camera:FlxCamera):Bool
+	{
+		#if mobile
+		return TouchUtil.pressedInRect(x, y, width, height, camera);
+		#else
+		return false;
+		#end
+	}
+
+	public static function tappedInRect(x:Float, y:Float, width:Float, height:Float, ?camera:FlxCamera):Bool
+	{
+		#if mobile
+		return TouchUtil.tappedInRect(x, y, width, height, camera);
+		#else
+		return false;
+		#end
+	}
+
+	public static function hapticConfirm():Void
+	{
+		Haptics.confirm();
+	}
+
+	public static function hapticRumble(strength:Float = 1):Void
+	{
+		Haptics.rumble(strength, 0);
+	}
+
+	public static function hapticImpact(strength:Float = 1):Void
+	{
+		Haptics.impact(strength);
+	}
+
+	public static function hapticDenied():Void
+	{
+		Haptics.denied();
+	}
+
+	public static function getDeviceSummary():String
+	{
+		return NativeUtil.getDeviceSummary();
+	}
+
+	public static function log(message:String):Void
+	{
+		funkin.mobile.android.logcat.LogcatUtil.info(message);
+	}
 
 	public static function touchOverlaps(object:FlxBasic, ?camera:FlxCamera):Bool
 	{
@@ -426,6 +510,13 @@ class MobileScript
 		if (TouchInput.justDoubleTapped) group.call('onDoubleTap', [TouchInput.tapPosition.x, TouchInput.tapPosition.y]);
 		if (TouchInput.justLongPressed) group.call('onLongPress', [TouchInput.touchPosition.x, TouchInput.touchPosition.y]);
 		if (TouchInput.lastSwipe != NONE) group.call('onSwipe', [swipeName(TouchInput.lastSwipe)]);
+		if (TouchInput.dragging && (TouchInput.dragX != 0 || TouchInput.dragY != 0)) group.call('onDrag', [TouchInput.dragX, TouchInput.dragY]);
+		if (TouchInput.pinching && TouchInput.pinchDelta != 0) group.call('onPinch', [get_pinchScale(), TouchInput.pinchDelta]);
+
+		final external = funkin.mobile.input.ExternalInput.active;
+		if (external != lastExternal) group.call('onExternalInputChange', [external]);
+
+		if (lastSafeTop >= 0 && lastSafeTop != ScreenStyle.safeTop) group.call('onSafeAreaChange', [ScreenStyle.safeLeft, ScreenStyle.safeTop, ScreenStyle.safeRight, ScreenStyle.safeBottom]);
 		#end
 	}
 
@@ -433,6 +524,8 @@ class MobileScript
 	static function endDispatch():Void
 	{
 		lastTouchCount = TouchInput.touchCount;
+		lastExternal = funkin.mobile.input.ExternalInput.active;
+		lastSafeTop = ScreenStyle.safeTop;
 	}
 
 	static function swipeName(direction:funkin.mobile.input.TouchInput.SwipeDirection):String
@@ -445,6 +538,45 @@ class MobileScript
 			case RIGHT: 'right';
 			default: '';
 		}
+	}
+
+	static function get_screenStyle():String
+	{
+		#if mobile
+		return ClientPrefs.screenStyle;
+		#else
+		return 'Original';
+		#end
+	}
+
+	static function get_safeLeft():Float return ScreenStyle.safeLeft;
+
+	static function get_safeRight():Float return ScreenStyle.safeRight;
+
+	static function get_safeTop():Float return ScreenStyle.safeTop;
+
+	static function get_safeBottom():Float return ScreenStyle.safeBottom;
+
+	static function get_externalInput():Bool return funkin.mobile.input.ExternalInput.active;
+
+	static function get_lastInputDevice():String return funkin.mobile.input.ExternalInput.lastDevice;
+
+	static function get_pinching():Bool
+	{
+		#if mobile
+		return TouchUtil.pinching;
+		#else
+		return false;
+		#end
+	}
+
+	static function get_pinchScale():Float
+	{
+		#if mobile
+		return TouchUtil.pinchScale;
+		#else
+		return 1;
+		#end
 	}
 
 	static function get_isMobile():Bool

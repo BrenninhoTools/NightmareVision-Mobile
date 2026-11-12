@@ -119,6 +119,21 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		#end
 		
 		#if mobile
+		if (funkin.mobile.native.AdUtil.enabled)
+		{
+			final minutes = Std.int(funkin.mobile.native.AdUtil.adBreakMinutes);
+			final left = funkin.mobile.native.AdUtil.breakMinutesLeft;
+			var option:Option = new Option('Ad Break', 'Watch one rewarded ad to play ' + minutes + ' minutes without any ads.'
+				+ (left > 0 ? '\nAd break active: ' + left + ' minutes left.' : '\nThe time adds up if you watch more than one.'), 'storageType', BUTTON);
+			option.callback = () -> {
+				funkin.mobile.native.AdUtil.watchForBreak((earned) -> {
+					FlxG.sound.play(Paths.sound(earned ? 'confirmMenu' : 'cancelMenu'));
+					if (earned) funkin.mobile.haptics.Haptics.confirm();
+				});
+			};
+			addOption(option);
+		}
+		
 		if (funkin.mobile.native.AdUtil.privacyOptionsRequired())
 		{
 			var option:Option = new Option('Ad Privacy Options', 'Opens the ad consent form so you can change\nhow your data is used for ads.', 'storageType', BUTTON);

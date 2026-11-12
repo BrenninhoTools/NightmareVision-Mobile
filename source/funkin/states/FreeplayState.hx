@@ -189,7 +189,20 @@ class FreeplayState extends MusicBeatState
 		#end
 		
 		super.create();
+		
+		#if mobile
+		funkin.mobile.native.AdUtil.open(funkin.mobile.native.AdUtil.AdPlacement.FREEPLAY);
+		#end
 		scriptGroup.call('onCreate', []);
+	}
+	
+	override function destroy()
+	{
+		#if mobile
+		funkin.mobile.native.AdUtil.close(funkin.mobile.native.AdUtil.AdPlacement.FREEPLAY);
+		#end
+		
+		super.destroy();
 	}
 	
 	override function closeSubState()

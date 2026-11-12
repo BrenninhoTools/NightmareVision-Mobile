@@ -13,6 +13,17 @@ enum AdPlacement
 {
 	SONG_END;
 	PAUSE;
+	MAIN_MENU;
+	STORY_MENU;
+	FREEPLAY;
+}
+
+typedef AdRule =
+{
+	var every:Int;
+	var cooldown:Float;
+	var delay:Float;
+	var banner:Bool;
 }
 
 class AdUtil
@@ -31,29 +42,43 @@ class AdUtil
 
 	static final TEST_BANNER_IOS:String = 'ca-app-pub-3940256099942544/2934735716';
 
-	public static var songsBetweenAds:Int = 1;
+	public static final rules:Map<AdPlacement, AdRule> = [
+		SONG_END => {every: 1, cooldown: 60, delay: 0, banner: false},
+		PAUSE => {every: 2, cooldown: 240, delay: 0.45, banner: true},
+		MAIN_MENU => {every: 3, cooldown: 180, delay: 0.8, banner: true},
+		STORY_MENU => {every: 2, cooldown: 180, delay: 0.8, banner: true},
+		FREEPLAY => {every: 2, cooldown: 180, delay: 0.8, banner: true}
+	];
 
-	public static var pausesBetweenAds:Int = 2;
-
-	public static var minSecondsBetweenAds:Float = 45;
-
-	public static var minSecondsBetweenSongAds:Float = 60;
-
-	public static var minSecondsBetweenPauseAds:Float = 240;
+	public static var minSecondsBetweenAds:Float = 60;
 
 	public static var firstAdDelay:Float = 30;
-
-	public static var pauseAdDelay:Float = 0.45;
 
 	public static var maxInterstitialsPerSession:Int = 25;
 
 	public static var adExpireSeconds:Float = 3300;
 
-	public static var pauseBanner:Bool = true;
+	public static var adBreakMinutes:Float = 30;
+
+	public static var bannerHideDelay:Float = 0.5;
+
+	public static var bannerAlign:Int = 7;
 
 	public static var retryDelays:Array<Float> = [10, 30, 60, 120, 300];
 
+	public static var startDelay:Float = 2.5;
+
+	public static var maxInitAttempts:Int = 2;
+
+	public static var stableSeconds:Float = 45;
+
 	public static var ready(default, null):Bool = false;
+
+	public static var blocked(default, null):Bool = false;
+
+	public static var showing(default, null):Bool = false;
+
+	public static var shownThisSession(default, null):Int = 0;
 
 	public static var interstitialLoaded(get, never):Bool;
 
@@ -61,31 +86,21 @@ class AdUtil
 
 	public static var bannerVisible(get, never):Bool;
 
-	static var bannerWanted:Bool = false;
-
-	static var bannerCreated:Bool = false;
-
-	static var bannerLoaded:Bool = false;
-
-	public static var showing(default, null):Bool = false;
-
 	public static var testMode(get, never):Bool;
 
 	public static var enabled(get, never):Bool;
 
-	public static var shownThisSession(default, null):Int = 0;
+	public static var onBreak(get, never):Bool;
+
+	public static var breakMinutesLeft(get, never):Int;
 
 	static var initialized:Bool = false;
 
 	static var scheduled:Bool = false;
 
-	public static var blocked(default, null):Bool = false;
+	static var startTime:Float = 0;
 
-	public static var startDelay:Float = 2.5;
-
-	public static var maxInitAttempts:Int = 2;
-
-	public static var stableSeconds:Float = 45;
+	static var lastAdTime:Float = 0;
 
 	static var interstitialTime:Float = -1;
 
@@ -95,21 +110,21 @@ class AdUtil
 
 	static var rewardedLoading:Bool = false;
 
-	static var pausesSinceAd:Int = 0;
-
-	static var lastAdTime:Float = 0;
-
-	static var lastPauseAdTime:Float = 0;
-
-	static var lastSongAdTime:Float = 0;
-
-	static var startTime:Float = 0;
-
 	static var interstitialRetries:Int = 0;
 
 	static var rewardedRetries:Int = 0;
 
 	static var bannerRetries:Int = 0;
+
+	static var bannerCreated:Bool = false;
+
+	static var bannerLoaded:Bool = false;
+
+	static var bannerShown:Bool = false;
+
+	static var bannerOffSince:Float = -1;
+
+	static var bannerRetryAt:Float = 0;
 
 	static var rewardCallback:Null<Bool->Void> = null;
 
@@ -117,9 +132,13 @@ class AdUtil
 
 	static var savedMute:Bool = false;
 
-	static var paused:Bool = false;
+	static final active:Array<AdPlacement> = [];
 
-	static var pauseTimer:Null<haxe.Timer> = null;
+	static final counters:Map<AdPlacement, Int> = [];
+
+	static final lastShown:Map<AdPlacement, Float> = [];
+
+	static final timers:Map<AdPlacement, haxe.Timer> = [];
 
 	static var pending:Array<{name:String, value:Null<String>}> = [];
 
@@ -135,15 +154,26 @@ class AdUtil
 	static function get_enabled():Bool
 	{
 		#if (mobile && extension_admob)
-		return !ClientPrefs.adsRemoved && !PurchaseUtil.owns(REMOVE_ADS_PRODUCT);
+		return !blocked && !ClientPrefs.adsRemoved && !PurchaseUtil.owns(REMOVE_ADS_PRODUCT);
 		#else
 		return false;
 		#end
 	}
 
+	static function get_onBreak():Bool
+	{
+		return ClientPrefs.adBreakUntil > Date.now().getTime();
+	}
+
+	static function get_breakMinutesLeft():Int
+	{
+		final left = ClientPrefs.adBreakUntil - Date.now().getTime();
+		return left > 0 ? Math.ceil(left / 60000) : 0;
+	}
+
 	static function get_bannerVisible():Bool
 	{
-		return bannerWanted && bannerLoaded && !showing;
+		return bannerShown && bannerLoaded;
 	}
 
 	static function get_interstitialLoaded():Bool
@@ -159,6 +189,11 @@ class AdUtil
 	static inline function now():Float
 	{
 		return haxe.Timer.stamp();
+	}
+
+	static inline function ruleFor(placement:AdPlacement):AdRule
+	{
+		return rules.get(placement) ?? {every: 1, cooldown: 120, delay: 0, banner: false};
 	}
 
 	public static function init():Void
@@ -200,7 +235,7 @@ class AdUtil
 
 		try
 		{
-			FlxG.signals.preUpdate.add(process);
+			FlxG.signals.preUpdate.add(update);
 
 			#if android
 			final method:Null<Dynamic> = lime.system.JNI.createStaticMethod('org/nightmarevision/AdsHelper', 'init', '(ZZZLorg/haxe/lime/HaxeObject;)V');
@@ -214,7 +249,7 @@ class AdUtil
 		catch (e:Dynamic)
 		{
 			initialized = false;
-			FlxG.signals.preUpdate.remove(process);
+			FlxG.signals.preUpdate.remove(update);
 			funkin.mobile.android.logcat.LogcatUtil.warn('Ads init failed: ' + e);
 		}
 
@@ -230,72 +265,81 @@ class AdUtil
 		ClientPrefs.flush();
 	}
 
+	public static function open(placement:AdPlacement):Void
+	{
+		#if (mobile && extension_admob)
+		if (!active.contains(placement)) active.push(placement);
+		if (!ready || !enabled) return;
+
+		final rule = ruleFor(placement);
+		final count = (counters.get(placement) ?? 0) + 1;
+		counters.set(placement, count);
+		if (count < rule.every || !canShow(placement)) return;
+
+		cancelTimer(placement);
+
+		if (rule.delay <= 0)
+		{
+			present(placement);
+			return;
+		}
+
+		timers.set(placement, haxe.Timer.delay(() -> {
+			timers.remove(placement);
+			FlxG.signals.preUpdate.addOnce(() -> if (active.contains(placement)) present(placement));
+		}, Std.int(rule.delay * 1000)));
+		#end
+	}
+
+	public static function close(placement:AdPlacement):Void
+	{
+		active.remove(placement);
+		cancelTimer(placement);
+	}
+
+	public static inline function pauseOpened():Void
+	{
+		open(PAUSE);
+	}
+
+	public static inline function pauseClosed():Void
+	{
+		close(PAUSE);
+	}
+
 	public static function songCompleted():Void
 	{
 		#if (mobile && extension_admob)
 		if (!ready || !enabled) return;
 
 		ClientPrefs.adSongs++;
-		if (ClientPrefs.adSongs < songsBetweenAds) return;
-		if (!canShow(SONG_END)) return;
+		if (ClientPrefs.adSongs < ruleFor(SONG_END).every) return;
 
-		if (showInterstitial())
-		{
-			ClientPrefs.adSongs = 0;
-			lastSongAdTime = now();
-		}
-		#end
-	}
-
-	public static function pauseOpened():Void
-	{
-		#if (mobile && extension_admob)
-		paused = true;
-		if (!ready || !enabled) return;
-
-		if (pauseBanner) showBanner();
-
-		pausesSinceAd++;
-		if (pausesSinceAd < pausesBetweenAds || !canShow(PAUSE)) return;
-
-		cancelPauseTimer();
-		pauseTimer = haxe.Timer.delay(() -> {
-			pauseTimer = null;
-			FlxG.signals.preUpdate.addOnce(() -> {
-				if (!paused || !canShow(PAUSE)) return;
-				if (showInterstitial())
-				{
-					pausesSinceAd = 0;
-					lastPauseAdTime = now();
-				}
-			});
-		}, Std.int(pauseAdDelay * 1000));
-		#end
-	}
-
-	public static function pauseClosed():Void
-	{
-		#if (mobile && extension_admob)
-		paused = false;
-		cancelPauseTimer();
-		hideBanner();
+		if (canShow(SONG_END) && present(SONG_END)) ClientPrefs.adSongs = 0;
 		#end
 	}
 
 	public static function canShow(placement:AdPlacement):Bool
 	{
-		if (!ready || !enabled || showing || !interstitialLoaded) return false;
+		if (!ready || !enabled || onBreak || showing || !interstitialLoaded) return false;
 		if (shownThisSession >= maxInterstitialsPerSession) return false;
 
 		final time = now();
 		if (time - startTime < firstAdDelay) return false;
 		if (lastAdTime > 0 && time - lastAdTime < minSecondsBetweenAds) return false;
 
-		return switch (placement)
-		{
-			case PAUSE: lastPauseAdTime <= 0 || time - lastPauseAdTime >= minSecondsBetweenPauseAds;
-			case SONG_END: lastSongAdTime <= 0 || time - lastSongAdTime >= minSecondsBetweenSongAds;
-		}
+		final last = lastShown.get(placement) ?? 0;
+		return last <= 0 || time - last >= ruleFor(placement).cooldown;
+	}
+
+	static function present(placement:AdPlacement):Bool
+	{
+		if (!canShow(placement) || !showInterstitial()) return false;
+
+		counters.set(placement, 0);
+		lastShown.set(placement, now());
+		funkin.mobile.android.logcat.LogcatUtil.info('Ad shown: ' + placement);
+		return true;
 	}
 
 	public static function showInterstitial():Bool
@@ -341,81 +385,18 @@ class AdUtil
 		#end
 	}
 
-	public static function showBanner():Void
+	public static function watchForBreak(onFinished:Bool->Void):Bool
 	{
-		#if (mobile && extension_admob)
-		bannerWanted = true;
-		if (!ready || !enabled) return;
-
-		if (!bannerCreated) createBanner();
-		#if android
-		setNativeBanner(!showing);
-		#end
-		#end
+		return showRewarded((earned) -> {
+			if (earned)
+			{
+				final base = Math.max(Date.now().getTime(), ClientPrefs.adBreakUntil);
+				ClientPrefs.adBreakUntil = base + adBreakMinutes * 60000;
+				ClientPrefs.flush();
+			}
+			onFinished(earned);
+		});
 	}
-
-	public static function hideBanner():Void
-	{
-		#if (mobile && extension_admob)
-		bannerWanted = false;
-
-		#if android
-		setNativeBanner(false);
-		#else
-		destroyBanner();
-		#end
-		#end
-	}
-
-	static function createBanner():Void
-	{
-		#if (mobile && extension_admob)
-		if (bannerCreated || !ready || !enabled) return;
-
-		bannerCreated = true;
-		bannerLoaded = false;
-		try
-		{
-			Admob.showBanner(bannerUnit(), AdmobBannerSize.BANNER, AdmobBannerAlign.BOTTOM_RIGHT);
-			#if android
-			setNativeBanner(bannerWanted && !showing);
-			#end
-		}
-		catch (e:Dynamic)
-		{
-			bannerCreated = false;
-		}
-		#end
-	}
-
-	static function destroyBanner():Void
-	{
-		#if (mobile && extension_admob)
-		if (!bannerCreated) return;
-
-		bannerCreated = false;
-		bannerLoaded = false;
-		try
-		{
-			Admob.hideBanner();
-		}
-		catch (e:Dynamic) {}
-		#end
-	}
-
-	#if android
-	static function setNativeBanner(visible:Bool):Void
-	{
-		if (!bannerCreated) return;
-
-		try
-		{
-			final method:Null<Dynamic> = lime.system.JNI.createStaticMethod('org/nightmarevision/AdsHelper', 'setBannerVisible', '(Z)V');
-			if (method != null) method(visible);
-		}
-		catch (e:Dynamic) {}
-	}
-	#end
 
 	public static function removeAds():Void
 	{
@@ -428,8 +409,8 @@ class AdUtil
 	{
 		if (enabled) return;
 
-		cancelPauseTimer();
-		bannerWanted = false;
+		for (placement in [for (key in timers.keys()) key])
+			cancelTimer(placement);
 		destroyBanner();
 		interstitialTime = -1;
 	}
@@ -463,11 +444,115 @@ class AdUtil
 		return false;
 	}
 
-	static function cancelPauseTimer():Void
+	static function cancelTimer(placement:AdPlacement):Void
 	{
-		if (pauseTimer == null) return;
-		pauseTimer.stop();
-		pauseTimer = null;
+		final timer = timers.get(placement);
+		if (timer == null) return;
+		timer.stop();
+		timers.remove(placement);
+	}
+
+	static function wantsBanner():Bool
+	{
+		if (!ready || !enabled || onBreak || showing) return false;
+
+		for (placement in active)
+			if (ruleFor(placement).banner) return true;
+
+		return false;
+	}
+
+	static function createBanner():Void
+	{
+		#if (mobile && extension_admob)
+		if (bannerCreated || !ready || !enabled) return;
+
+		bannerCreated = true;
+		bannerLoaded = false;
+		bannerShown = true;
+		try
+		{
+			Admob.showBanner(bannerUnit(), AdmobBannerSize.BANNER, (bannerAlign : AdmobBannerAlign));
+		}
+		catch (e:Dynamic)
+		{
+			bannerCreated = false;
+			bannerShown = false;
+		}
+		#end
+	}
+
+	static function destroyBanner():Void
+	{
+		#if (mobile && extension_admob)
+		if (!bannerCreated) return;
+
+		bannerCreated = false;
+		bannerLoaded = false;
+		bannerShown = false;
+		try
+		{
+			Admob.hideBanner();
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
+
+	static function setBannerShown(visible:Bool, force:Bool = false):Void
+	{
+		if (!bannerCreated || (!force && bannerShown == visible)) return;
+		bannerShown = visible;
+
+		#if android
+		try
+		{
+			final method:Null<Dynamic> = lime.system.JNI.createStaticMethod('org/nightmarevision/AdsHelper', 'setBannerVisible', '(Z)V');
+			if (method != null) method(visible);
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
+
+	static function syncBanner():Void
+	{
+		final wanted = wantsBanner();
+
+		if (!bannerCreated && ready && enabled && now() >= bannerRetryAt && (wanted #if android || true #end))
+		{
+			createBanner();
+			#if android
+			if (!wanted) setBannerShown(false, true);
+			#end
+		}
+
+		if (wanted)
+		{
+			bannerOffSince = -1;
+			#if android
+			setBannerShown(true);
+			#end
+			return;
+		}
+
+		if (!bannerCreated) return;
+
+		if (bannerOffSince < 0) bannerOffSince = now();
+		if (now() - bannerOffSince < bannerHideDelay && !showing) return;
+
+		#if android
+		if (enabled) setBannerShown(false);
+		else destroyBanner();
+		#else
+		destroyBanner();
+		#end
+	}
+
+	static function update():Void
+	{
+		#if (mobile && extension_admob)
+		process();
+		#end
+		syncBanner();
 	}
 
 	#if (mobile && extension_admob)
@@ -515,13 +600,10 @@ class AdUtil
 				funkin.mobile.android.logcat.LogcatUtil.info('Ads ready: ' + value);
 				loadInterstitial();
 				loadRewarded();
-				#if android
-				if (pauseBanner) createBanner();
-				#end
-				if (paused && pauseBanner) showBanner();
 
 			case 'INIT_FAILED':
 				initialized = false;
+				FlxG.signals.preUpdate.remove(update);
 				funkin.mobile.android.logcat.LogcatUtil.warn('Ads init failed: ' + value);
 
 			case AdmobEvent.CONSENT_FAIL:
@@ -530,23 +612,14 @@ class AdUtil
 			case AdmobEvent.BANNER_LOADED:
 				bannerLoaded = true;
 				bannerRetries = 0;
-				#if android
-				setNativeBanner(bannerWanted && !showing);
-				#else
-				if (!bannerWanted) destroyBanner();
-				#end
+				setBannerShown(wantsBanner(), true);
 
 			case AdmobEvent.BANNER_FAILED_TO_LOAD:
 				if (value != null && value.indexOf('Hide previous banner') >= 0) return;
 				funkin.mobile.android.logcat.LogcatUtil.warn('Banner failed: ' + value);
 				destroyBanner();
-				retry(() -> {
-					#if android
-					createBanner();
-					#else
-					if (bannerWanted) createBanner();
-					#end
-				}, bannerRetries++);
+				if (retryDelays.length > 0) bannerRetryAt = now() + retryDelays[Std.int(Math.min(bannerRetries, retryDelays.length - 1))];
+				bannerRetries++;
 
 			case AdmobEvent.INTERSTITIAL_LOADED:
 				interstitialLoading = false;
@@ -556,6 +629,7 @@ class AdUtil
 			case AdmobEvent.INTERSTITIAL_FAILED_TO_LOAD:
 				interstitialLoading = false;
 				interstitialTime = -1;
+				funkin.mobile.android.logcat.LogcatUtil.warn('Interstitial failed: ' + value);
 				retry(loadInterstitial, interstitialRetries++);
 
 			case AdmobEvent.INTERSTITIAL_FAILED_TO_SHOW:
@@ -574,6 +648,7 @@ class AdUtil
 			case AdmobEvent.REWARDED_FAILED_TO_LOAD:
 				rewardedLoading = false;
 				rewardedTime = -1;
+				funkin.mobile.android.logcat.LogcatUtil.warn('Rewarded failed: ' + value);
 				retry(loadRewarded, rewardedRetries++);
 
 			case AdmobEvent.REWARDED_EARNED:
@@ -628,12 +703,7 @@ class AdUtil
 		showing = true;
 		savedMute = FlxG.sound.muted;
 		FlxG.sound.muted = true;
-
-		#if android
-		setNativeBanner(false);
-		#else
-		destroyBanner();
-		#end
+		syncBanner();
 	}
 
 	static function endShowing(shown:Bool):Void
@@ -648,8 +718,6 @@ class AdUtil
 			shownThisSession++;
 			ClientPrefs.flush();
 		}
-
-		if (paused && pauseBanner) showBanner();
 	}
 	#end
 

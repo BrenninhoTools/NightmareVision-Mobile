@@ -93,6 +93,8 @@ class ClientPrefs
 	
 	@saveVar public static var adsGuardVersion:String = '';
 	
+	@saveVar public static var adBreakUntil:Float = 0;
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

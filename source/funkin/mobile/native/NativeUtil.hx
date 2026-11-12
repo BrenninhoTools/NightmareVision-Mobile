@@ -307,6 +307,16 @@ class NativeUtil
 		#end
 	}
 	
+	public static function openDataFolder(folder:String):Bool
+	{
+		#if android
+		final func = jni('openDataFolder', '(Ljava/lang/String;)Z');
+		return func != null && func(folder ?? '') == true;
+		#else
+		return false;
+		#end
+	}
+	
 	public static function supportsCoreHaptics():Bool
 	{
 		#if ios

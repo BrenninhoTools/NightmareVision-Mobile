@@ -941,4 +941,62 @@ public class NativeHelper extends Extension
 		}, 60f);
 		return rate;
 	}
+
+	public static boolean openDataFolder(String relative)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null) return false;
+
+		String authority = activity.getPackageName() + ".documents";
+		String rootId = "nightmarevision";
+		String clean = relative != null ? relative.replace('\\', '/').replaceAll("^/+|/+$", "") : "";
+
+		try
+		{
+			File base = activity.getExternalFilesDir(null);
+			if (base != null && clean.length() > 0)
+			{
+				File folder = new File(base, clean);
+				if (!folder.isDirectory()) folder.mkdirs();
+			}
+		}
+		catch (Throwable e) {}
+
+		Uri folderUri = android.provider.DocumentsContract.buildDocumentUri(authority, clean.length() > 0 ? rootId + "/" + clean : rootId);
+		Uri rootUri = android.provider.DocumentsContract.buildRootUri(authority, rootId);
+
+		if (startView(activity, folderUri, android.provider.DocumentsContract.Document.MIME_TYPE_DIR)) return true;
+		if (startView(activity, folderUri, null)) return true;
+		if (startView(activity, rootUri, "vnd.android.document/root")) return true;
+
+		try
+		{
+			Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			if (Build.VERSION.SDK_INT >= 26) intent.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, folderUri);
+			activity.startActivity(intent);
+			return true;
+		}
+		catch (Throwable e)
+		{
+			return false;
+		}
+	}
+
+	private static boolean startView(Activity activity, Uri uri, String type)
+	{
+		try
+		{
+			Intent intent = new Intent(Intent.ACTION_VIEW);
+			if (type != null) intent.setDataAndType(uri, type);
+			else intent.setData(uri);
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+			activity.startActivity(intent);
+			return true;
+		}
+		catch (Throwable e)
+		{
+			return false;
+		}
+	}
 }

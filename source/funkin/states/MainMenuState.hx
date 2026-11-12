@@ -138,6 +138,9 @@ class MainMenuState extends MusicBeatState
 		editorButton.alpha = funkin.mobile.util.MobileUtil.buttonAlpha;
 		editorButton.cameras = [mobileCamera];
 		add(editorButton);
+		
+		final folderButton = funkin.mobile.android.util.DataFolderUtil.createButton(mobileCamera);
+		if (folderButton != null) add(folderButton);
 		#end
 		
 		super.create();

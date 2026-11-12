@@ -225,6 +225,8 @@ class ModManager implements IFlxDestroyable
 		return (getCenterX(player, keys) + getStrumX(direction, keys));
 	}
 	
+	public static var arrowsPlayerLift:Float = 45;
+
 	public static var arrowsOpponentScale:Float = 0.5;
 	
 	public static var arrowsOpponentLeft:Float = -1;
@@ -348,6 +350,8 @@ class ModManager implements IFlxDestroyable
 				pos = mod.getPos(time, diff, tDiff, beat, pos, data, player, obj);
 			}
 		}
+		
+		if (arrowsLayout && player == 0) pos.y -= arrowsPlayerLift;
 		
 		return pos;
 	}

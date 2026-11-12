@@ -77,6 +77,10 @@ class ClientPrefs
 	
 	@saveVar public static var astcTextures:Bool = true;
 	
+	@saveVar public static var reviewSongs:Int = 0;
+	
+	@saveVar public static var reviewLastAsked:Float = 0;
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

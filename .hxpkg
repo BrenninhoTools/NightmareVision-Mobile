@@ -45,6 +45,11 @@
                 "branch": "8978b34b437f943a0d164bd6b3d8b69bd0025081"
             },
             {
+                "name": "extension-iarcore",
+                "link": "https://github.com/LimeExtensions/extension-iarcore",
+                "branch": "a78e49fe69feecef9abcdbcfd08ccc510ed00c6c"
+            },
+            {
                 "name": "hxvlc",
                 "version": "2.3.0"
             },

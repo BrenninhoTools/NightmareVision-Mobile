@@ -2775,6 +2775,10 @@ class PlayState extends MusicBeatState
 			if (Math.isNaN(percent)) percent = 0;
 			Highscore.saveScore(SONG.song, songScore, storyMeta.difficulty, percent);
 			
+			#if mobile
+			if (!chartingMode && !cpuControlled) funkin.mobile.native.ReviewUtil.songCompleted();
+			#end
+			
 			if (chartingMode)
 			{
 				openChartEditor();

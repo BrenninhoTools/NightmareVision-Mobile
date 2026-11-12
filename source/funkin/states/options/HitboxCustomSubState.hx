@@ -27,7 +27,7 @@ class HitboxCustomSubState extends UISubState
 {
 	public static final LANE_NAMES:Array<String> = ['Left', 'Down', 'Up', 'Right'];
 
-	public static final MODE_LABELS:Array<String> = ['Lanes', 'Triangle', 'Arrows', 'Pad Left', 'Pad Right', 'Double Pad'];
+	public static final MODE_LABELS:Array<String> = ['Lanes', 'Triangle', 'Circle', 'Arrows', 'Pad Left', 'Pad Right', 'Double Pad'];
 
 	public static final IMAGE_EXTENSIONS:Array<String> = ['png', 'jpg', 'jpeg'];
 
@@ -463,7 +463,7 @@ class HitboxCustomSubState extends UISubState
 	function colorsEditable():Bool
 	{
 		final mode = ClientPrefs.hitboxMode;
-		return mode == 'Triangle' || (mode == 'Four Lanes' && customImage == null);
+		return mode == 'Triangle' || mode == 'Circle' || (mode == 'Four Lanes' && customImage == null);
 	}
 
 	function showPage(rgb:Bool):Void
@@ -677,7 +677,7 @@ class HitboxCustomSubState extends UISubState
 	{
 		final editable = colorsEditable();
 
-		if (!Hitbox.usesColors(ClientPrefs.hitboxMode)) rgbNotice.text = 'Colors can only be changed\nin Four Lanes or Triangle mode.';
+		if (!Hitbox.usesColors(ClientPrefs.hitboxMode)) rgbNotice.text = 'Colors can only be changed\nin Lanes, Triangle or Circle mode.';
 		else if (customImage != null) rgbNotice.text = 'A custom image is in use.\nUse Reset Hitbox to use colors again.';
 		else rgbNotice.text = '';
 
@@ -700,6 +700,7 @@ class HitboxCustomSubState extends UISubState
 		previewItems = [];
 		lanes = [];
 		previewTriangle = false;
+		previewCircle = false;
 		remove(previewLabel, true);
 	}
 
@@ -744,6 +745,18 @@ class HitboxCustomSubState extends UISubState
 				}
 				previewLabel.text = ClientPrefs.hitboxMode;
 
+			case 'Circle':
+				previewCircle = true;
+				for (i in 0...4)
+				{
+					final bounds = Hitbox.circleBounds(i, previewWidth, previewHeight);
+					final lane = addPreview(new FlxSprite().loadGraphic(Hitbox.createCircleGraphic(bounds.width, FlxColor.WHITE)));
+					lane.setPosition(previewX + bounds.x, previewY + bounds.y);
+					lane.color = colors[i];
+					lanes.push(lane);
+				}
+				previewLabel.text = 'Tap a circle to edit its color';
+
 			case 'Triangle':
 				previewTriangle = true;
 				for (i in 0...4)
@@ -778,6 +791,8 @@ class HitboxCustomSubState extends UISubState
 
 	var previewTriangle:Bool = false;
 
+	var previewCircle:Bool = false;
+
 	function highlightLanes():Void
 	{
 		final rgbOpen = rgbPage != null && !rgbPage.hidden;
@@ -795,6 +810,8 @@ class HitboxCustomSubState extends UISubState
 		final localX = x - previewX;
 		final localY = y - previewY;
 		if (localX < 0 || localY < 0 || localX >= previewWidth || localY >= previewHeight) return -1;
+
+		if (previewCircle) return Hitbox.circleLaneAt(localX, localY, previewWidth, previewHeight);
 
 		if (previewTriangle)
 		{

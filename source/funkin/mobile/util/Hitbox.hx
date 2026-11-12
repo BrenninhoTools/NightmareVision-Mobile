@@ -17,11 +17,11 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 {
 	public static final COLORS:Array<FlxColor> = [0xFFC24B99, 0xFF00FFFF, 0xFF12FA05, 0xFFF9393F];
 
-	public static final MODES:Array<String> = ['Four Lanes', 'Triangle', 'Arrows', 'D-Pad Left', 'D-Pad Right', 'Double D-Pad'];
+	public static final MODES:Array<String> = ['Four Lanes', 'Triangle', 'Circle', 'Arrows', 'D-Pad Left', 'D-Pad Right', 'Double D-Pad'];
 
 	public static function usesColors(mode:String):Bool
 	{
-		return mode == 'Four Lanes' || mode == 'Triangle';
+		return mode == 'Four Lanes' || mode == 'Triangle' || mode == 'Circle';
 	}
 
 	public static function build(actions:Array<String>, camera:FlxCamera):Hitbox
@@ -37,6 +37,8 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 				hitbox.applyDoubleDPad();
 			case 'Triangle':
 				hitbox.applyTriangle();
+			case 'Circle':
+				hitbox.applyCircle();
 			case 'Four Lanes':
 				final image = loadCustomImage();
 				if (image != null)
@@ -206,6 +208,88 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		final bitmap = new BitmapData(Std.int(Math.max(1, Math.ceil(bounds.width))), Std.int(Math.max(1, Math.ceil(bounds.height))), true, FlxColor.TRANSPARENT);
 		bitmap.draw(shape, null, null, null, null, true);
 		return bitmap;
+	}
+
+	public static var circleCenterY:Float = 0.58;
+
+	public static var circleTolerance:Float = 1.2;
+
+	public static function circleBounds(index:Int, width:Float, height:Float):Rectangle
+	{
+		final laneWidth = width / 4;
+		final radius = Math.min(laneWidth * 0.46, height * 0.4);
+		final centerX = laneWidth * (index + 0.5);
+		final centerY = height * circleCenterY;
+		return new Rectangle(centerX - radius, centerY - radius, radius * 2, radius * 2);
+	}
+
+	public static function circleLaneAt(x:Float, y:Float, width:Float, height:Float, padding:Float = 0, ?preferred:Int = -1):Int
+	{
+		var best = -1;
+		var bestDistance = Math.POSITIVE_INFINITY;
+
+		for (index in 0...4)
+		{
+			final bounds = circleBounds(index, width, height);
+			final radius = bounds.width / 2;
+			final dx = x - (bounds.x + radius);
+			final dy = y - (bounds.y + radius);
+			final distance = Math.sqrt(dx * dx + dy * dy);
+			final reach = radius * circleTolerance + padding;
+			if (distance > reach) continue;
+
+			final score = distance / radius - (index == preferred ? padding / radius : 0);
+			if (score < bestDistance)
+			{
+				bestDistance = score;
+				best = index;
+			}
+		}
+
+		return best;
+	}
+
+	public static function createCircleGraphic(diameter:Float, color:FlxColor):BitmapData
+	{
+		final size = Std.int(Math.max(2, Math.ceil(diameter)));
+		final shape = new openfl.display.Shape();
+		final graphics = shape.graphics;
+		final radius = size / 2;
+
+		graphics.lineStyle(borderSize, color.rgb, 1);
+		graphics.beginFill(color.rgb, fillAlpha);
+		graphics.drawCircle(radius, radius, radius - borderSize / 2 - 1);
+		graphics.endFill();
+
+		graphics.lineStyle(borderSize * 0.6, color.rgb, 0.5);
+		graphics.drawCircle(radius, radius, radius * 0.62);
+
+		final bitmap = new BitmapData(size, size, true, FlxColor.TRANSPARENT);
+		bitmap.draw(shape, null, null, null, null, true);
+		return bitmap;
+	}
+
+	public var circle(default, null):Bool = false;
+
+	public function applyCircle():Void
+	{
+		if (members.length < 4) return;
+
+		circle = true;
+
+		for (index in 0...4)
+		{
+			final lane = members[index];
+			if (lane == null) continue;
+
+			final bounds = circleBounds(index, FlxG.width, FlxG.height);
+			lane.loadGraphic(createCircleGraphic(bounds.width, getColor(index)));
+			lane.setPosition(bounds.x, bounds.y);
+			lane.updateHitbox();
+
+			final laneIndex = index;
+			lane.hitTest = (x, y, padding) -> circleLaneAt(x, y, FlxG.width, FlxG.height, padding, laneIndex) == laneIndex;
+		}
 	}
 
 	public function applyTriangle():Void

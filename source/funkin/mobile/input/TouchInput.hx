@@ -91,12 +91,53 @@ class TouchInput
 
 	static var lastScrollFrame:Int = -100;
 
-	static function scheduleScroll(action:String, delayFrames:Int):Void
+	static function scheduleScroll(action:String, delayFrames:Int, tick:Float = 1):Void
 	{
 		var target = frame + Std.int(Math.max(0, delayFrames));
 		if (target < lastScrollFrame + 2) target = lastScrollFrame + 2;
 		lastScrollFrame = target;
-		pulse(action, target - frame);
+
+		if (target == frame)
+		{
+			pulse(action);
+			Haptics.scroll(tick);
+		}
+		else
+		{
+			queued.push({action: action, frame: target, tick: tick});
+		}
+	}
+
+	static final profileStack:Array<Array<Float>> = [];
+
+	public static function pushRelaxedScroll():Void
+	{
+		pushScrollProfile(125, 0.9, 1, 2, 1.7, 3.4);
+	}
+
+	public static function pushScrollProfile(distance:Float, continueRatio:Float, stepsPerFrame:Int, flickSteps:Int, decay:Float, flickThreshold:Float):Void
+	{
+		profileStack.push([swipeDistance, TouchInput.continueRatio, maxStepsPerFrame, maxFlickSteps, flickDecay, flickSpeed]);
+		swipeDistance = distance;
+		TouchInput.continueRatio = continueRatio;
+		maxStepsPerFrame = stepsPerFrame;
+		maxFlickSteps = flickSteps;
+		flickDecay = decay;
+		flickSpeed = flickThreshold;
+	}
+
+	public static function popScrollProfile():Void
+	{
+		final saved = profileStack.pop();
+		if (saved == null) return;
+
+		swipeDistance = saved[0];
+		continueRatio = saved[1];
+		maxStepsPerFrame = Std.int(saved[2]);
+		maxFlickSteps = Std.int(saved[3]);
+		flickDecay = saved[4];
+		flickSpeed = saved[5];
+		cancelMomentum();
 	}
 
 	public static function cancelMomentum():Void
@@ -245,7 +286,7 @@ class TouchInput
 
 	static final pulses:Array<String> = [];
 
-	static final queued:Array<{action:String, frame:Int}> = [];
+	static final queued:Array<{action:String, frame:Int, ?tick:Float}> = [];
 
 	static var current:Map<String, Bool> = [];
 
@@ -397,7 +438,9 @@ class TouchInput
 		{
 			if (queued[i].frame <= frame)
 			{
-				pulse(queued[i].action);
+				final entry = queued[i];
+				pulse(entry.action);
+				if (entry.tick != null) Haptics.scroll(entry.tick);
 				queued.splice(i, 1);
 			}
 		}
@@ -768,11 +811,7 @@ class TouchInput
 		gesture.steps++;
 		lastSwipe = direction;
 		scheduleScroll(actionFor(direction), delayFrames);
-		if (delayFrames == 0)
-		{
-			Haptics.scroll();
-			onSwipe.dispatch(direction);
-		}
+		if (delayFrames == 0) onSwipe.dispatch(direction);
 	}
 
 	static function flick(gesture:TouchGesture):Void
@@ -798,7 +837,7 @@ class TouchInput
 		{
 			delay += interval;
 			interval *= flickDecay;
-			scheduleScroll(action, Std.int(Math.round(delay)));
+			scheduleScroll(action, Std.int(Math.round(delay)), Math.max(0.3, 0.85 - step * 0.12));
 		}
 	}
 

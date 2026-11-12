@@ -58,8 +58,24 @@ class OptionsState extends MusicBeatState
 	var selectorLeft:Alphabet;
 	var selectorRight:Alphabet;
 	
+	#if mobile
+	var relaxedScroll:Bool = false;
+	
+	override function destroy()
+	{
+		if (relaxedScroll) funkin.mobile.input.TouchInput.popScrollProfile();
+		relaxedScroll = false;
+		super.destroy();
+	}
+	#end
+	
 	override function create()
 	{
+		#if mobile
+		funkin.mobile.input.TouchInput.pushRelaxedScroll();
+		relaxedScroll = true;
+		#end
+
 		DiscordClient.changePresence("Options Menu");
 		
 		// if(funkin.data.ModOptions.options.)

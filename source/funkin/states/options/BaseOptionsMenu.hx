@@ -33,9 +33,25 @@ class BaseOptionsMenu extends MusicBeatSubstate
 	public var rpcTitle:String;
 	public var titleText:Alphabet;
 	
+	#if mobile
+	var relaxedScroll:Bool = false;
+	
+	override function destroy()
+	{
+		if (relaxedScroll) funkin.mobile.input.TouchInput.popScrollProfile();
+		relaxedScroll = false;
+		super.destroy();
+	}
+	#end
+	
 	public function new()
 	{
 		super();
+		
+		#if mobile
+		funkin.mobile.input.TouchInput.pushRelaxedScroll();
+		relaxedScroll = true;
+		#end
 		
 		if (title == null) title = 'Options';
 		if (rpcTitle == null) rpcTitle = 'Options Menu';

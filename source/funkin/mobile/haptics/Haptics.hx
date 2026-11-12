@@ -173,10 +173,10 @@ class Haptics
 		play(LIGHT);
 	}
 
-	public static function scroll():Void
+	public static function scroll(strength:Float = 1):Void
 	{
-		if (notesOnly || level < 2 || !throttle(SCROLL, 30)) return;
-		play(SELECTION);
+		if (notesOnly || level < 1 || strength <= 0 || !throttle(SCROLL, 35)) return;
+		play(SELECTION, (level >= 2 ? 1 : 0.75) * strength, 0.95);
 	}
 
 	public static function button():Void

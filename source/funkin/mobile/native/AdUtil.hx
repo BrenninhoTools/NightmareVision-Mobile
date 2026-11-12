@@ -71,6 +71,16 @@ class AdUtil
 
 	static var initialized:Bool = false;
 
+	static var scheduled:Bool = false;
+
+	public static var blocked(default, null):Bool = false;
+
+	public static var startDelay:Float = 2.5;
+
+	public static var maxInitAttempts:Int = 2;
+
+	public static var stableSeconds:Float = 45;
+
 	static var interstitialTime:Float = -1;
 
 	static var rewardedTime:Float = -1;
@@ -143,22 +153,70 @@ class AdUtil
 	public static function init():Void
 	{
 		#if (mobile && extension_admob)
+		if (initialized || scheduled || !enabled) return;
+		scheduled = true;
+
+		haxe.Timer.delay(() -> FlxG.signals.preUpdate.addOnce(start), Std.int(startDelay * 1000));
+		#end
+	}
+
+	static function start():Void
+	{
+		#if (mobile && extension_admob)
+		scheduled = false;
 		if (initialized || !enabled) return;
+
+		final version:String = lime.app.Application.current?.meta.get('version') ?? '';
+		if (ClientPrefs.adsGuardVersion != version)
+		{
+			ClientPrefs.adsGuardVersion = version;
+			ClientPrefs.adsInitAttempts = 0;
+		}
+
+		if (ClientPrefs.adsInitAttempts >= maxInitAttempts)
+		{
+			blocked = true;
+			funkin.mobile.android.logcat.LogcatUtil.warn('Ads disabled, the last ' + maxInitAttempts + ' starts closed the game');
+			return;
+		}
+
+		ClientPrefs.adsInitAttempts++;
+		ClientPrefs.flush();
+
 		initialized = true;
 		startTime = now();
+		funkin.mobile.android.logcat.LogcatUtil.mark('Ads: init');
 
 		try
 		{
-			Admob.onEvent.add(queue);
 			FlxG.signals.preUpdate.add(process);
+
+			#if android
+			final method:Null<Dynamic> = lime.system.JNI.createStaticMethod('org/nightmarevision/AdsHelper', 'init', '(ZZZLorg/haxe/lime/HaxeObject;)V');
+			if (method == null) throw 'AdsHelper not found';
+			method(testMode, false, false, new AdsCallback());
+			#else
+			Admob.onEvent.add(queue);
 			Admob.init(testMode, false, false);
+			#end
 		}
 		catch (e:Dynamic)
 		{
 			initialized = false;
+			FlxG.signals.preUpdate.remove(process);
 			funkin.mobile.android.logcat.LogcatUtil.warn('Ads init failed: ' + e);
 		}
+
+		haxe.Timer.delay(markStable, Std.int(stableSeconds * 1000));
 		#end
+	}
+
+	static function markStable():Void
+	{
+		if (ClientPrefs.adsInitAttempts == 0) return;
+
+		ClientPrefs.adsInitAttempts = 0;
+		ClientPrefs.flush();
 	}
 
 	public static function songCompleted():Void
@@ -358,12 +416,16 @@ class AdUtil
 	#if (mobile && extension_admob)
 	static function queue(event:AdmobEvent):Void
 	{
-		if (event == null) return;
+		if (event != null) push(event.name, event.value);
+	}
 
+	@:allow(funkin.mobile.native.AdsCallback)
+	static function push(name:String, value:Null<String>):Void
+	{
 		#if target.threaded
 		lock.acquire();
 		#end
-		pending.push({name: event.name, value: event.value});
+		pending.push({name: name, value: value});
 		#if target.threaded
 		lock.release();
 		#end
@@ -392,9 +454,15 @@ class AdUtil
 		{
 			case AdmobEvent.INIT_OK:
 				ready = true;
+				markStable();
+				funkin.mobile.android.logcat.LogcatUtil.info('Ads ready: ' + value);
 				loadInterstitial();
 				loadRewarded();
 				if (paused && pauseBanner) showBanner();
+
+			case 'INIT_FAILED':
+				initialized = false;
+				funkin.mobile.android.logcat.LogcatUtil.warn('Ads init failed: ' + value);
 
 			case AdmobEvent.CONSENT_FAIL:
 				funkin.mobile.android.logcat.LogcatUtil.warn('Ads consent failed: ' + value);
@@ -543,3 +611,17 @@ class AdUtil
 		#end
 	}
 }
+
+#if (android && extension_admob)
+class AdsCallback implements lime.system.JNI.JNISafety
+{
+	public function new() {}
+
+	@:keep
+	@:runOnMainThread
+	public function onEvent(event:String, value:String):Void
+	{
+		AdUtil.push(event, value);
+	}
+}
+#end

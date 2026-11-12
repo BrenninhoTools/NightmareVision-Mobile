@@ -51,6 +51,13 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		title = 'Mobile Options';
 		rpcTitle = 'Mobile Options Menu';
 		
+		var option:Option = new Option('Restore Purchases', 'Restores anything you bought in the store on this account,\nthen goes back to the title screen.', 'hitboxMode', BUTTON);
+		option.callback = () -> {
+			FlxG.sound.play(Paths.sound('confirmMenu'));
+			FlxG.switchState(() -> new funkin.mobile.states.RestorePurchasesState());
+		};
+		addOption(option);
+		
 		var option:Option = new Option('Hitbox Custom', 'Preview the hitbox, import an image, change its colors\nwith RGB and set its alpha.', 'hitboxMode', BUTTON);
 		option.callback = openHitboxCustom;
 		addOption(option);

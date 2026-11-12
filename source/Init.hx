@@ -27,6 +27,7 @@ class Init extends FlxState
 		funkin.mobile.EditorTouchSupport.init();
 		funkin.mobile.haptics.Haptics.init();
 		funkin.mobile.native.ReviewUtil.init();
+		funkin.mobile.native.PurchaseUtil.init();
 		funkin.mobile.input.ExternalInput.init();
 		funkin.mobile.ui.TouchCursor.init();
 		#end

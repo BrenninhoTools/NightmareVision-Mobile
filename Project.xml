@@ -72,6 +72,7 @@
     <haxelib name="extension-androidtools" version="2.2.2" if="android"/>
     <haxelib name="extension-haptics" if="mobile"/>
     <haxelib name="extension-iarcore" if="mobile"/>
+    <haxelib name="extension-iapcore" if="mobile"/>
     <java path="projFiles/android/java" if="android"/>
     <dependency name="nmv-documents" path="projFiles/android/documents" if="android"/>
 

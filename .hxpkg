@@ -50,6 +50,11 @@
                 "branch": "a78e49fe69feecef9abcdbcfd08ccc510ed00c6c"
             },
             {
+                "name": "extension-iapcore",
+                "link": "https://github.com/LimeExtensions/extension-iapcore",
+                "branch": "fd22c391be8bb59ded6c0b3f5fcc5f6358dd8897"
+            },
+            {
                 "name": "hxvlc",
                 "version": "2.3.0"
             },

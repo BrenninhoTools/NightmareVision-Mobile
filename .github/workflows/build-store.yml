@@ -1,0 +1,125 @@
+name: Store Build
+
+on:
+    workflow_dispatch:
+        inputs:
+            platform:
+                description: Platforms to build
+                type: choice
+                default: both
+                options:
+                    - both
+                    - android
+                    - ios
+            buildNumber:
+                description: Build number (Android versionCode / iOS CFBundleVersion). Empty uses the run number plus 100
+                required: false
+                type: string
+            upload:
+                description: Upload to Google Play and App Store Connect after building
+                type: boolean
+                default: false
+            playTrack:
+                description: Google Play track
+                type: choice
+                default: internal
+                options:
+                    - internal
+                    - alpha
+                    - beta
+                    - production
+            playStatus:
+                description: Google Play release status
+                type: choice
+                default: draft
+                options:
+                    - draft
+                    - completed
+            clean:
+                description: Ignore build caches
+                type: boolean
+                default: false
+
+permissions:
+    contents: read
+
+concurrency:
+    group: store-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    Version:
+        runs-on: ubuntu-24.04
+        outputs:
+            number: ${{ steps.number.outputs.value }}
+        steps:
+            - name: Resolve build number
+              id: number
+              run: |
+                set -euo pipefail
+                VALUE="${{ inputs.buildNumber }}"
+                if [ -z "$VALUE" ]; then VALUE=$(( ${{ github.run_number }} + 100 )); fi
+                case "$VALUE" in
+                  ''|*[!0-9]*) echo "::error::Build number must be a positive integer"; exit 1 ;;
+                esac
+                echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+                echo "### Store build $VALUE" >> "$GITHUB_STEP_SUMMARY"
+
+    Build:
+        needs: Version
+        uses: ./.github/workflows/main.yml
+        with:
+            platform: ${{ inputs.platform }}
+            clean: ${{ inputs.clean }}
+            store: true
+            buildNumber: ${{ needs.Version.outputs.number }}
+        secrets: inherit
+
+    GooglePlay:
+        needs: [Version, Build]
+        if: ${{ inputs.upload && (inputs.platform == 'both' || inputs.platform == 'android') }}
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        steps:
+            - name: Download AAB
+              uses: actions/download-artifact@v5
+              with:
+                name: NightmareVision (Android Store)
+                path: store
+
+            - name: Upload to Google Play
+              uses: r0adkll/upload-google-play@v1
+              with:
+                serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+                packageName: com.nmvTeam.nightmareEngine
+                releaseFiles: store/NightmareVision.aab
+                releaseName: ${{ needs.Version.outputs.number }}
+                track: ${{ inputs.playTrack }}
+                status: ${{ inputs.playStatus }}
+
+    AppStore:
+        needs: [Version, Build]
+        if: ${{ inputs.upload && (inputs.platform == 'both' || inputs.platform == 'ios') }}
+        runs-on: macos-latest
+        timeout-minutes: 30
+        steps:
+            - name: Download IPA
+              uses: actions/download-artifact@v5
+              with:
+                name: NightmareVision (iOS Store)
+                path: store
+
+            - name: Upload to App Store Connect
+              env:
+                API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+                API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+                API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+              run: |
+                set -euo pipefail
+                for name in API_KEY_ID API_ISSUER_ID API_KEY; do
+                  if [ -z "${!name}" ]; then echo "::error::Missing secret for $name"; exit 1; fi
+                done
+                mkdir -p "$HOME/.appstoreconnect/private_keys"
+                printf '%s' "$API_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8"
+                xcrun altool --upload-app --type ios --file store/NightmareVision.ipa --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+                rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8"

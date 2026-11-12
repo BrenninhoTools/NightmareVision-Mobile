@@ -57,6 +57,14 @@ on:
                 required: false
                 type: boolean
                 default: true
+            store:
+                required: false
+                type: boolean
+                default: false
+            buildNumber:
+                required: false
+                type: string
+                default: ''
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -81,6 +89,9 @@ env:
     ASTC_BLOCK: 6x6
     ASTC_QUALITY: medium
     BUILD_MODE: release
+    STORE_BUILD: ${{ inputs.store && 'true' || 'false' }}
+    STORE_BUILD_NUMBER: ${{ inputs.buildNumber }}
+    STORE_BUNDLE_ID: com.nmvTeam.nightmareEngine
     CLEAN_BUILD: ${{ inputs.clean && 'true' || 'false' }}
 
 jobs:
@@ -97,7 +108,7 @@ jobs:
 
             - name: Restore build output
               id: output
-              if: ${{ env.CLEAN_BUILD != 'true' }}
+              if: ${{ env.CLEAN_BUILD != 'true' && env.STORE_BUILD != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: export/release/android/signed/NightmareVision.apk
@@ -299,6 +310,10 @@ jobs:
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
+                if [ "$STORE_BUILD" = "true" ]; then
+                  export ANDROID_GRADLE_TASK="bundleRelease --build-cache --parallel --no-watch-fs"
+                  if [ -n "$STORE_BUILD_NUMBER" ]; then FLAGS="$FLAGS -DNMV_BUILD_NUMBER=$STORE_BUILD_NUMBER"; fi
+                fi
                 unset CC CXX
                 export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
                 haxelib run lime build Project.xml android -$BUILD_MODE -arm64 $FLAGS < /dev/null
@@ -320,8 +335,33 @@ jobs:
                   ~/.gradle/wrapper
                 key: ${{ steps.gradle.outputs.cache-primary-key }}
 
+            - name: Sign AAB
+              if: ${{ env.STORE_BUILD == 'true' }}
+              timeout-minutes: 10
+              env:
+                KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+                KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+                KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+                KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+              run: |
+                set -euo pipefail
+                for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS; do
+                  if [ -z "${!name}" ]; then echo "::error::Missing secret for $name"; exit 1; fi
+                done
+                BUNDLE=$(find export/release/android/bin -path "*/outputs/bundle/release/*" -name "*.aab" | sort | head -n 1)
+                echo "$BUNDLE"
+                test -n "$BUNDLE"
+                echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+                mkdir -p export/release/android/store
+                cp "$BUNDLE" export/release/android/store/NightmareVision.aab
+                jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore "$RUNNER_TEMP/upload.keystore" \
+                  -storepass "$KEYSTORE_PASSWORD" -keypass "${KEY_PASSWORD:-$KEYSTORE_PASSWORD}" \
+                  export/release/android/store/NightmareVision.aab "$KEY_ALIAS"
+                jarsigner -verify export/release/android/store/NightmareVision.aab > /dev/null
+                rm -f "$RUNNER_TEMP/upload.keystore"
+
             - name: Sign APK
-              if: ${{ steps.output.outputs.cache-hit != 'true' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.STORE_BUILD != 'true' }}
               timeout-minutes: 10
               run: |
                 set -euo pipefail
@@ -339,13 +379,22 @@ jobs:
                 rm export/release/android/signed/aligned.apk
 
             - name: Save build output
-              if: ${{ steps.output.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && github.event_name != 'pull_request' && env.STORE_BUILD != 'true' }}
               uses: actions/cache/save@v4
               with:
                 path: export/release/android/signed/NightmareVision.apk
                 key: ${{ steps.output.outputs.cache-primary-key }}
 
+            - name: Publish store artifact
+              if: ${{ env.STORE_BUILD == 'true' }}
+              uses: actions/upload-artifact@v7.0.1
+              with:
+                name: NightmareVision (Android Store)
+                path: export/release/android/store/NightmareVision.aab
+                compression-level: 0
+
             - name: Publish artifact
+              if: ${{ env.STORE_BUILD != 'true' }}
               uses: actions/upload-artifact@v7.0.1
               with:
                 name: NightmareVision (Android)
@@ -381,7 +430,7 @@ jobs:
 
             - name: Restore build output
               id: output
-              if: ${{ env.CLEAN_BUILD != 'true' }}
+              if: ${{ env.CLEAN_BUILD != 'true' && env.STORE_BUILD != 'true' }}
               uses: actions/cache/restore@v4
               with:
                 path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
@@ -526,6 +575,7 @@ jobs:
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
+                if [ "$STORE_BUILD" = "true" ] && [ -n "$STORE_BUILD_NUMBER" ]; then FLAGS="$FLAGS -DNMV_BUILD_NUMBER=$STORE_BUILD_NUMBER"; fi
                 haxelib run lime update Project.xml ios -$BUILD_MODE -nosign $FLAGS < /dev/null
 
             - name: Compile Haxe (arm64)
@@ -547,8 +597,82 @@ jobs:
                 sed -i '' 's/^default: \$(HAXE_BUILDS)$/default:/' "$HAXE_DIR/makefile"
                 grep -q '^default:$' "$HAXE_DIR/makefile"
 
+            - name: Install signing assets
+              if: ${{ env.STORE_BUILD == 'true' }}
+              env:
+                CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+                CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+                PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+                TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+              run: |
+                set -euo pipefail
+                for name in CERTIFICATE_BASE64 CERTIFICATE_PASSWORD PROFILE_BASE64 TEAM_ID; do
+                  if [ -z "${!name}" ]; then echo "::error::Missing secret for $name"; exit 1; fi
+                done
+                KEYCHAIN="$RUNNER_TEMP/store.keychain-db"
+                KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+                echo "$CERTIFICATE_BASE64" | base64 -d > "$RUNNER_TEMP/certificate.p12"
+                echo "$PROFILE_BASE64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+                security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+                security set-keychain-settings -lut 21600 "$KEYCHAIN"
+                security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+                security import "$RUNNER_TEMP/certificate.p12" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+                security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+                security list-keychain -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+                security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+                PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$RUNNER_TEMP/profile.plist")
+                PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" "$RUNNER_TEMP/profile.plist")
+                mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+                cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+                rm -f "$RUNNER_TEMP/certificate.p12"
+                {
+                  echo "STORE_KEYCHAIN=$KEYCHAIN"
+                  echo "STORE_PROFILE_NAME=$PROFILE_NAME"
+                  echo "STORE_TEAM_ID=$TEAM_ID"
+                } >> "$GITHUB_ENV"
+
+            - name: Archive app
+              if: ${{ env.STORE_BUILD == 'true' }}
+              timeout-minutes: 30
+              run: |
+                set -euo pipefail
+                cd export/release/ios
+                xcodebuild -project NightmareVision.xcodeproj -scheme NightmareVision -configuration Release \
+                  -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/NightmareVision.xcarchive \
+                  CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$STORE_TEAM_ID" CODE_SIGN_IDENTITY="Apple Distribution" \
+                  PROVISIONING_PROFILE_SPECIFIER="$STORE_PROFILE_NAME" OTHER_CODE_SIGN_FLAGS="--keychain $STORE_KEYCHAIN" \
+                  PRODUCT_BUNDLE_IDENTIFIER="$STORE_BUNDLE_ID" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO ENABLE_BITCODE=NO \
+                  COMPILER_INDEX_STORE_ENABLE=NO -jobs "$HXCPP_COMPILE_THREADS" archive -quiet < /dev/null
+                cat > build/ExportOptions.plist <<PLIST
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                <plist version="1.0">
+                <dict>
+                  <key>method</key><string>app-store-connect</string>
+                  <key>teamID</key><string>$STORE_TEAM_ID</string>
+                  <key>signingStyle</key><string>manual</string>
+                  <key>signingCertificate</key><string>Apple Distribution</string>
+                  <key>provisioningProfiles</key>
+                  <dict><key>$STORE_BUNDLE_ID</key><string>$STORE_PROFILE_NAME</string></dict>
+                  <key>uploadSymbols</key><false/>
+                  <key>manageAppVersionAndBuildNumber</key><false/>
+                </dict>
+                </plist>
+                PLIST
+                xcodebuild -exportArchive -archivePath build/NightmareVision.xcarchive -exportPath build/store \
+                  -exportOptionsPlist build/ExportOptions.plist < /dev/null
+                IPA=$(find build/store -name "*.ipa" | head -n 1)
+                test -n "$IPA"
+                mv "$IPA" build/store/NightmareVision.ipa
+
+            - name: Remove signing assets
+              if: ${{ always() && env.STORE_BUILD == 'true' }}
+              run: |
+                if [ -n "${STORE_KEYCHAIN:-}" ]; then security delete-keychain "$STORE_KEYCHAIN" || true; fi
+                rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision
+
             - name: Link app
-              if: ${{ steps.output.outputs.cache-hit != 'true' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.STORE_BUILD != 'true' }}
               timeout-minutes: 20
               run: |
                 set -euo pipefail
@@ -567,7 +691,7 @@ jobs:
                 key: ${{ steps.hxcpp.outputs.cache-primary-key }}
 
             - name: Package IPA
-              if: ${{ steps.output.outputs.cache-hit != 'true' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.STORE_BUILD != 'true' }}
               timeout-minutes: 10
               run: |
                 set -euo pipefail
@@ -578,13 +702,22 @@ jobs:
                 zip -qry NightmareVision.ipa Payload
 
             - name: Save build output
-              if: ${{ steps.output.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && github.event_name != 'pull_request' && env.STORE_BUILD != 'true' }}
               uses: actions/cache/save@v4
               with:
                 path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
                 key: ${{ steps.output.outputs.cache-primary-key }}
 
+            - name: Publish store artifact
+              if: ${{ env.STORE_BUILD == 'true' }}
+              uses: actions/upload-artifact@v7.0.1
+              with:
+                name: NightmareVision (iOS Store)
+                path: export/release/ios/build/store/NightmareVision.ipa
+                compression-level: 0
+
             - name: Publish artifact
+              if: ${{ env.STORE_BUILD != 'true' }}
               uses: actions/upload-artifact@v7.0.1
               with:
                 name: NightmareVision (iOS)

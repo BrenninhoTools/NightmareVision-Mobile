@@ -1,6 +1,9 @@
 package org.nightmarevision;
 
 import android.app.Activity;
+import android.view.View;
+
+import java.lang.reflect.Field;
 
 import org.haxe.extension.Admob;
 import org.haxe.extension.Extension;
@@ -39,6 +42,33 @@ public class AdsHelper
 		{
 			report(callback, "INIT_FAILED", String.valueOf(error));
 		}
+	}
+
+	public static void setBannerVisible(final boolean visible)
+	{
+		final Activity activity = Extension.mainActivity;
+		if (activity == null) return;
+
+		activity.runOnUiThread(new Runnable()
+		{
+			public void run()
+			{
+				try
+				{
+					Field field = Admob.class.getDeclaredField("adView");
+					field.setAccessible(true);
+					Object view = field.get(null);
+
+					if (view instanceof View)
+					{
+						View banner = (View) view;
+						banner.setVisibility(visible ? View.VISIBLE : View.GONE);
+						if (visible) banner.bringToFront();
+					}
+				}
+				catch (Throwable ignored) {}
+			}
+		});
 	}
 
 	private static void report(HaxeObject callback, String event, String value)

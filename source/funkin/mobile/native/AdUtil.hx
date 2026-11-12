@@ -59,7 +59,13 @@ class AdUtil
 
 	public static var rewardedLoaded(get, never):Bool;
 
-	public static var bannerVisible(default, null):Bool = false;
+	public static var bannerVisible(get, never):Bool;
+
+	static var bannerWanted:Bool = false;
+
+	static var bannerCreated:Bool = false;
+
+	static var bannerLoaded:Bool = false;
 
 	public static var showing(default, null):Bool = false;
 
@@ -133,6 +139,11 @@ class AdUtil
 		#else
 		return false;
 		#end
+	}
+
+	static function get_bannerVisible():Bool
+	{
+		return bannerWanted && bannerLoaded && !showing;
 	}
 
 	static function get_interstitialLoaded():Bool
@@ -333,26 +344,57 @@ class AdUtil
 	public static function showBanner():Void
 	{
 		#if (mobile && extension_admob)
-		if (!ready || !enabled || bannerVisible) return;
+		bannerWanted = true;
+		if (!ready || !enabled) return;
 
-		bannerVisible = true;
-		try
-		{
-			Admob.showBanner(bannerUnit(), AdmobBannerSize.BANNER, AdmobBannerAlign.BOTTOM_RIGHT);
-		}
-		catch (e:Dynamic)
-		{
-			bannerVisible = false;
-		}
+		if (!bannerCreated) createBanner();
+		#if android
+		setNativeBanner(!showing);
+		#end
 		#end
 	}
 
 	public static function hideBanner():Void
 	{
 		#if (mobile && extension_admob)
-		if (!bannerVisible) return;
+		bannerWanted = false;
 
-		bannerVisible = false;
+		#if android
+		setNativeBanner(false);
+		#else
+		destroyBanner();
+		#end
+		#end
+	}
+
+	static function createBanner():Void
+	{
+		#if (mobile && extension_admob)
+		if (bannerCreated || !ready || !enabled) return;
+
+		bannerCreated = true;
+		bannerLoaded = false;
+		try
+		{
+			Admob.showBanner(bannerUnit(), AdmobBannerSize.BANNER, AdmobBannerAlign.BOTTOM_RIGHT);
+			#if android
+			setNativeBanner(bannerWanted && !showing);
+			#end
+		}
+		catch (e:Dynamic)
+		{
+			bannerCreated = false;
+		}
+		#end
+	}
+
+	static function destroyBanner():Void
+	{
+		#if (mobile && extension_admob)
+		if (!bannerCreated) return;
+
+		bannerCreated = false;
+		bannerLoaded = false;
 		try
 		{
 			Admob.hideBanner();
@@ -360,6 +402,20 @@ class AdUtil
 		catch (e:Dynamic) {}
 		#end
 	}
+
+	#if android
+	static function setNativeBanner(visible:Bool):Void
+	{
+		if (!bannerCreated) return;
+
+		try
+		{
+			final method:Null<Dynamic> = lime.system.JNI.createStaticMethod('org/nightmarevision/AdsHelper', 'setBannerVisible', '(Z)V');
+			if (method != null) method(visible);
+		}
+		catch (e:Dynamic) {}
+	}
+	#end
 
 	public static function removeAds():Void
 	{
@@ -373,7 +429,8 @@ class AdUtil
 		if (enabled) return;
 
 		cancelPauseTimer();
-		hideBanner();
+		bannerWanted = false;
+		destroyBanner();
 		interstitialTime = -1;
 	}
 
@@ -458,6 +515,9 @@ class AdUtil
 				funkin.mobile.android.logcat.LogcatUtil.info('Ads ready: ' + value);
 				loadInterstitial();
 				loadRewarded();
+				#if android
+				if (pauseBanner) createBanner();
+				#end
 				if (paused && pauseBanner) showBanner();
 
 			case 'INIT_FAILED':
@@ -468,12 +528,25 @@ class AdUtil
 				funkin.mobile.android.logcat.LogcatUtil.warn('Ads consent failed: ' + value);
 
 			case AdmobEvent.BANNER_LOADED:
+				bannerLoaded = true;
 				bannerRetries = 0;
-				if (!paused) hideBanner();
+				#if android
+				setNativeBanner(bannerWanted && !showing);
+				#else
+				if (!bannerWanted) destroyBanner();
+				#end
 
 			case AdmobEvent.BANNER_FAILED_TO_LOAD:
-				bannerVisible = false;
-				if (paused) retry(() -> if (paused) showBanner(), bannerRetries++);
+				if (value != null && value.indexOf('Hide previous banner') >= 0) return;
+				funkin.mobile.android.logcat.LogcatUtil.warn('Banner failed: ' + value);
+				destroyBanner();
+				retry(() -> {
+					#if android
+					createBanner();
+					#else
+					if (bannerWanted) createBanner();
+					#end
+				}, bannerRetries++);
 
 			case AdmobEvent.INTERSTITIAL_LOADED:
 				interstitialLoading = false;
@@ -555,11 +628,12 @@ class AdUtil
 		showing = true;
 		savedMute = FlxG.sound.muted;
 		FlxG.sound.muted = true;
-		if (bannerVisible)
-		{
-			hideBanner();
-			bannerVisible = false;
-		}
+
+		#if android
+		setNativeBanner(false);
+		#else
+		destroyBanner();
+		#end
 	}
 
 	static function endShowing(shown:Bool):Void

@@ -32,6 +32,10 @@ on:
                 description: Ignore build caches and compile from scratch
                 type: boolean
                 default: false
+            astc:
+                description: Generate ASTC textures
+                type: boolean
+                default: true
             buildFlags:
                 description: Extra define passed with -D
                 required: false
@@ -49,6 +53,10 @@ on:
                 required: false
                 type: boolean
                 default: false
+            astc:
+                required: false
+                type: boolean
+                default: true
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -68,6 +76,10 @@ env:
     CACHE_LIMIT_MB: 3500
     OUTPUT_CACHE_VERSION: v2
     CACHE_SAVE_MIN_NEW: 25
+    ASTC_ENABLED: ${{ inputs.astc == false && 'false' || 'true' }}
+    ASTC_COMPRESSOR_REF: b7a91b3072dc16e785a9bde847f17ba0ef15dd47
+    ASTC_BLOCK: 6x6
+    ASTC_QUALITY: medium
     BUILD_MODE: release
     CLEAN_BUILD: ${{ inputs.clean && 'true' || 'false' }}
 
@@ -89,7 +101,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: export/release/android/signed/NightmareVision.apk
-                key: android-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
+                key: android-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.ASTC_ENABLED }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
 
             - name: Setup environment
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
@@ -238,6 +250,42 @@ jobs:
                 GRADLE
                 printf 'org.gradle.jvmargs=-Xmx4g -XX:+UseParallelGC -Dfile.encoding=UTF-8\norg.gradle.parallel=true\norg.gradle.caching=true\norg.gradle.configureondemand=true\n' > ~/.gradle/gradle.properties
 
+            - name: Restore ASTC textures
+              id: astc
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.ASTC_ENABLED == 'true' }}
+              uses: actions/cache/restore@v4
+              with:
+                path: |
+                  assets/**/*.astc
+                  .astc-cache/hashes.json
+                key: linux-astc-${{ env.ASTC_BLOCK }}-${{ env.ASTC_QUALITY }}-${{ hashFiles('assets/**/*.png', '.github/astc-excludes.txt') }}
+                restore-keys: |
+                  linux-astc-${{ env.ASTC_BLOCK }}-${{ env.ASTC_QUALITY }}-
+
+            - name: Compress ASTC textures
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.ASTC_ENABLED == 'true' && steps.astc.outputs.cache-hit != 'true' }}
+              run: |
+                set -uo pipefail
+                python3 .github/scripts/astc_prepare.py assets .astc-cache/hashes.json prepare
+                rm -rf .astc-cache/compressor
+                git clone -q https://github.com/KarimAkra/astc-compressor.git .astc-cache/compressor
+                git -C .astc-cache/compressor checkout -q "$ASTC_COMPRESSOR_REF"
+                haxelib dev astc-compressor .astc-cache/compressor < /dev/null
+                chmod +x .astc-cache/compressor/plugins/*/*/* .astc-cache/compressor/plugins/MacOS/* 2>/dev/null || true
+                haxelib run astc-compressor compress -i assets -blocksize "$ASTC_BLOCK" -quality "$ASTC_QUALITY" -colorprofile cl -excludes .github/astc-excludes.txt < /dev/null || echo "ASTC compression failed, continuing with PNG only"
+                python3 .github/scripts/astc_prepare.py assets .astc-cache/hashes.json write
+                rm -rf .astc-cache/compressor
+                echo "ASTC textures: $(find assets -name '*.astc' | wc -l | tr -d ' ')"
+
+            - name: Save ASTC textures
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.ASTC_ENABLED == 'true' && steps.astc.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              uses: actions/cache/save@v4
+              with:
+                path: |
+                  assets/**/*.astc
+                  .astc-cache/hashes.json
+                key: linux-astc-${{ env.ASTC_BLOCK }}-${{ env.ASTC_QUALITY }}-${{ hashFiles('assets/**/*.png', '.github/astc-excludes.txt') }}
+
             - name: Compile build
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 50
@@ -337,7 +385,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: export/release/ios/build/Release-iphoneos/NightmareVision.ipa
-                key: ios-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
+                key: ios-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.ASTC_ENABLED }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
 
             - name: Setup environment
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
@@ -428,6 +476,42 @@ jobs:
                 path: ${{ env.HXCPP_COMPILE_CACHE }}
                 key: ios-hxcpp-v4-${{ hashFiles('source/**', 'Project.xml', '.hxpkg', 'projFiles/ios/**') }}
                 restore-keys: ios-hxcpp-v4-
+
+            - name: Restore ASTC textures
+              id: astc
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.ASTC_ENABLED == 'true' }}
+              uses: actions/cache/restore@v4
+              with:
+                path: |
+                  assets/**/*.astc
+                  .astc-cache/hashes.json
+                key: macos-astc-${{ env.ASTC_BLOCK }}-${{ env.ASTC_QUALITY }}-${{ hashFiles('assets/**/*.png', '.github/astc-excludes.txt') }}
+                restore-keys: |
+                  macos-astc-${{ env.ASTC_BLOCK }}-${{ env.ASTC_QUALITY }}-
+
+            - name: Compress ASTC textures
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.ASTC_ENABLED == 'true' && steps.astc.outputs.cache-hit != 'true' }}
+              run: |
+                set -uo pipefail
+                python3 .github/scripts/astc_prepare.py assets .astc-cache/hashes.json prepare
+                rm -rf .astc-cache/compressor
+                git clone -q https://github.com/KarimAkra/astc-compressor.git .astc-cache/compressor
+                git -C .astc-cache/compressor checkout -q "$ASTC_COMPRESSOR_REF"
+                haxelib dev astc-compressor .astc-cache/compressor < /dev/null
+                chmod +x .astc-cache/compressor/plugins/*/*/* .astc-cache/compressor/plugins/MacOS/* 2>/dev/null || true
+                haxelib run astc-compressor compress -i assets -blocksize "$ASTC_BLOCK" -quality "$ASTC_QUALITY" -colorprofile cl -excludes .github/astc-excludes.txt < /dev/null || echo "ASTC compression failed, continuing with PNG only"
+                python3 .github/scripts/astc_prepare.py assets .astc-cache/hashes.json write
+                rm -rf .astc-cache/compressor
+                echo "ASTC textures: $(find assets -name '*.astc' | wc -l | tr -d ' ')"
+
+            - name: Save ASTC textures
+              if: ${{ steps.output.outputs.cache-hit != 'true' && env.ASTC_ENABLED == 'true' && steps.astc.outputs.cache-hit != 'true' && github.event_name != 'pull_request' }}
+              uses: actions/cache/save@v4
+              with:
+                path: |
+                  assets/**/*.astc
+                  .astc-cache/hashes.json
+                key: macos-astc-${{ env.ASTC_BLOCK }}-${{ env.ASTC_QUALITY }}-${{ hashFiles('assets/**/*.png', '.github/astc-excludes.txt') }}
 
             - name: Prepare Xcode project
               if: ${{ steps.output.outputs.cache-hit != 'true' }}

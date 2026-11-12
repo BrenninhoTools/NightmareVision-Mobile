@@ -131,6 +131,10 @@ class FunkinAssets
 		#if (MODS_ALLOWED || ASSET_REDIRECT) if (FileSystem.exists(path)) bitmap = BitmapData.fromFile(nativePath(path));
 		else #end if (Assets.exists(path, IMAGE)) bitmap = Assets.getBitmapData(path, useCache);
 		
+		#if mobile
+		if (bitmap == null) bitmap = funkin.mobile.backend.ASTCUtil.load(path);
+		#end
+		
 		return bitmap;
 	}
 	
@@ -146,6 +150,10 @@ class FunkinAssets
 		else
 		#end
 		if (Assets.exists(path, type)) exists = true;
+		
+		#if mobile
+		if (!exists && (type == null || type == IMAGE) && funkin.mobile.backend.ASTCUtil.exists(path)) exists = true;
+		#end
 		
 		return exists;
 	}
@@ -190,6 +198,14 @@ class FunkinAssets
 			cache.localTrackedAssets.push(key);
 			return cache.currentTrackedGraphics.get(key);
 		}
+		
+		#if mobile
+		if (allowGPU)
+		{
+			final compressed = funkin.mobile.backend.ASTCUtil.load(key);
+			if (compressed != null) return cache.cacheBitmap(key, compressed, false);
+		}
+		#end
 		
 		var bitmap:Null<BitmapData> = getBitmapData(key);
 		

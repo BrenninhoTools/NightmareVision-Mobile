@@ -1,0 +1,2 @@
+assets/game/images/mobile/
+assets/game/images/UI/icons/

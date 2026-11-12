@@ -75,6 +75,8 @@ class ClientPrefs
 	
 	@saveVar public static var hitboxAlpha:Float = 1;
 	
+	@saveVar public static var astcTextures:Bool = true;
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

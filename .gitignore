@@ -29,3 +29,6 @@ dump/*
 !.vscode/extensions.json
 /content
 desktop.ini
+
+*.astc
+.astc-cache/

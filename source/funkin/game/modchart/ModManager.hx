@@ -246,11 +246,12 @@ class ModManager implements IFlxDestroyable
 	{
 		final safeLeft = funkin.mobile.ui.ScreenStyle.safeLeft;
 		final usable = FlxG.width - safeLeft - funkin.mobile.ui.ScreenStyle.safeRight;
-		if (keys == 4 && direction >= 0 && direction < arrowsLayoutFour.length) return safeLeft + usable * arrowsLayoutFour[direction];
+		final half = Note.swagWidth / 2;
+		if (keys == 4 && direction >= 0 && direction < arrowsLayoutFour.length) return safeLeft + usable * arrowsLayoutFour[direction] - half;
 		
 		final span = usable * arrowsSpread;
 		final left = safeLeft + (usable - span) / 2;
-		return left + span * (direction + 0.5) / Math.max(1, keys);
+		return left + span * (direction + 0.5) / Math.max(1, keys) - half;
 	}
 	
 	public static var arrowsLayoutFour:Array<Float> = [0.25, 0.39, 0.61, 0.75];

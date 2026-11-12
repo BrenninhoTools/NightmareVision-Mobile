@@ -319,9 +319,21 @@ public class NativeHelper extends Extension
 						activity.getWindow().setAttributes(params);
 					}
 
+					if (Build.VERSION.SDK_INT >= 30)
+					{
+						activity.getWindow().setDecorFitsSystemWindows(false);
+						android.view.WindowInsetsController controller = activity.getWindow().getInsetsController();
+						if (controller != null)
+						{
+							controller.hide(android.view.WindowInsets.Type.systemBars());
+							controller.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+						}
+					}
+
 					View decor = activity.getWindow().getDecorView();
 					decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
 						| View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+					decor.requestLayout();
 
 					updateSafeInsets(activity);
 					decor.post(new Runnable()

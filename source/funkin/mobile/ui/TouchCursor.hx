@@ -39,11 +39,11 @@ class TouchCursor extends Sprite
 
 	public static var multiColor:Bool = true;
 
-	public static var radius:Float = 26;
+	public static var radius:Float = 13;
 
 	public static var fadeSpeed:Float = 4;
 
-	public static var trailLength:Int = 8;
+	public static var trailLength:Int = 6;
 
 	public static var trails:Bool = true;
 
@@ -200,7 +200,7 @@ class TouchCursor extends Sprite
 			}
 
 			final size = radius * scale * (1 + (1 - ripple.life) * 1.4);
-			graphics.lineStyle(2.5 * scale, ripple.color, 0.8 * ripple.life);
+			graphics.lineStyle(1.8 * scale, ripple.color, 0.8 * ripple.life);
 			graphics.drawCircle(ripple.x, ripple.y, size);
 			graphics.lineStyle();
 		}
@@ -244,7 +244,7 @@ class TouchCursor extends Sprite
 			graphics.drawCircle(point.x, point.y, size);
 			graphics.endFill();
 
-			graphics.lineStyle(3 * scale, point.color, 0.95 * point.alpha);
+			graphics.lineStyle(2 * scale, point.color, 0.95 * point.alpha);
 			graphics.drawCircle(point.x, point.y, ring);
 			graphics.lineStyle();
 

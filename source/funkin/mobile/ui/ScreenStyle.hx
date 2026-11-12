@@ -83,12 +83,27 @@ class ScreenStyle
 		#if mobile
 		NativeUtil.setScreenStyle(usesWholeScreen);
 
+		resize();
+		if (resetState && FlxG.state != null) FlxG.resetState();
+
+		for (delay in settleDelays)
+		{
+			haxe.Timer.delay(() -> {
+				final width = FlxG.width;
+				final height = FlxG.height;
+				resize();
+				if (resetState && (FlxG.width != width || FlxG.height != height) && FlxG.state != null) FlxG.resetState();
+			}, delay);
+		}
+		#end
+	}
+
+	public static var settleDelays:Array<Int> = [120, 350, 800];
+
+	public static function resize():Void
+	{
 		@:privateAccess FlxG.game.onResize(null);
 		refreshLayout();
-		haxe.Timer.delay(refreshLayout, 300);
-
-		if (resetState && FlxG.state != null) FlxG.resetState();
-		#end
 	}
 
 	public static function getGameWidth(windowWidth:Float, windowHeight:Float):Int

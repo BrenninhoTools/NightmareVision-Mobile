@@ -115,6 +115,16 @@ FlxG.plugins.drawOnTop = true;
 		super.create();
 		
 		final nextState:Class<FlxState> = Main.startMeta.skipSplash || !ClientPrefs.toggleSplashScreen ? Main.startMeta.initialState : Splash;
+		
+		#if mobile
+		if (ClientPrefs.upgradePrankPending)
+		{
+			step('upgrade prank');
+			FlxG.switchState(() -> new funkin.mobile.states.UpgradePrankState(nextState));
+			return;
+		}
+		#end
+		
 		step('switch to ' + Type.getClassName(nextState));
 		FlxG.switchState(() -> Type.createInstance(nextState, []));
 	}

@@ -83,6 +83,8 @@ class ClientPrefs
 	
 	@saveVar public static var purchases:Array<String> = [];
 	
+	@saveVar public static var upgradePrankPending:Bool = false;
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

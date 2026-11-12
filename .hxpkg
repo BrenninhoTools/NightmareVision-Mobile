@@ -108,8 +108,9 @@
                 "version": "1.0.2"
             },
             {
-                "name": "extension-androidtools",
-                "version": "2.2.2"
+                "name": "android-manager",
+                "link": "https://github.com/BrenninhoTools/android-manager",
+                "branch": "add2e8ae778efd34cd97bfbc87e23e91141f9265"
             }
         ]
     }

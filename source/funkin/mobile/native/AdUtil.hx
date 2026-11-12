@@ -31,19 +31,21 @@ class AdUtil
 
 	static final TEST_BANNER_IOS:String = 'ca-app-pub-3940256099942544/2934735716';
 
-	public static var songsBetweenAds:Int = 3;
+	public static var songsBetweenAds:Int = 1;
 
 	public static var pausesBetweenAds:Int = 2;
 
-	public static var minSecondsBetweenAds:Float = 150;
+	public static var minSecondsBetweenAds:Float = 45;
+
+	public static var minSecondsBetweenSongAds:Float = 60;
 
 	public static var minSecondsBetweenPauseAds:Float = 240;
 
-	public static var firstAdDelay:Float = 90;
+	public static var firstAdDelay:Float = 30;
 
 	public static var pauseAdDelay:Float = 0.45;
 
-	public static var maxInterstitialsPerSession:Int = 15;
+	public static var maxInterstitialsPerSession:Int = 25;
 
 	public static var adExpireSeconds:Float = 3300;
 
@@ -83,6 +85,8 @@ class AdUtil
 
 	static var lastPauseAdTime:Float = 0;
 
+	static var lastSongAdTime:Float = 0;
+
 	static var startTime:Float = 0;
 
 	static var interstitialRetries:Int = 0;
@@ -115,7 +119,7 @@ class AdUtil
 	static function get_enabled():Bool
 	{
 		#if (mobile && extension_admob)
-		return !PurchaseUtil.owns(REMOVE_ADS_PRODUCT);
+		return !ClientPrefs.adsRemoved && !PurchaseUtil.owns(REMOVE_ADS_PRODUCT);
 		#else
 		return false;
 		#end
@@ -166,7 +170,11 @@ class AdUtil
 		if (ClientPrefs.adSongs < songsBetweenAds) return;
 		if (!canShow(SONG_END)) return;
 
-		if (showInterstitial()) ClientPrefs.adSongs = 0;
+		if (showInterstitial())
+		{
+			ClientPrefs.adSongs = 0;
+			lastSongAdTime = now();
+		}
 		#end
 	}
 
@@ -217,7 +225,7 @@ class AdUtil
 		return switch (placement)
 		{
 			case PAUSE: lastPauseAdTime <= 0 || time - lastPauseAdTime >= minSecondsBetweenPauseAds;
-			case SONG_END: true;
+			case SONG_END: lastSongAdTime <= 0 || time - lastSongAdTime >= minSecondsBetweenSongAds;
 		}
 	}
 
@@ -293,6 +301,13 @@ class AdUtil
 		}
 		catch (e:Dynamic) {}
 		#end
+	}
+
+	public static function removeAds():Void
+	{
+		ClientPrefs.adsRemoved = true;
+		ClientPrefs.flush();
+		purchasesChanged();
 	}
 
 	public static function purchasesChanged():Void
@@ -498,39 +513,33 @@ class AdUtil
 
 	static function pick(custom:Null<String>, fallback:String):String
 	{
-		return custom != null && custom.length > 1 ? custom : fallback;
+		return custom != null && custom.length > 0 ? custom : fallback;
 	}
 
 	static function interstitialUnit():String
 	{
-		#if android
-		return pick(haxe.macro.Compiler.getDefine('ADMOB_ANDROID_INTERSTITIAL'), TEST_INTERSTITIAL_ANDROID);
-		#elseif ios
-		return pick(haxe.macro.Compiler.getDefine('ADMOB_IOS_INTERSTITIAL'), TEST_INTERSTITIAL_IOS);
+		#if ios
+		return pick(AdUnits.IOS_INTERSTITIAL, TEST_INTERSTITIAL_IOS);
 		#else
-		return TEST_INTERSTITIAL_ANDROID;
+		return pick(AdUnits.ANDROID_INTERSTITIAL, TEST_INTERSTITIAL_ANDROID);
 		#end
 	}
 
 	static function rewardedUnit():String
 	{
-		#if android
-		return pick(haxe.macro.Compiler.getDefine('ADMOB_ANDROID_REWARDED'), TEST_REWARDED_ANDROID);
-		#elseif ios
-		return pick(haxe.macro.Compiler.getDefine('ADMOB_IOS_REWARDED'), TEST_REWARDED_IOS);
+		#if ios
+		return pick(AdUnits.IOS_REWARDED, TEST_REWARDED_IOS);
 		#else
-		return TEST_REWARDED_ANDROID;
+		return pick(AdUnits.ANDROID_REWARDED, TEST_REWARDED_ANDROID);
 		#end
 	}
 
 	static function bannerUnit():String
 	{
-		#if android
-		return pick(haxe.macro.Compiler.getDefine('ADMOB_ANDROID_BANNER'), TEST_BANNER_ANDROID);
-		#elseif ios
-		return pick(haxe.macro.Compiler.getDefine('ADMOB_IOS_BANNER'), TEST_BANNER_IOS);
+		#if ios
+		return pick(AdUnits.IOS_BANNER, TEST_BANNER_IOS);
 		#else
-		return TEST_BANNER_ANDROID;
+		return pick(AdUnits.ANDROID_BANNER, TEST_BANNER_ANDROID);
 		#end
 	}
 }

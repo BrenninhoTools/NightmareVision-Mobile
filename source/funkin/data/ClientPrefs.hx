@@ -87,6 +87,8 @@ class ClientPrefs
 	
 	@saveVar public static var adSongs:Int = 0;
 	
+	@saveVar public static var adsRemoved:Bool = false;
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

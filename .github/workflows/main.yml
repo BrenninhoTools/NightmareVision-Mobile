@@ -460,7 +460,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
-                key: ios-hxpkg-v4-${{ hashFiles('.hxpkg') }}
+                key: ios-hxpkg-v5-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
               if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
@@ -469,6 +469,7 @@ jobs:
                 set -euo pipefail
                 haxelib install hxpkg --quiet --always < /dev/null
                 haxelib run hxpkg install < /dev/null
+                haxelib run extension-admob setup < /dev/null
 
             - name: Save libs
               if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}

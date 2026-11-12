@@ -35,6 +35,11 @@ class Init extends FlxState
 		step('prefs');
 		ClientPrefs.load();
 		
+		#if mobile
+		step('ads');
+		funkin.mobile.native.AdUtil.init();
+		#end
+		
 		step('highscore');
 		funkin.data.Highscore.load();
 		

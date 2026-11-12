@@ -55,6 +55,11 @@
                 "branch": "fd22c391be8bb59ded6c0b3f5fcc5f6358dd8897"
             },
             {
+                "name": "extension-admob",
+                "link": "https://github.com/FunkinCrew/extension-admob",
+                "branch": "c3fea546634c0e799195e6c45d1666e1683ee59d"
+            },
+            {
                 "name": "hxvlc",
                 "version": "2.3.0"
             },

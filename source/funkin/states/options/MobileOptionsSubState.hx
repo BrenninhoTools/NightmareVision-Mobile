@@ -119,6 +119,16 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		#end
 		
 		#if mobile
+		if (funkin.mobile.native.AdUtil.privacyOptionsRequired())
+		{
+			var option:Option = new Option('Ad Privacy Options', 'Opens the ad consent form so you can change\nhow your data is used for ads.', 'storageType', BUTTON);
+			option.callback = () -> {
+				FlxG.sound.play(Paths.sound('confirmMenu'));
+				funkin.mobile.native.AdUtil.showPrivacyOptions();
+			};
+			addOption(option);
+		}
+		
 		var option:Option = new Option('Rate the Game', 'Opens the store review screen so you can rate the game.', 'storageType', BUTTON);
 		option.callback = () -> {
 			FlxG.sound.play(Paths.sound('confirmMenu'));

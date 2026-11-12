@@ -877,7 +877,7 @@ class StorageUtil
 		#end
 	}
 
-	public static var copyThreads:Int = 4;
+	public static var copyThreads:Int = 8;
 
 	public static var supportsThreadedCopy(get, never):Bool;
 
@@ -891,6 +891,7 @@ class StorageUtil
 		final job = new CopyJob(files);
 
 		#if (target.threaded && sys && !android)
+		prepareFolders(files);
 		final workers = Std.int(Math.max(1, Math.min(copyThreads, files.length)));
 		for (_ in 0...workers)
 			sys.thread.Thread.create(() -> job.work(copyFast));
@@ -899,6 +900,29 @@ class StorageUtil
 		#end
 
 		return job;
+	}
+
+	static function prepareFolders(files:Array<String>):Void
+	{
+		#if sys
+		final created:Map<String, Bool> = [];
+
+		for (id in files)
+		{
+			final target = normalizeId(id);
+			if (target == null) continue;
+
+			final folder = Path.directory(target);
+			if (folder.length == 0 || created.exists(folder)) continue;
+			created.set(folder, true);
+
+			try
+			{
+				if (!FileSystem.exists(folder)) FileSystem.createDirectory(folder);
+			}
+			catch (e:Dynamic) {}
+		}
+		#end
 	}
 
 	static function copyFast(id:String):Bool

@@ -246,6 +246,7 @@ jobs:
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
                 mkdir -p "$HXCPP_COMPILE_CACHE"
                 HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')
+                echo "HXCPP_FILES_BEFORE=$HXCPP_FILES_BEFORE" >> "$GITHUB_ENV"
                 echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
@@ -253,7 +254,7 @@ jobs:
                 unset CC CXX
                 export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
                 haxelib run lime build Project.xml android -$BUILD_MODE -arm64 $FLAGS < /dev/null
-                echo "HXCPP_NEW_FILES=$(( $(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ') - HXCPP_FILES_BEFORE ))" >> "$GITHUB_ENV"
+                echo "HXCPP_NEW_FILES=$(( $(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ') - ${HXCPP_FILES_BEFORE:-0} ))" >> "$GITHUB_ENV"
 
             - name: Save hxcpp cache
               if: ${{ steps.output.outputs.cache-hit != 'true' && (!cancelled() && steps.hxcpp.outputs.cache-hit != 'true' && github.event_name != 'pull_request' && (steps.hxcpp.outputs.cache-matched-key == '' || fromJSON(env.HXCPP_NEW_FILES || '0') >= fromJSON(env.CACHE_SAVE_MIN_NEW))) }}
@@ -436,6 +437,7 @@ jobs:
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
                 mkdir -p "$HXCPP_COMPILE_CACHE"
                 HXCPP_FILES_BEFORE=$(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ')
+                echo "HXCPP_FILES_BEFORE=$HXCPP_FILES_BEFORE" >> "$GITHUB_ENV"
                 echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
@@ -457,7 +459,7 @@ jobs:
                 haxelib run hxcpp Build.xml haxe -Ddestination="$LIB_DIR/libApplicationMain.a" -options Options.txt < /dev/null
                 env -u HXCPP_COMPILE_CACHE haxelib run hxcpp "$HAXE_DIR/BuildHxcppMbedtls.xml" -Ddestination="$LIB_DIR/libmbedtls_hxcpp.a" -options "$BUILD_DIR/Options.txt" < /dev/null
                 ls -la "$LIB_DIR"
-                echo "HXCPP_NEW_FILES=$(( $(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ') - HXCPP_FILES_BEFORE ))" >> "$GITHUB_ENV"
+                echo "HXCPP_NEW_FILES=$(( $(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ') - ${HXCPP_FILES_BEFORE:-0} ))" >> "$GITHUB_ENV"
                 sed -i '' 's/^default: \$(HAXE_BUILDS)$/default:/' "$HAXE_DIR/makefile"
                 grep -q '^default:$' "$HAXE_DIR/makefile"
 

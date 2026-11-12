@@ -50,7 +50,9 @@ public class AssetExtractor extends Extension
 
 	private static final int BUFFER_SIZE = 512 * 1024;
 
-	private static final int MAX_THREADS = 8;
+	private static final int MAX_THREADS = 12;
+
+	private static final long DIRECT_THRESHOLD = 256 * 1024;
 
 	private static final long MIN_FREE_BYTES = 64L * 1024L * 1024L;
 
@@ -252,7 +254,8 @@ public class AssetExtractor extends Extension
 		final List<String> failed = Collections.synchronizedList(new ArrayList<String>());
 		final AtomicLong lastSave = new AtomicLong(System.currentTimeMillis());
 
-		int threads = Math.max(2, Math.min(MAX_THREADS, Runtime.getRuntime().availableProcessors()));
+		int threads = Math.max(2, Math.min(MAX_THREADS, Math.min(pending.size(), Runtime.getRuntime().availableProcessors() * 2)));
+		final String packagePath = context.getApplicationInfo().sourceDir;
 		Thread[] workers = new Thread[threads];
 
 		for (int t = 0; t < threads; t++)
@@ -263,6 +266,19 @@ public class AssetExtractor extends Extension
 				public void run()
 				{
 					byte[] buffer = new byte[BUFFER_SIZE];
+					ZipFile zip = null;
+
+					if (packageIndex != null && packagePath != null)
+					{
+						try
+						{
+							zip = new ZipFile(packagePath);
+						}
+						catch (Throwable e)
+						{
+							zip = null;
+						}
+					}
 
 					while (true)
 					{
@@ -273,9 +289,11 @@ public class AssetExtractor extends Extension
 						File target = new File(gameDirectory, path);
 
 						Entry entry = packageIndex != null ? packageIndex.get(path) : null;
-						boolean direct = entry == null || entry.stored;
+						boolean direct = entry == null || (entry.stored && entry.size >= DIRECT_THRESHOLD);
 
-						long size = copy(assets, path, target, buffer, direct);
+						long size = -1;
+						if (zip != null && entry != null && !direct) size = copyFromZip(zip, path, target, buffer);
+						if (size < 0) size = copy(assets, path, target, buffer, direct);
 						if (size < 0) size = copy(assets, path, target, buffer, false);
 
 						if (size >= 0)
@@ -292,6 +310,12 @@ public class AssetExtractor extends Extension
 						long previous = lastSave.get();
 						if (now - previous > 1500 && lastSave.compareAndSet(previous, now)) writeManifest(manifest);
 					}
+
+					try
+					{
+						if (zip != null) zip.close();
+					}
+					catch (Throwable e) {}
 				}
 			}, "AssetExtractor-" + t);
 
@@ -636,6 +660,63 @@ public class AssetExtractor extends Extension
 		for (String root : ROOTS)
 			if (path.startsWith(root + "/")) return true;
 		return false;
+	}
+
+	private static long copyFromZip(ZipFile zip, String path, File target, byte[] buffer)
+	{
+		File temp = new File(target.getAbsolutePath() + ".copying");
+		InputStream input = null;
+		OutputStream output = null;
+
+		try
+		{
+			ZipEntry entry = zip.getEntry("assets/" + path);
+			if (entry == null) return -1;
+
+			File parent = target.getParentFile();
+			if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) return -1;
+
+			input = zip.getInputStream(entry);
+			output = new FileOutputStream(temp, false);
+
+			long size = 0;
+			int read;
+			while ((read = input.read(buffer)) != -1)
+			{
+				output.write(buffer, 0, read);
+				size += read;
+			}
+
+			output.close();
+			output = null;
+
+			long expected = entry.getSize();
+			if ((expected >= 0 && size != expected) || temp.length() != size) return -1;
+			if (target.exists() && !target.delete()) return -1;
+			if (!temp.renameTo(target)) return -1;
+
+			return size;
+		}
+		catch (Throwable e)
+		{
+			return -1;
+		}
+		finally
+		{
+			try
+			{
+				if (input != null) input.close();
+			}
+			catch (Throwable e) {}
+
+			try
+			{
+				if (output != null) output.close();
+			}
+			catch (Throwable e) {}
+
+			if (temp.exists()) temp.delete();
+		}
 	}
 
 	private static long copy(AssetManager assets, String path, File target, byte[] buffer, boolean tryDirect)

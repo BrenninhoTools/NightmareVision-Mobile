@@ -77,9 +77,38 @@ class TouchInput
 
 	public static var flickSpeed:Float = 2.6;
 
-	public static var maxFlickSteps:Int = 2;
+	public static var maxFlickSteps:Int = 6;
 
-	public static var flickInterval:Int = 5;
+	public static var flickInterval:Int = 3;
+
+	public static var flickDecay:Float = 1.3;
+
+	public static var continueRatio:Float = 0.62;
+
+	public static var maxStepsPerFrame:Int = 3;
+
+	public static var stopMomentumOnTouch:Bool = true;
+
+	static var lastScrollFrame:Int = -100;
+
+	static function scheduleScroll(action:String, delayFrames:Int):Void
+	{
+		var target = frame + Std.int(Math.max(0, delayFrames));
+		if (target < lastScrollFrame + 2) target = lastScrollFrame + 2;
+		lastScrollFrame = target;
+		pulse(action, target - frame);
+	}
+
+	public static function cancelMomentum():Void
+	{
+		lastScrollFrame = -100;
+		var index = queued.length;
+		while (index-- > 0)
+		{
+			final action = queued[index].action;
+			if (action == 'ui_up' || action == 'ui_down' || action == 'ui_left' || action == 'ui_right') queued.splice(index, 1);
+		}
+	}
 
 	public static var twoFingerBack:Bool = true;
 
@@ -538,6 +567,7 @@ class TouchInput
 			{
 				primaryId = id;
 				touchPosition.set(touch.gameX, touch.gameY);
+				if (stopMomentumOnTouch) cancelMomentum();
 			}
 
 			gestures.set(id,
@@ -647,23 +677,35 @@ class TouchInput
 
 		final deltaX = touch.gameX - gesture.anchorX;
 		final deltaY = touch.gameY - gesture.anchorY;
+		final step = gesture.steps > 0 ? swipeDistance * continueRatio : swipeDistance;
 
 		var direction:SwipeDirection = NONE;
+		var count = 0;
 
-		if (Math.abs(deltaY) >= swipeDistance && Math.abs(deltaY) >= Math.abs(deltaX) * swipeAxisRatio)
+		if (Math.abs(deltaY) >= step && Math.abs(deltaY) >= Math.abs(deltaX) * swipeAxisRatio)
 		{
 			direction = resolveDirection(0, deltaY);
+			count = Std.int(Math.min(maxStepsPerFrame, Math.floor(Math.abs(deltaY) / step)));
+			gesture.anchorY += (deltaY > 0 ? 1 : -1) * step * count;
+			gesture.anchorX = touch.gameX;
 		}
-		else if (Math.abs(deltaX) >= swipeDistance && Math.abs(deltaX) >= Math.abs(deltaY) * swipeAxisRatio)
+		else if (Math.abs(deltaX) >= step && Math.abs(deltaX) >= Math.abs(deltaY) * swipeAxisRatio)
 		{
 			direction = resolveDirection(deltaX, 0);
+			count = Std.int(Math.min(maxStepsPerFrame, Math.floor(Math.abs(deltaX) / step)));
+			gesture.anchorX += (deltaX > 0 ? 1 : -1) * step * count;
+			gesture.anchorY = touch.gameY;
 		}
 
 		if (direction != NONE)
 		{
-			emitSwipe(gesture, direction, now);
-			gesture.anchorX = touch.gameX;
-			gesture.anchorY = touch.gameY;
+			if (gesture.direction != NONE && gesture.direction != direction) cancelMomentum();
+
+			for (index in 0...count)
+				emitSwipe(gesture, direction, now, index * 2);
+
+			if (Math.abs(touch.gameY - gesture.anchorY) > step * 2) gesture.anchorY = touch.gameY;
+			if (Math.abs(touch.gameX - gesture.anchorX) > step * 2) gesture.anchorX = touch.gameX;
 			return;
 		}
 
@@ -719,15 +761,18 @@ class TouchInput
 		gesture.lastY = y;
 	}
 
-	static function emitSwipe(gesture:TouchGesture, direction:SwipeDirection, now:Float):Void
+	static function emitSwipe(gesture:TouchGesture, direction:SwipeDirection, now:Float, delayFrames:Int = 0):Void
 	{
 		gesture.direction = direction;
 		gesture.lastPulseTime = now;
 		gesture.steps++;
 		lastSwipe = direction;
-		pulse(actionFor(direction));
-		Haptics.scroll();
-		onSwipe.dispatch(direction);
+		scheduleScroll(actionFor(direction), delayFrames);
+		if (delayFrames == 0)
+		{
+			Haptics.scroll();
+			onSwipe.dispatch(direction);
+		}
 	}
 
 	static function flick(gesture:TouchGesture):Void
@@ -743,11 +788,18 @@ class TouchInput
 
 		if (speed < flickSpeed) return;
 
-		final extra = Std.int(Math.min(maxFlickSteps, Math.floor(speed / flickSpeed)));
+		final extra = Std.int(Math.min(maxFlickSteps, Math.floor(speed / flickSpeed * 1.5)));
 		final action = actionFor(gesture.direction);
 
-		for (step in 1...extra + 1)
-			pulse(action, step * flickInterval);
+		var delay:Float = 0;
+		var interval:Float = Math.max(2, flickInterval);
+
+		for (step in 0...extra)
+		{
+			delay += interval;
+			interval *= flickDecay;
+			scheduleScroll(action, Std.int(Math.round(delay)));
+		}
 	}
 
 	static function resolveDirection(deltaX:Float, deltaY:Float):SwipeDirection

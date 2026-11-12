@@ -2,10 +2,18 @@ package funkin.mobile.native;
 
 #if (mobile && extension_admob)
 import extension.admob.Admob;
+import extension.admob.AdmobBannerAlign;
+import extension.admob.AdmobBannerSize;
 import extension.admob.AdmobEvent;
 #end
 
 import flixel.FlxG;
+
+enum AdPlacement
+{
+	SONG_END;
+	PAUSE;
+}
 
 class AdUtil
 {
@@ -19,19 +27,37 @@ class AdUtil
 
 	static final TEST_REWARDED_IOS:String = 'ca-app-pub-3940256099942544/1712485313';
 
+	static final TEST_BANNER_ANDROID:String = 'ca-app-pub-3940256099942544/6300978111';
+
+	static final TEST_BANNER_IOS:String = 'ca-app-pub-3940256099942544/2934735716';
+
 	public static var songsBetweenAds:Int = 3;
 
-	public static var minSecondsBetweenAds:Float = 180;
+	public static var pausesBetweenAds:Int = 2;
 
-	public static var firstAdDelay:Float = 120;
+	public static var minSecondsBetweenAds:Float = 150;
 
-	public static var retryDelays:Array<Float> = [10, 30, 60, 120];
+	public static var minSecondsBetweenPauseAds:Float = 240;
+
+	public static var firstAdDelay:Float = 90;
+
+	public static var pauseAdDelay:Float = 0.45;
+
+	public static var maxInterstitialsPerSession:Int = 15;
+
+	public static var adExpireSeconds:Float = 3300;
+
+	public static var pauseBanner:Bool = true;
+
+	public static var retryDelays:Array<Float> = [10, 30, 60, 120, 300];
 
 	public static var ready(default, null):Bool = false;
 
-	public static var interstitialLoaded(default, null):Bool = false;
+	public static var interstitialLoaded(get, never):Bool;
 
-	public static var rewardedLoaded(default, null):Bool = false;
+	public static var rewardedLoaded(get, never):Bool;
+
+	public static var bannerVisible(default, null):Bool = false;
 
 	public static var showing(default, null):Bool = false;
 
@@ -39,11 +65,23 @@ class AdUtil
 
 	public static var enabled(get, never):Bool;
 
+	public static var shownThisSession(default, null):Int = 0;
+
 	static var initialized:Bool = false;
 
-	static var songsSinceAd:Int = 0;
+	static var interstitialTime:Float = -1;
+
+	static var rewardedTime:Float = -1;
+
+	static var interstitialLoading:Bool = false;
+
+	static var rewardedLoading:Bool = false;
+
+	static var pausesSinceAd:Int = 0;
 
 	static var lastAdTime:Float = 0;
+
+	static var lastPauseAdTime:Float = 0;
 
 	static var startTime:Float = 0;
 
@@ -51,13 +89,17 @@ class AdUtil
 
 	static var rewardedRetries:Int = 0;
 
+	static var bannerRetries:Int = 0;
+
 	static var rewardCallback:Null<Bool->Void> = null;
 
 	static var rewardEarned:Bool = false;
 
-	static var savedVolume:Float = 1;
-
 	static var savedMute:Bool = false;
+
+	static var paused:Bool = false;
+
+	static var pauseTimer:Null<haxe.Timer> = null;
 
 	static var pending:Array<{name:String, value:Null<String>}> = [];
 
@@ -67,7 +109,7 @@ class AdUtil
 
 	static function get_testMode():Bool
 	{
-		return interstitialUnit() == defaultInterstitial();
+		return interstitialUnit() == (#if ios TEST_INTERSTITIAL_IOS #else TEST_INTERSTITIAL_ANDROID #end);
 	}
 
 	static function get_enabled():Bool
@@ -79,12 +121,27 @@ class AdUtil
 		#end
 	}
 
+	static function get_interstitialLoaded():Bool
+	{
+		return interstitialTime >= 0 && now() - interstitialTime < adExpireSeconds;
+	}
+
+	static function get_rewardedLoaded():Bool
+	{
+		return rewardedTime >= 0 && now() - rewardedTime < adExpireSeconds;
+	}
+
+	static inline function now():Float
+	{
+		return haxe.Timer.stamp();
+	}
+
 	public static function init():Void
 	{
 		#if (mobile && extension_admob)
 		if (initialized || !enabled) return;
 		initialized = true;
-		startTime = haxe.Timer.stamp();
+		startTime = now();
 
 		try
 		{
@@ -105,25 +162,79 @@ class AdUtil
 		#if (mobile && extension_admob)
 		if (!ready || !enabled) return;
 
-		songsSinceAd++;
-		if (songsSinceAd < songsBetweenAds) return;
+		ClientPrefs.adSongs++;
+		if (ClientPrefs.adSongs < songsBetweenAds) return;
+		if (!canShow(SONG_END)) return;
 
-		final now = haxe.Timer.stamp();
-		if (now - startTime < firstAdDelay) return;
-		if (lastAdTime > 0 && now - lastAdTime < minSecondsBetweenAds) return;
-
-		if (showInterstitial()) songsSinceAd = 0;
+		if (showInterstitial()) ClientPrefs.adSongs = 0;
 		#end
+	}
+
+	public static function pauseOpened():Void
+	{
+		#if (mobile && extension_admob)
+		paused = true;
+		if (!ready || !enabled) return;
+
+		if (pauseBanner) showBanner();
+
+		pausesSinceAd++;
+		if (pausesSinceAd < pausesBetweenAds || !canShow(PAUSE)) return;
+
+		cancelPauseTimer();
+		pauseTimer = haxe.Timer.delay(() -> {
+			pauseTimer = null;
+			FlxG.signals.preUpdate.addOnce(() -> {
+				if (!paused || !canShow(PAUSE)) return;
+				if (showInterstitial())
+				{
+					pausesSinceAd = 0;
+					lastPauseAdTime = now();
+				}
+			});
+		}, Std.int(pauseAdDelay * 1000));
+		#end
+	}
+
+	public static function pauseClosed():Void
+	{
+		#if (mobile && extension_admob)
+		paused = false;
+		cancelPauseTimer();
+		hideBanner();
+		#end
+	}
+
+	public static function canShow(placement:AdPlacement):Bool
+	{
+		if (!ready || !enabled || showing || !interstitialLoaded) return false;
+		if (shownThisSession >= maxInterstitialsPerSession) return false;
+
+		final time = now();
+		if (time - startTime < firstAdDelay) return false;
+		if (lastAdTime > 0 && time - lastAdTime < minSecondsBetweenAds) return false;
+
+		return switch (placement)
+		{
+			case PAUSE: lastPauseAdTime <= 0 || time - lastPauseAdTime >= minSecondsBetweenPauseAds;
+			case SONG_END: true;
+		}
 	}
 
 	public static function showInterstitial():Bool
 	{
 		#if (mobile && extension_admob)
-		if (!ready || !enabled || showing || !interstitialLoaded) return false;
+		if (!ready || !enabled || showing) return false;
 
-		interstitialLoaded = false;
-		showing = true;
-		muteGame();
+		if (!interstitialLoaded)
+		{
+			interstitialTime = -1;
+			loadInterstitial();
+			return false;
+		}
+
+		interstitialTime = -1;
+		beginShowing();
 		Admob.showInterstitial();
 		return true;
 		#else
@@ -136,21 +247,61 @@ class AdUtil
 		#if (mobile && extension_admob)
 		if (!ready || showing || !rewardedLoaded)
 		{
+			if (!rewardedLoaded) loadRewarded();
 			onFinished(false);
 			return false;
 		}
 
-		rewardedLoaded = false;
+		rewardedTime = -1;
 		rewardEarned = false;
 		rewardCallback = onFinished;
-		showing = true;
-		muteGame();
+		beginShowing();
 		Admob.showRewarded();
 		return true;
 		#else
 		onFinished(false);
 		return false;
 		#end
+	}
+
+	public static function showBanner():Void
+	{
+		#if (mobile && extension_admob)
+		if (!ready || !enabled || bannerVisible) return;
+
+		bannerVisible = true;
+		try
+		{
+			Admob.showBanner(bannerUnit(), AdmobBannerSize.BANNER, AdmobBannerAlign.BOTTOM_RIGHT);
+		}
+		catch (e:Dynamic)
+		{
+			bannerVisible = false;
+		}
+		#end
+	}
+
+	public static function hideBanner():Void
+	{
+		#if (mobile && extension_admob)
+		if (!bannerVisible) return;
+
+		bannerVisible = false;
+		try
+		{
+			Admob.hideBanner();
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
+
+	public static function purchasesChanged():Void
+	{
+		if (enabled) return;
+
+		cancelPauseTimer();
+		hideBanner();
+		interstitialTime = -1;
 	}
 
 	public static function privacyOptionsRequired():Bool
@@ -180,6 +331,13 @@ class AdUtil
 		#end
 
 		return false;
+	}
+
+	static function cancelPauseTimer():Void
+	{
+		if (pauseTimer == null) return;
+		pauseTimer.stop();
+		pauseTimer = null;
 	}
 
 	#if (mobile && extension_admob)
@@ -221,46 +379,57 @@ class AdUtil
 				ready = true;
 				loadInterstitial();
 				loadRewarded();
+				if (paused && pauseBanner) showBanner();
 
 			case AdmobEvent.CONSENT_FAIL:
 				funkin.mobile.android.logcat.LogcatUtil.warn('Ads consent failed: ' + value);
 
+			case AdmobEvent.BANNER_LOADED:
+				bannerRetries = 0;
+				if (!paused) hideBanner();
+
+			case AdmobEvent.BANNER_FAILED_TO_LOAD:
+				bannerVisible = false;
+				if (paused) retry(() -> if (paused) showBanner(), bannerRetries++);
+
 			case AdmobEvent.INTERSTITIAL_LOADED:
-				interstitialLoaded = true;
+				interstitialLoading = false;
+				interstitialTime = now();
 				interstitialRetries = 0;
 
 			case AdmobEvent.INTERSTITIAL_FAILED_TO_LOAD:
-				interstitialLoaded = false;
-				retry(() -> loadInterstitial(), interstitialRetries++);
+				interstitialLoading = false;
+				interstitialTime = -1;
+				retry(loadInterstitial, interstitialRetries++);
 
 			case AdmobEvent.INTERSTITIAL_FAILED_TO_SHOW:
-				finishShowing();
+				endShowing(false);
 				loadInterstitial();
 
 			case AdmobEvent.INTERSTITIAL_DISMISSED:
-				lastAdTime = haxe.Timer.stamp();
-				finishShowing();
+				endShowing(true);
 				loadInterstitial();
 
 			case AdmobEvent.REWARDED_LOADED:
-				rewardedLoaded = true;
+				rewardedLoading = false;
+				rewardedTime = now();
 				rewardedRetries = 0;
 
 			case AdmobEvent.REWARDED_FAILED_TO_LOAD:
-				rewardedLoaded = false;
-				retry(() -> loadRewarded(), rewardedRetries++);
+				rewardedLoading = false;
+				rewardedTime = -1;
+				retry(loadRewarded, rewardedRetries++);
 
 			case AdmobEvent.REWARDED_EARNED:
 				rewardEarned = true;
 
 			case AdmobEvent.REWARDED_FAILED_TO_SHOW:
-				finishShowing();
+				endShowing(false);
 				finishReward(false);
 				loadRewarded();
 
 			case AdmobEvent.REWARDED_DISMISSED:
-				lastAdTime = haxe.Timer.stamp();
-				finishShowing();
+				endShowing(true);
 				finishReward(rewardEarned);
 				loadRewarded();
 
@@ -270,13 +439,15 @@ class AdUtil
 
 	static function loadInterstitial():Void
 	{
-		if (!ready || !enabled || interstitialLoaded) return;
+		if (!ready || !enabled || interstitialLoading || interstitialLoaded) return;
+		interstitialLoading = true;
 		Admob.loadInterstitial(interstitialUnit());
 	}
 
 	static function loadRewarded():Void
 	{
-		if (!ready || rewardedLoaded) return;
+		if (!ready || rewardedLoading || rewardedLoaded) return;
+		rewardedLoading = true;
 		Admob.loadRewarded(rewardedUnit());
 	}
 
@@ -296,36 +467,70 @@ class AdUtil
 		if (callback != null) callback(earned);
 	}
 
-	static function muteGame():Void
+	static function beginShowing():Void
 	{
-		savedVolume = FlxG.sound.volume;
+		showing = true;
 		savedMute = FlxG.sound.muted;
 		FlxG.sound.muted = true;
+		if (bannerVisible)
+		{
+			hideBanner();
+			bannerVisible = false;
+		}
 	}
 
-	static function finishShowing():Void
+	static function endShowing(shown:Bool):Void
 	{
 		if (!showing) return;
 		showing = false;
 		FlxG.sound.muted = savedMute;
-		FlxG.sound.volume = savedVolume;
+
+		if (shown)
+		{
+			lastAdTime = now();
+			shownThisSession++;
+			ClientPrefs.flush();
+		}
+
+		if (paused && pauseBanner) showBanner();
 	}
 	#end
 
+	static function pick(custom:Null<String>, fallback:String):String
+	{
+		return custom != null && custom.length > 1 ? custom : fallback;
+	}
+
 	static function interstitialUnit():String
 	{
-		final custom:Null<String> = #if android haxe.macro.Compiler.getDefine('ADMOB_ANDROID_INTERSTITIAL') #elseif ios haxe.macro.Compiler.getDefine('ADMOB_IOS_INTERSTITIAL') #else null #end;
-		return custom != null && custom.length > 1 ? custom : defaultInterstitial();
+		#if android
+		return pick(haxe.macro.Compiler.getDefine('ADMOB_ANDROID_INTERSTITIAL'), TEST_INTERSTITIAL_ANDROID);
+		#elseif ios
+		return pick(haxe.macro.Compiler.getDefine('ADMOB_IOS_INTERSTITIAL'), TEST_INTERSTITIAL_IOS);
+		#else
+		return TEST_INTERSTITIAL_ANDROID;
+		#end
 	}
 
 	static function rewardedUnit():String
 	{
-		final custom:Null<String> = #if android haxe.macro.Compiler.getDefine('ADMOB_ANDROID_REWARDED') #elseif ios haxe.macro.Compiler.getDefine('ADMOB_IOS_REWARDED') #else null #end;
-		return custom != null && custom.length > 1 ? custom : #if ios TEST_REWARDED_IOS #else TEST_REWARDED_ANDROID #end;
+		#if android
+		return pick(haxe.macro.Compiler.getDefine('ADMOB_ANDROID_REWARDED'), TEST_REWARDED_ANDROID);
+		#elseif ios
+		return pick(haxe.macro.Compiler.getDefine('ADMOB_IOS_REWARDED'), TEST_REWARDED_IOS);
+		#else
+		return TEST_REWARDED_ANDROID;
+		#end
 	}
 
-	static inline function defaultInterstitial():String
+	static function bannerUnit():String
 	{
-		return #if ios TEST_INTERSTITIAL_IOS #else TEST_INTERSTITIAL_ANDROID #end;
+		#if android
+		return pick(haxe.macro.Compiler.getDefine('ADMOB_ANDROID_BANNER'), TEST_BANNER_ANDROID);
+		#elseif ios
+		return pick(haxe.macro.Compiler.getDefine('ADMOB_IOS_BANNER'), TEST_BANNER_IOS);
+		#else
+		return TEST_BANNER_ANDROID;
+		#end
 	}
 }

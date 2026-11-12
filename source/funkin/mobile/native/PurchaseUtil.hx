@@ -159,6 +159,8 @@ class PurchaseUtil
 
 		ClientPrefs.purchases ??= [];
 		if (!ClientPrefs.purchases.contains(product)) ClientPrefs.purchases.push(product);
+
+		if (product == AdUtil.REMOVE_ADS_PRODUCT) AdUtil.purchasesChanged();
 	}
 
 	static function scheduleSettle(?delay:Int):Void

@@ -112,6 +112,20 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		#if android
 		ClientPrefs.storageType = StorageUtil.getStorageType();
 		
+		var option:Option = new Option('Battery Saver', 'Off: never saves battery. Auto: turns on when the battery is low, the phone saver is on\nor the phone is hot. On: always. Now: ' + funkin.mobile.android.power.BatterySaver.describe() + '.',
+			'batterySaver', STRING, 'Auto', funkin.mobile.android.power.BatterySaver.MODES);
+		option.onChange = funkin.mobile.android.power.BatterySaver.refresh;
+		addOption(option);
+		
+		var option:Option = new Option('Battery Saver Level', 'In Auto, the saver turns on when the battery drops to this percent\nand you are not charging.', 'batterySaverLevel', INT, 20);
+		option.scrollSpeed = 20;
+		option.minValue = 5;
+		option.maxValue = 50;
+		option.changeValue = 5;
+		option.displayFormat = '%v%';
+		option.onChange = funkin.mobile.android.power.BatterySaver.refresh;
+		addOption(option);
+		
 		var option:Option = new Option('Storage Type', 'Where the game files are kept. Data: Android/data, External: NightmareVision folder,\nMedia: Android/media, Obb: Android/obb. Current: ' + StorageUtil.getInfo() + '.',
 			'storageType', STRING, StorageUtil.DEFAULT_STORAGE_TYPE, StorageUtil.STORAGE_TYPES);
 		option.onChange = onStorageTypeChange;

@@ -97,6 +97,10 @@ class ClientPrefs
 	
 	@saveVar public static var adsBlockedLaunches:Int = 0;
 	
+	@saveVar public static var batterySaver:String = 'Auto';
+	
+	@saveVar public static var batterySaverLevel:Int = 20;
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

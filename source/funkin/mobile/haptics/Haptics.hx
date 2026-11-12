@@ -37,6 +37,8 @@ class Haptics
 
 	public static var sustainPriority:Float = 120;
 
+	public static var lowPower:Bool = false;
+
 	static final holds:Array<String> = [];
 
 	static var watching:Bool = false;
@@ -155,7 +157,7 @@ class Haptics
 	public static function sustain():Void
 	{
 		#if mobile
-		if (!enabled) return;
+		if (!enabled || lowPower) return;
 
 		final now = FlxG.game != null ? FlxG.game.ticks : 0;
 		if (now - lastSustain < 45) return;
@@ -175,7 +177,7 @@ class Haptics
 	public static function rumble(strength:Float, interval:Float = 60, sharpness:Float = 0.15):Void
 	{
 		#if mobile
-		if (!enabled || notesOnly || strength <= 0) return;
+		if (!enabled || notesOnly || lowPower || strength <= 0) return;
 
 		final now = FlxG.game != null ? FlxG.game.ticks : 0;
 		if (now - lastAmbient < interval || now - lastSustain < sustainPriority) return;

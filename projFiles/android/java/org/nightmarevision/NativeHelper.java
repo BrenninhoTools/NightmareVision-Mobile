@@ -90,6 +90,16 @@ public class NativeHelper extends Extension
 		return vibrator;
 	}
 
+	public static void stopHaptics()
+	{
+		try
+		{
+			Vibrator target = getVibrator();
+			if (target != null) target.cancel();
+		}
+		catch (Throwable ignored) {}
+	}
+
 	private static final java.util.concurrent.ExecutorService hapticExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 
 	private static final long HAPTIC_STALE_MS = 60;

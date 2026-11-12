@@ -35,10 +35,56 @@ class Haptics
 
 	public static var level(get, never):Int;
 
+	public static var sustainPriority:Float = 120;
+
+	static final holds:Array<String> = [];
+
+	static var watching:Bool = false;
+
+	public static var suspended(get, never):Bool;
+
+	static function get_suspended():Bool
+	{
+		return holds.length > 0;
+	}
+
 	public static function init():Void
 	{
 		#if mobile
 		HapticEngine.init();
+		watchWindow();
+		#end
+	}
+
+	static function watchWindow():Void
+	{
+		if (watching) return;
+
+		final window = lime.app.Application.current?.window;
+		if (window == null) return;
+		watching = true;
+
+		window.onDeactivate.add(() -> suspend('background'));
+		window.onActivate.add(() -> resume('background'));
+	}
+
+	public static function suspend(reason:String):Void
+	{
+		if (holds.contains(reason)) return;
+		holds.push(reason);
+		stop();
+	}
+
+	public static function resume(reason:String):Void
+	{
+		holds.remove(reason);
+		if (holds.length == 0) sustainStart = lastSustain = lastAmbient = -1000;
+	}
+
+	public static function stop():Void
+	{
+		#if mobile
+		NativeUtil.stopHaptics();
 		#end
 	}
 
@@ -132,7 +178,7 @@ class Haptics
 		if (!enabled || notesOnly || strength <= 0) return;
 
 		final now = FlxG.game != null ? FlxG.game.ticks : 0;
-		if (now - lastAmbient < interval) return;
+		if (now - lastAmbient < interval || now - lastSustain < sustainPriority) return;
 		lastAmbient = now;
 
 		HapticEngine.fire(RUMBLE, strength * ClientPrefs.hapticsIntensity * 1.4, sharpness);
@@ -266,7 +312,7 @@ class Haptics
 	static function get_enabled():Bool
 	{
 		#if mobile
-		return ClientPrefs.haptics && ClientPrefs.hapticsIntensity > 0;
+		return ClientPrefs.haptics && ClientPrefs.hapticsIntensity > 0 && holds.length == 0;
 		#else
 		return false;
 		#end

@@ -119,6 +119,16 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		#end
 		
 		#if mobile
+		if (!funkin.mobile.native.AdUtil.removed)
+		{
+			var option:Option = new Option('Ads Status', 'Shows what the ads are doing. Press to reload them.\n' + funkin.mobile.native.AdUtil.status(), 'storageType', BUTTON);
+			option.callback = () -> {
+				FlxG.sound.play(Paths.sound('confirmMenu'));
+				funkin.mobile.native.AdUtil.retryNow();
+			};
+			addOption(option);
+		}
+		
 		if (funkin.mobile.native.AdUtil.enabled)
 		{
 			final minutes = Std.int(funkin.mobile.native.AdUtil.adBreakMinutes);

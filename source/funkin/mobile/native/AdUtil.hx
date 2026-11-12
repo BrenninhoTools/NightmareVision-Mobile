@@ -68,11 +68,19 @@ class AdUtil
 
 	public static var startDelay:Float = 2.5;
 
-	public static var maxInitAttempts:Int = 2;
+	public static var maxInitAttempts:Int = 3;
+
+	public static var blockedLaunches:Int = 3;
+
+	public static var initTimeout:Float = 30;
 
 	public static var stableSeconds:Float = 45;
 
 	public static var ready(default, null):Bool = false;
+
+	public static var lastError(default, null):String = '';
+
+	public static var removed(get, never):Bool;
 
 	public static var blocked(default, null):Bool = false;
 
@@ -160,6 +168,15 @@ class AdUtil
 		#end
 	}
 
+	static function get_removed():Bool
+	{
+		#if (mobile && extension_admob)
+		return ClientPrefs.adsRemoved || PurchaseUtil.owns(REMOVE_ADS_PRODUCT);
+		#else
+		return ClientPrefs.adsRemoved;
+		#end
+	}
+
 	static function get_onBreak():Bool
 	{
 		return ClientPrefs.adBreakUntil > Date.now().getTime();
@@ -221,13 +238,23 @@ class AdUtil
 
 		if (ClientPrefs.adsInitAttempts >= maxInitAttempts)
 		{
-			blocked = true;
-			funkin.mobile.android.logcat.LogcatUtil.warn('Ads disabled, the last ' + maxInitAttempts + ' starts closed the game');
-			return;
+			ClientPrefs.adsBlockedLaunches++;
+			if (ClientPrefs.adsBlockedLaunches <= blockedLaunches)
+			{
+				ClientPrefs.flush();
+				blocked = true;
+				lastError = 'Paused after ' + maxInitAttempts + ' starts that closed the game';
+				funkin.mobile.android.logcat.LogcatUtil.warn('Ads: ' + lastError);
+				return;
+			}
+
+			ClientPrefs.adsInitAttempts = maxInitAttempts - 1;
+			ClientPrefs.adsBlockedLaunches = 0;
 		}
 
 		ClientPrefs.adsInitAttempts++;
 		ClientPrefs.flush();
+		watchLifecycle();
 
 		initialized = true;
 		startTime = now();
@@ -239,8 +266,12 @@ class AdUtil
 
 			#if android
 			final method:Null<Dynamic> = lime.system.JNI.createStaticMethod('org/nightmarevision/AdsHelper', 'init', '(ZZZLorg/haxe/lime/HaxeObject;)V');
-			if (method == null) throw 'AdsHelper not found';
-			method(testMode, false, false, new AdsCallback());
+			if (method != null) method(testMode, false, false, new AdsCallback());
+			else
+			{
+				Admob.onEvent.add(queue);
+				Admob.init(testMode, false, false);
+			}
 			#else
 			Admob.onEvent.add(queue);
 			Admob.init(testMode, false, false);
@@ -250,19 +281,84 @@ class AdUtil
 		{
 			initialized = false;
 			FlxG.signals.preUpdate.remove(update);
+			lastError = 'Init failed: ' + e;
 			funkin.mobile.android.logcat.LogcatUtil.warn('Ads init failed: ' + e);
 		}
 
 		haxe.Timer.delay(markStable, Std.int(stableSeconds * 1000));
+		haxe.Timer.delay(() -> if (initialized && !ready)
+		{
+			lastError = 'No answer from AdMob after ' + Std.int(initTimeout) + 's';
+			funkin.mobile.android.logcat.LogcatUtil.warn('Ads: ' + lastError);
+		}, Std.int(initTimeout * 1000));
 		#end
 	}
 
 	static function markStable():Void
 	{
-		if (ClientPrefs.adsInitAttempts == 0) return;
+		if (ClientPrefs.adsInitAttempts == 0 && ClientPrefs.adsBlockedLaunches == 0) return;
 
 		ClientPrefs.adsInitAttempts = 0;
+		ClientPrefs.adsBlockedLaunches = 0;
 		ClientPrefs.flush();
+	}
+
+	static var watching:Bool = false;
+
+	static function watchLifecycle():Void
+	{
+		if (watching) return;
+		watching = true;
+
+		final application = lime.app.Application.current;
+		if (application == null) return;
+
+		application.onExit.add((_) -> markStable());
+		if (application.window != null) application.window.onDeactivate.add(markStable);
+	}
+
+	public static function retryNow():Void
+	{
+		#if (mobile && extension_admob)
+		ClientPrefs.adsInitAttempts = 0;
+		ClientPrefs.adsBlockedLaunches = 0;
+		ClientPrefs.flush();
+
+		blocked = false;
+		lastError = '';
+		bannerRetryAt = 0;
+		interstitialRetries = rewardedRetries = bannerRetries = 0;
+
+		if (ready)
+		{
+			loadInterstitial();
+			loadRewarded();
+			return;
+		}
+
+		if (!initialized && !scheduled) start();
+		#end
+	}
+
+	public static function status():String
+	{
+		#if (mobile && extension_admob)
+		if (removed) return 'Removed';
+		if (blocked) return 'Paused: ' + lastError;
+		if (onBreak) return 'Ad break, ' + breakMinutesLeft + ' min left';
+		if (!initialized) return scheduled ? 'Starting' : (lastError.length > 0 ? lastError : 'Not started');
+		if (!ready) return lastError.length > 0 ? lastError : 'Connecting to AdMob';
+
+		final parts = [
+			(testMode ? 'Test ads' : 'Real ads'),
+			'Interstitial ' + (interstitialLoaded ? 'ready' : (interstitialLoading ? 'loading' : 'waiting')),
+			'Banner ' + (bannerLoaded ? 'ready' : (bannerCreated ? 'loading' : 'waiting')),
+			'Rewarded ' + (rewardedLoaded ? 'ready' : (rewardedLoading ? 'loading' : 'waiting'))
+		];
+		return parts.join(', ') + (lastError.length > 0 ? '\nLast error: ' + lastError : '');
+		#else
+		return 'Not available';
+		#end
 	}
 
 	public static function open(placement:AdPlacement):Void
@@ -596,6 +692,7 @@ class AdUtil
 		{
 			case AdmobEvent.INIT_OK:
 				ready = true;
+				lastError = '';
 				markStable();
 				funkin.mobile.android.logcat.LogcatUtil.info('Ads ready: ' + value);
 				loadInterstitial();
@@ -603,6 +700,7 @@ class AdUtil
 
 			case 'INIT_FAILED':
 				initialized = false;
+				lastError = 'Init failed: ' + value;
 				FlxG.signals.preUpdate.remove(update);
 				funkin.mobile.android.logcat.LogcatUtil.warn('Ads init failed: ' + value);
 
@@ -616,6 +714,7 @@ class AdUtil
 
 			case AdmobEvent.BANNER_FAILED_TO_LOAD:
 				if (value != null && value.indexOf('Hide previous banner') >= 0) return;
+				lastError = 'Banner: ' + value;
 				funkin.mobile.android.logcat.LogcatUtil.warn('Banner failed: ' + value);
 				destroyBanner();
 				if (retryDelays.length > 0) bannerRetryAt = now() + retryDelays[Std.int(Math.min(bannerRetries, retryDelays.length - 1))];
@@ -629,6 +728,7 @@ class AdUtil
 			case AdmobEvent.INTERSTITIAL_FAILED_TO_LOAD:
 				interstitialLoading = false;
 				interstitialTime = -1;
+				lastError = 'Interstitial: ' + value;
 				funkin.mobile.android.logcat.LogcatUtil.warn('Interstitial failed: ' + value);
 				retry(loadInterstitial, interstitialRetries++);
 
@@ -648,6 +748,7 @@ class AdUtil
 			case AdmobEvent.REWARDED_FAILED_TO_LOAD:
 				rewardedLoading = false;
 				rewardedTime = -1;
+				lastError = 'Rewarded: ' + value;
 				funkin.mobile.android.logcat.LogcatUtil.warn('Rewarded failed: ' + value);
 				retry(loadRewarded, rewardedRetries++);
 
@@ -701,6 +802,7 @@ class AdUtil
 	static function beginShowing():Void
 	{
 		showing = true;
+		funkin.mobile.haptics.Haptics.suspend('ad');
 		savedMute = FlxG.sound.muted;
 		FlxG.sound.muted = true;
 		syncBanner();
@@ -710,6 +812,7 @@ class AdUtil
 	{
 		if (!showing) return;
 		showing = false;
+		funkin.mobile.haptics.Haptics.resume('ad');
 		FlxG.sound.muted = savedMute;
 
 		if (shown)

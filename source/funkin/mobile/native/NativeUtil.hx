@@ -84,6 +84,14 @@ class NativeUtil
 		#end
 	}
 	
+	public static function stopHaptics():Void
+	{
+		#if android
+		final func = jni('stopHaptics', '()V');
+		if (func != null) func();
+		#end
+	}
+	
 	public static function vibrate(milliseconds:Int = 12, intensity:Float = 1):Void
 	{
 		if (!hapticsEnabled || milliseconds <= 0 || intensity <= 0) return;

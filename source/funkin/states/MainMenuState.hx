@@ -93,7 +93,9 @@ class MainMenuState extends MusicBeatState
 		add(menuItems);
 		
 		#if mobile
-		if (!optionShit.contains('upgrade')) optionShit.insert(optionShit.indexOf('freeplay') + 1, 'upgrade');
+		if (funkin.mobile.native.AdUtil.removed) optionShit.remove('upgrade');
+		else if (!optionShit.contains('upgrade')) optionShit.insert(optionShit.indexOf('freeplay') + 1, 'upgrade');
+		if (curSelected >= optionShit.length) curSelected = optionShit.length - 1;
 		#end
 		
 		for (i in 0...optionShit.length)

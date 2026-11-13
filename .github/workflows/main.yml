@@ -628,6 +628,27 @@ jobs:
                 sed -i '' 's/^default: \$(HAXE_BUILDS)$/default:/' "$HAXE_DIR/makefile"
                 grep -q '^default:$' "$HAXE_DIR/makefile"
 
+            - name: Link Swift libraries
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
+              run: |
+                set -euo pipefail
+                SWIFT_DIR="$(cd "$(dirname "$(xcrun --sdk iphoneos --find swiftc)")/../lib/swift/iphoneos" && pwd)"
+                FLAGS="-L$SWIFT_DIR -L$(xcrun --sdk iphoneos --show-sdk-path)/usr/lib/swift"
+                for LIB in "$SWIFT_DIR"/libswiftCompatibility*.a; do
+                  [ -e "$LIB" ] || continue
+                  NAME=$(basename "$LIB" .a)
+                  FLAGS="$FLAGS -l${NAME#lib}"
+                done
+                PBXPROJ=export/release/ios/NightmareVision.xcodeproj/project.pbxproj
+                test -f "$PBXPROJ"
+                if ! grep -q 'swiftCompatibility' "$PBXPROJ"; then
+                  INSERT=""
+                  for FLAG in $FLAGS; do INSERT="$INSERT\"$FLAG\","; done
+                  INSERT="$INSERT" perl -0pi -e 's/("-stdlib=libc\+\+",)/$1$ENV{INSERT}/g' "$PBXPROJ"
+                fi
+                grep -c 'swiftCompatibility' "$PBXPROJ"
+                echo "Swift link flags: $FLAGS"
+
             - name: Install signing assets
               if: ${{ env.STORE_BUILD == 'true' }}
               env:

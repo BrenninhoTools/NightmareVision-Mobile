@@ -1,7 +1,10 @@
 package funkin.mobile.android.util;
 
 #if android
+import androidmanager.content.Context;
 import androidmanager.content.Interface;
+import androidmanager.content.Share;
+import androidmanager.content.Storage;
 import androidmanager.view.Screenshot;
 #end
 
@@ -35,6 +38,10 @@ class ScreenshotUtil extends Sprite
 
 	public static var hideFrames:Int = 2;
 
+	public static var maxSize:Int = 1920;
+
+	public static var keepTemp:Int = 3;
+
 	public static var instance(default, null):Null<ScreenshotUtil> = null;
 
 	public static var busy(default, null):Bool = false;
@@ -64,6 +71,14 @@ class ScreenshotUtil extends Sprite
 	var lastWidth:Int = 0;
 
 	var lastHeight:Int = 0;
+
+	var result:Null<{path:Null<String>, error:Null<String>}> = null;
+
+	var shotData:Null<BitmapData> = null;
+
+	#if target.threaded
+	final lock:sys.thread.Mutex = new sys.thread.Mutex();
+	#end
 
 	public static function init():Void
 	{
@@ -177,6 +192,7 @@ class ScreenshotUtil extends Sprite
 		}
 
 		if (waitFrames >= 0 && waitFrames-- == 0) capture();
+		deliver();
 
 		if (flashAlpha > 0)
 		{
@@ -251,17 +267,139 @@ class ScreenshotUtil extends Sprite
 	function capture():Void
 	{
 		#if android
+		final folder = tempFolder();
+		if (folder == null)
+		{
+			finish(false, null, 'No storage available');
+			return;
+		}
+
+		var shot:Null<BitmapData> = null;
 		try
 		{
-			if (pendingShare)
-			{
-				Screenshot.share({format: PNG, sound: true}, {title: 'Share screenshot'}, (result) -> finish(result.started, null, result.error));
-				return;
-			}
+			shot = grab();
+		}
+		catch (e:Dynamic)
+		{
+			finish(false, null, Std.string(e));
+			return;
+		}
 
-			Screenshot.capture(null, {format: PNG, gallery: true, album: album, sound: true}, (result, ?error) -> {
-				finish(result != null, result != null ? (result.uri ?? result.path) : null, error);
-			});
+		showAgain();
+		flashAlpha = 0.8;
+		flash.alpha = flashAlpha;
+		flash.visible = true;
+
+		try
+		{
+			Screenshot.playShutterSound();
+		}
+		catch (e:Dynamic) {}
+
+		final path = haxe.io.Path.join([folder, 'Screenshot_' + DateTools.format(Date.now(), '%Y%m%d_%H%M%S') + '.png']);
+		final image = shot.image;
+		shotData = shot;
+
+		#if target.threaded
+		sys.thread.Thread.create(() -> {
+			final error = save(image, path);
+			lock.acquire();
+			result = {path: error == null ? path : null, error: error};
+			lock.release();
+		});
+		#else
+		final error = save(image, path);
+		result = {path: error == null ? path : null, error: error};
+		#end
+		#end
+	}
+
+	function grab():BitmapData
+	{
+		final game = FlxG.game;
+		final width = stage.stageWidth;
+		final height = stage.stageHeight;
+		final scale = Math.min(1, maxSize / Math.max(width, height));
+
+		final matrix = new openfl.geom.Matrix();
+		matrix.concat(game.transform.matrix);
+		matrix.scale(scale, scale);
+
+		final shot = new BitmapData(Std.int(Math.max(1, width * scale)), Std.int(Math.max(1, height * scale)), false, 0xFF000000);
+		shot.draw(game, matrix, null, null, null, true);
+		return shot;
+	}
+
+	static function save(image:lime.graphics.Image, path:String):Null<String>
+	{
+		try
+		{
+			if (image == null) return 'Empty capture';
+			final bytes = image.encode(PNG);
+			if (bytes == null || bytes.length == 0) return 'Could not encode the image';
+			sys.io.File.saveBytes(path, bytes);
+			return null;
+		}
+		catch (e:Dynamic)
+		{
+			return Std.string(e);
+		}
+	}
+
+	function deliver():Void
+	{
+		#if android
+		if (result == null) return;
+
+		#if target.threaded
+		lock.acquire();
+		#end
+		final done = result;
+		result = null;
+		#if target.threaded
+		lock.release();
+		#end
+		if (done == null) return;
+
+		if (shotData != null)
+		{
+			shotData.dispose();
+			shotData = null;
+		}
+
+		if (done.error != null || done.path == null)
+		{
+			finish(false, null, done.error);
+			return;
+		}
+
+		if (pendingShare)
+		{
+			try
+			{
+				Share.file(done.path, {title: 'Share screenshot', mimeType: 'image/png'}, (shared) -> if (!shared.started) toast('Could not share: ' + shared.error));
+				finish(true, done.path, null);
+			}
+			catch (e:Dynamic)
+			{
+				finish(false, null, Std.string(e));
+			}
+			return;
+		}
+
+		try
+		{
+			final saved = Storage.saveToPublic(done.path, PICTURES, album, haxe.io.Path.withoutDirectory(done.path), 'image/png');
+			if (saved.error != null && saved.error.length > 0) finish(false, null, saved.error);
+			else
+			{
+				finish(true, saved.uri ?? saved.path, null);
+				try
+				{
+					sys.FileSystem.deleteFile(done.path);
+				}
+				catch (e:Dynamic) {}
+			}
 		}
 		catch (e:Dynamic)
 		{
@@ -270,11 +408,40 @@ class ScreenshotUtil extends Sprite
 		#end
 	}
 
+	static function tempFolder():Null<String>
+	{
+		#if android
+		try
+		{
+			final base = Context.cacheDir;
+			if (base == null || base.length == 0) return null;
+
+			final folder = haxe.io.Path.join([base, 'screenshots']);
+			if (!sys.FileSystem.exists(folder)) sys.FileSystem.createDirectory(folder);
+
+			final files = [for (name in sys.FileSystem.readDirectory(folder)) if (name.startsWith('Screenshot_')) name];
+			files.sort((a, b) -> a < b ? -1 : (a > b ? 1 : 0));
+			while (files.length >= keepTemp)
+				sys.FileSystem.deleteFile(haxe.io.Path.join([folder, files.shift()]));
+
+			return folder;
+		}
+		catch (e:Dynamic) {}
+		#end
+
+		return null;
+	}
+
+	function showAgain():Void
+	{
+		TouchCursor.hidden = false;
+		visible = ClientPrefs.screenshotButton && !ExternalInput.active;
+	}
+
 	function finish(success:Bool, path:Null<String>, error:Null<String>):Void
 	{
 		busy = false;
-		TouchCursor.hidden = false;
-		visible = ClientPrefs.screenshotButton && !ExternalInput.active;
+		showAgain();
 
 		if (!success)
 		{
@@ -285,9 +452,6 @@ class ScreenshotUtil extends Sprite
 		}
 
 		lastPath = path;
-		flashAlpha = 0.8;
-		flash.alpha = flashAlpha;
-		flash.visible = true;
 		Haptics.confirm();
 		if (!pendingShare) toast('Screenshot saved to the gallery');
 	}

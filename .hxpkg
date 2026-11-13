@@ -108,6 +108,11 @@
                 "version": "1.0.2"
             },
             {
+                "name": "extension-iostools",
+                "link": "https://github.com/BrenninhoTools/extension-iostools",
+                "branch": "d08775f7117cbbdc4d04d4d43fc7e86b76cdab06"
+            },
+            {
                 "name": "android-manager",
                 "link": "https://github.com/BrenninhoTools/android-manager",
                 "branch": "add2e8ae778efd34cd97bfbc87e23e91141f9265"

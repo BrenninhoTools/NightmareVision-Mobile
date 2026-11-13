@@ -107,14 +107,10 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		var option:Option = new Option('Screen Style', 'Original: classic 16:9 with black bars. Full: fills the whole screen without stretching.\nStretch: 16:9 stretched to fill the screen.', 'screenStyle', STRING, 'Original', funkin.mobile.ui.ScreenStyle.STYLES);
 		option.onChange = () -> funkin.mobile.ui.ScreenStyle.apply(false);
 		addOption(option);
-		#end
 		
-		#if android
-		ClientPrefs.storageType = StorageUtil.getStorageType();
-		
-		var option:Option = new Option('Battery Saver', 'Off: never saves battery. Auto: turns on when the battery is low, the phone saver is on\nor the phone is hot. On: always. Now: ' + funkin.mobile.android.power.BatterySaver.describe() + '.',
-			'batterySaver', STRING, 'Auto', funkin.mobile.android.power.BatterySaver.MODES);
-		option.onChange = funkin.mobile.android.power.BatterySaver.refresh;
+		var option:Option = new Option('Battery Saver', 'Off: never saves battery. Auto: turns on when the battery is low, the phone saver is on\nor the phone is hot. On: always. Now: ' + funkin.mobile.power.BatterySaver.describe() + '.',
+			'batterySaver', STRING, 'Auto', funkin.mobile.power.BatterySaver.MODES);
+		option.onChange = funkin.mobile.power.BatterySaver.refresh;
 		addOption(option);
 		
 		var option:Option = new Option('Battery Saver Level', 'In Auto, the saver turns on when the battery drops to this percent\nand you are not charging.', 'batterySaverLevel', INT, 20);
@@ -123,8 +119,13 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.maxValue = 50;
 		option.changeValue = 5;
 		option.displayFormat = '%v%';
-		option.onChange = funkin.mobile.android.power.BatterySaver.refresh;
+		option.onChange = funkin.mobile.power.BatterySaver.refresh;
 		addOption(option);
+		
+		#end
+		
+		#if android
+		ClientPrefs.storageType = StorageUtil.getStorageType();
 		
 		var option:Option = new Option('Storage Type', 'Where the game files are kept. Data: Android/data, External: NightmareVision folder,\nMedia: Android/media, Obb: Android/obb. Current: ' + StorageUtil.getInfo() + '.',
 			'storageType', STRING, StorageUtil.DEFAULT_STORAGE_TYPE, StorageUtil.STORAGE_TYPES);

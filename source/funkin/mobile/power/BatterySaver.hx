@@ -1,4 +1,4 @@
-package funkin.mobile.android.power;
+package funkin.mobile.power;
 
 #if android
 import androidmanager.battery.Battery;
@@ -6,6 +6,11 @@ import androidmanager.callback.Callback;
 import androidmanager.content.Interface;
 import androidmanager.os.Device;
 import androidmanager.view.Window;
+#elseif ios
+import ios.Callback as IOSCallback;
+import ios.Device as IOSDevice;
+import ios.Screen as IOSScreen;
+import ios.Toast as IOSToast;
 #end
 
 import flixel.FlxG;
@@ -71,12 +76,13 @@ class BatterySaver
 
 	public static function init():Void
 	{
-		#if android
+		#if (android || ios)
 		if (initialized) return;
 		initialized = true;
 
 		try
 		{
+			#if android
 			Battery.init();
 			Callback.init();
 			Callback.onTrimMemory.add(onTrimMemory);
@@ -85,6 +91,10 @@ class BatterySaver
 				lastInput = now();
 				pollTimer = pollSeconds;
 			});
+			#else
+			IOSDevice.startMonitoring();
+			IOSCallback.addListener(onIOSEvent);
+			#end
 		}
 		catch (e:Dynamic)
 		{
@@ -101,7 +111,7 @@ class BatterySaver
 
 	public static function refresh():Void
 	{
-		#if android
+		#if (android || ios)
 		if (!initialized) return;
 		poll();
 		apply();
@@ -110,11 +120,11 @@ class BatterySaver
 
 	public static function describe():String
 	{
-		#if android
+		#if (android || ios)
 		final battery = level >= 0 ? level + '%' + (charging ? ' charging' : '') : 'unknown';
 		return (active ? 'Active: ' + reason : 'Inactive') + ', battery ' + battery + (thermal >= 2 ? ', device hot' : '');
 		#else
-		return 'Android only';
+		return 'Not available';
 		#end
 	}
 
@@ -125,7 +135,7 @@ class BatterySaver
 
 	static function update():Void
 	{
-		#if android
+		#if (android || ios)
 		if (hasInput()) lastInput = now();
 
 		pollTimer += FlxG.elapsed;
@@ -143,17 +153,27 @@ class BatterySaver
 		return FlxG.gamepads.anyInput();
 	}
 
-	#if android
+	#if (android || ios)
 	static function poll():Void
 	{
 		pollTimer = 0;
 
 		try
 		{
+			#if android
 			level = Battery.getLevel();
 			charging = Battery.isCharging();
 			systemSaver = Battery.isPowerSaveMode();
 			thermal = Device.thermalStatus;
+			#else
+			final battery = IOSDevice.batteryLevel;
+			level = battery >= 0 ? Math.round(battery * 100) : -1;
+			final state:Int = IOSDevice.batteryState;
+			charging = state == 2 || state == 3;
+			systemSaver = IOSDevice.lowPowerMode;
+			final heat:Int = IOSDevice.thermalState;
+			thermal = heat >= 2 ? heat + 1 : heat * 2;
+			#end
 		}
 		catch (e:Dynamic) {}
 
@@ -208,7 +228,9 @@ class BatterySaver
 		if (active != appliedRefresh)
 		{
 			appliedRefresh = active;
+			#if android
 			Window.setPreferredRefreshRate(active ? gameplayFps : 0);
+			#end
 			funkin.mobile.ui.TouchCursor.trails = active ? false : savedTrails;
 			funkin.mobile.ui.TouchCursor.ripples = active ? false : savedRipples;
 			funkin.mobile.haptics.Haptics.lowPower = active;
@@ -218,14 +240,20 @@ class BatterySaver
 		if (sustained != appliedSustained)
 		{
 			appliedSustained = sustained;
+			#if android
 			Window.setSustainedPerformance(sustained);
+			#end
 		}
 
 		final keepOn = !active || gameplay;
 		if (appliedKeepOn != keepOn)
 		{
 			appliedKeepOn = keepOn;
+			#if android
 			Window.keepScreenOn = keepOn;
+			#else
+			IOSScreen.keepAwake = keepOn;
+			#end
 		}
 	}
 
@@ -254,11 +282,25 @@ class BatterySaver
 		return state != null && Std.isOfType(state, funkin.states.PlayState) && state.subState == null;
 	}
 
+	#if android
 	static function onTrimMemory(level:androidmanager.callback.Callback.TrimMemoryLevel):Void
 	{
 		final value:Int = level;
 		if (value >= 15 || (value >= 10 && active)) freeMemory(value >= 15);
 	}
+	#else
+	static function onIOSEvent(event:String, data:Dynamic):Void
+	{
+		switch (event)
+		{
+			case 'memory_warning':
+				freeMemory(true);
+			case 'low_power_mode' | 'thermal_state' | 'battery_state':
+				pollTimer = pollSeconds;
+			default:
+		}
+	}
+	#end
 
 	static function freeMemory(full:Bool):Void
 	{
@@ -277,7 +319,11 @@ class BatterySaver
 	{
 		try
 		{
+			#if android
 			Interface.showToast(message);
+			#else
+			IOSToast.show(message);
+			#end
 		}
 		catch (e:Dynamic) {}
 	}

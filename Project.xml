@@ -71,6 +71,7 @@
     <haxelib name="hxdiscord_rpc" if="DISCORD_ALLOWED" version="1.3.0"/>
     <haxelib name="hxvlc" if="VIDEOS_ALLOWED"/>
     <haxelib name="android-manager" if="android"/>
+    <haxelib name="extension-iostools" if="ios"/>
     <haxelib name="extension-haptics" if="mobile"/>
     <haxelib name="extension-iarcore" if="mobile"/>
     <haxelib name="extension-iapcore" if="mobile"/>

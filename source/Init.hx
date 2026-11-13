@@ -35,9 +35,9 @@ class Init extends FlxState
 		step('prefs');
 		ClientPrefs.load();
 		
-		#if android
+		#if mobile
 		step('battery saver');
-		funkin.mobile.android.power.BatterySaver.init();
+		funkin.mobile.power.BatterySaver.init();
 		#end
 		
 		#if mobile

@@ -76,7 +76,7 @@
     <haxelib name="extension-iarcore" if="mobile"/>
     <haxelib name="extension-iapcore" if="mobile"/>
     <haxelib name="extension-admob" if="mobile"/>
-    <setenv name="ADMOB_APPID" value="ca-app-pub-8674540100494167~9982832535" if="android" unless="ADMOB_ANDROID_APPID"/>
+    <setenv name="ADMOB_APPID" value="ca-app-pub-3940256099942544~3347511713" if="android" unless="ADMOB_ANDROID_APPID"/>
     <setenv name="ADMOB_APPID" value="${ADMOB_ANDROID_APPID}" if="android ADMOB_ANDROID_APPID"/>
     <setenv name="ADMOB_APPID" value="ca-app-pub-3940256099942544~1458002511" if="ios" unless="ADMOB_IOS_APPID"/>
     <setenv name="ADMOB_APPID" value="${ADMOB_IOS_APPID}" if="ios ADMOB_IOS_APPID"/>

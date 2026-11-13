@@ -42,6 +42,10 @@ class AdUtil
 
 	static final TEST_BANNER_IOS:String = 'ca-app-pub-3940256099942544/2934735716';
 
+	static final TEST_APP_OPEN_ANDROID:String = 'ca-app-pub-3940256099942544/9257395921';
+
+	static final TEST_APP_OPEN_IOS:String = 'ca-app-pub-3940256099942544/5575463023';
+
 	public static final rules:Map<AdPlacement, AdRule> = [
 		SONG_END => {every: 1, cooldown: 60, delay: 0, banner: false},
 		PAUSE => {every: 2, cooldown: 240, delay: 0.45, banner: true},
@@ -55,6 +59,14 @@ class AdUtil
 	public static var firstAdDelay:Float = 30;
 
 	public static var maxInterstitialsPerSession:Int = 25;
+
+	public static var maxAdsPerHour:Int = 8;
+
+	public static var appOpenAds:Bool = true;
+
+	public static var appOpenAway:Float = 30;
+
+	public static var appOpenCooldown:Float = 240;
 
 	public static var adExpireSeconds:Float = 3300;
 
@@ -139,6 +151,18 @@ class AdUtil
 	static var rewardEarned:Bool = false;
 
 	static var savedMute:Bool = false;
+
+	static var appOpenTime:Float = -1;
+
+	static var appOpenLoading:Bool = false;
+
+	static var appOpenRetries:Int = 0;
+
+	static var lastAppOpen:Float = 0;
+
+	static var awaySince:Float = -1;
+
+	static final history:Array<Float> = [];
 
 	static final active:Array<AdPlacement> = [];
 
@@ -314,7 +338,62 @@ class AdUtil
 		if (application == null) return;
 
 		application.onExit.add((_) -> markStable());
-		if (application.window != null) application.window.onDeactivate.add(markStable);
+		if (application.window == null) return;
+
+		application.window.onDeactivate.add(() -> {
+			markStable();
+			if (!showing) awaySince = now();
+		});
+		application.window.onActivate.add(() -> {
+			final away = awaySince >= 0 ? now() - awaySince : 0;
+			awaySince = -1;
+			if (!showing && away >= appOpenAway) FlxG.signals.preUpdate.addOnce(showAppOpen);
+		});
+	}
+
+	static function appOpenAllowed():Bool
+	{
+		if (!appOpenAds) return false;
+		return appOpenUnit() != appOpenTest() || testMode;
+	}
+
+	static function showAppOpen():Void
+	{
+		#if (mobile && extension_admob)
+		if (!ready || !enabled || onBreak || showing || !appOpenAllowed()) return;
+		if (appOpenTime < 0 || now() - appOpenTime >= adExpireSeconds)
+		{
+			appOpenTime = -1;
+			loadAppOpen();
+			return;
+		}
+
+		final time = now();
+		if (time - startTime < firstAdDelay || !underHourlyCap()) return;
+		if (lastAdTime > 0 && time - lastAdTime < minSecondsBetweenAds) return;
+		if (lastAppOpen > 0 && time - lastAppOpen < appOpenCooldown) return;
+		if (inGameplay()) return;
+
+		appOpenTime = -1;
+		lastAppOpen = time;
+		beginShowing();
+		funkin.mobile.android.logcat.LogcatUtil.info('Ad shown: APP_OPEN');
+		Admob.showAppOpen();
+		#end
+	}
+
+	static function inGameplay():Bool
+	{
+		final state = FlxG.state;
+		return state != null && Std.isOfType(state, funkin.states.PlayState) && state.subState == null;
+	}
+
+	static function underHourlyCap():Bool
+	{
+		final time = now();
+		while (history.length > 0 && time - history[0] > 3600)
+			history.shift();
+		return history.length < maxAdsPerHour;
 	}
 
 	public static function retryNow():Void
@@ -353,6 +432,7 @@ class AdUtil
 			(testMode ? 'Test ads' : 'Real ads'),
 			'Interstitial ' + (interstitialLoaded ? 'ready' : (interstitialLoading ? 'loading' : 'waiting')),
 			'Banner ' + (bannerLoaded ? 'ready' : (bannerCreated ? 'loading' : 'waiting')),
+			'App open ' + (!appOpenAllowed() ? 'off' : (appOpenTime >= 0 ? 'ready' : (appOpenLoading ? 'loading' : 'waiting'))),
 			'Rewarded ' + (rewardedLoaded ? 'ready' : (rewardedLoading ? 'loading' : 'waiting'))
 		];
 		return parts.join(', ') + (lastError.length > 0 ? '\nLast error: ' + lastError : '');
@@ -418,7 +498,7 @@ class AdUtil
 	public static function canShow(placement:AdPlacement):Bool
 	{
 		if (!ready || !enabled || onBreak || showing || !interstitialLoaded) return false;
-		if (shownThisSession >= maxInterstitialsPerSession) return false;
+		if (shownThisSession >= maxInterstitialsPerSession || !underHourlyCap()) return false;
 
 		final time = now();
 		if (time - startTime < firstAdDelay) return false;
@@ -697,6 +777,27 @@ class AdUtil
 				funkin.mobile.android.logcat.LogcatUtil.info('Ads ready: ' + value);
 				loadInterstitial();
 				loadRewarded();
+				loadAppOpen();
+
+			case AdmobEvent.APP_OPEN_LOADED:
+				appOpenLoading = false;
+				appOpenTime = now();
+				appOpenRetries = 0;
+
+			case AdmobEvent.APP_OPEN_FAILED_TO_LOAD:
+				appOpenLoading = false;
+				appOpenTime = -1;
+				lastError = 'App open: ' + value;
+				funkin.mobile.android.logcat.LogcatUtil.warn('App open failed: ' + value);
+				retry(loadAppOpen, appOpenRetries++);
+
+			case AdmobEvent.APP_OPEN_FAILED_TO_SHOW:
+				endShowing(false);
+				loadAppOpen();
+
+			case AdmobEvent.APP_OPEN_DISMISSED:
+				endShowing(true);
+				loadAppOpen();
 
 			case 'INIT_FAILED':
 				initialized = false;
@@ -783,6 +884,13 @@ class AdUtil
 		Admob.loadRewarded(rewardedUnit());
 	}
 
+	static function loadAppOpen():Void
+	{
+		if (!ready || !enabled || !appOpenAllowed() || appOpenLoading || appOpenTime >= 0) return;
+		appOpenLoading = true;
+		Admob.loadAppOpen(appOpenUnit());
+	}
+
 	static function retry(action:Void->Void, attempt:Int):Void
 	{
 		if (retryDelays.length == 0) return;
@@ -818,6 +926,7 @@ class AdUtil
 		if (shown)
 		{
 			lastAdTime = now();
+			history.push(lastAdTime);
 			shownThisSession++;
 			ClientPrefs.flush();
 		}
@@ -844,6 +953,20 @@ class AdUtil
 		return pick(AdUnits.IOS_REWARDED, TEST_REWARDED_IOS);
 		#else
 		return pick(AdUnits.ANDROID_REWARDED, TEST_REWARDED_ANDROID);
+		#end
+	}
+
+	static inline function appOpenTest():String
+	{
+		return #if ios TEST_APP_OPEN_IOS #else TEST_APP_OPEN_ANDROID #end;
+	}
+
+	static function appOpenUnit():String
+	{
+		#if ios
+		return pick(AdUnits.IOS_APP_OPEN, TEST_APP_OPEN_IOS);
+		#else
+		return pick(AdUnits.ANDROID_APP_OPEN, TEST_APP_OPEN_ANDROID);
 		#end
 	}
 

@@ -305,10 +305,12 @@ jobs:
                   ADMOB_ANDROID_INTERSTITIAL: ${{ secrets.ADMOB_ANDROID_INTERSTITIAL }}
                   ADMOB_ANDROID_BANNER: ${{ secrets.ADMOB_ANDROID_BANNER }}
                   ADMOB_ANDROID_REWARDED: ${{ secrets.ADMOB_ANDROID_REWARDED }}
+                  ADMOB_ANDROID_APP_OPEN: ${{ secrets.ADMOB_ANDROID_APP_OPEN }}
                   ADMOB_IOS_APPID: ${{ secrets.ADMOB_IOS_APPID }}
                   ADMOB_IOS_INTERSTITIAL: ${{ secrets.ADMOB_IOS_INTERSTITIAL }}
                   ADMOB_IOS_BANNER: ${{ secrets.ADMOB_IOS_BANNER }}
                   ADMOB_IOS_REWARDED: ${{ secrets.ADMOB_IOS_REWARDED }}
+                  ADMOB_IOS_APP_OPEN: ${{ secrets.ADMOB_IOS_APP_OPEN }}
               run: |
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
@@ -586,10 +588,12 @@ jobs:
                   ADMOB_ANDROID_INTERSTITIAL: ${{ secrets.ADMOB_ANDROID_INTERSTITIAL }}
                   ADMOB_ANDROID_BANNER: ${{ secrets.ADMOB_ANDROID_BANNER }}
                   ADMOB_ANDROID_REWARDED: ${{ secrets.ADMOB_ANDROID_REWARDED }}
+                  ADMOB_ANDROID_APP_OPEN: ${{ secrets.ADMOB_ANDROID_APP_OPEN }}
                   ADMOB_IOS_APPID: ${{ secrets.ADMOB_IOS_APPID }}
                   ADMOB_IOS_INTERSTITIAL: ${{ secrets.ADMOB_IOS_INTERSTITIAL }}
                   ADMOB_IOS_BANNER: ${{ secrets.ADMOB_IOS_BANNER }}
                   ADMOB_IOS_REWARDED: ${{ secrets.ADMOB_IOS_REWARDED }}
+                  ADMOB_IOS_APP_OPEN: ${{ secrets.ADMOB_IOS_APP_OPEN }}
               run: |
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75

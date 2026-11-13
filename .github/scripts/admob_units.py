@@ -3,7 +3,7 @@ import re
 import sys
 
 path = sys.argv[1]
-keys = ['ANDROID_INTERSTITIAL', 'ANDROID_BANNER', 'ANDROID_REWARDED', 'IOS_INTERSTITIAL', 'IOS_BANNER', 'IOS_REWARDED']
+keys = ['ANDROID_INTERSTITIAL', 'ANDROID_BANNER', 'ANDROID_REWARDED', 'ANDROID_APP_OPEN', 'IOS_INTERSTITIAL', 'IOS_BANNER', 'IOS_REWARDED', 'IOS_APP_OPEN']
 pattern = re.compile(r'^ca-app-pub-\d+/\d+$')
 
 with open(path, encoding='utf-8') as handle:

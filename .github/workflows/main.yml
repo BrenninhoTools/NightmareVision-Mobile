@@ -300,17 +300,6 @@ jobs:
             - name: Compile build
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 50
-              env:
-                  ADMOB_ANDROID_APPID: ${{ secrets.ADMOB_ANDROID_APPID }}
-                  ADMOB_ANDROID_INTERSTITIAL: ${{ secrets.ADMOB_ANDROID_INTERSTITIAL }}
-                  ADMOB_ANDROID_BANNER: ${{ secrets.ADMOB_ANDROID_BANNER }}
-                  ADMOB_ANDROID_REWARDED: ${{ secrets.ADMOB_ANDROID_REWARDED }}
-                  ADMOB_ANDROID_APP_OPEN: ${{ secrets.ADMOB_ANDROID_APP_OPEN }}
-                  ADMOB_IOS_APPID: ${{ secrets.ADMOB_IOS_APPID }}
-                  ADMOB_IOS_INTERSTITIAL: ${{ secrets.ADMOB_IOS_INTERSTITIAL }}
-                  ADMOB_IOS_BANNER: ${{ secrets.ADMOB_IOS_BANNER }}
-                  ADMOB_IOS_REWARDED: ${{ secrets.ADMOB_IOS_REWARDED }}
-                  ADMOB_IOS_APP_OPEN: ${{ secrets.ADMOB_IOS_APP_OPEN }}
               run: |
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
@@ -321,12 +310,6 @@ jobs:
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
-                python3 .github/scripts/admob_units.py source/funkin/mobile/native/AdUnits.hx
-                for KEY in ADMOB_ANDROID_APPID ADMOB_IOS_APPID; do
-                  VALUE="${!KEY:-}"
-                  if [ -n "$VALUE" ] && ! [[ "$VALUE" =~ ^ca-app-pub-[0-9]+~[0-9]+$ ]]; then echo "::warning::$KEY is not a valid AdMob app id, using the test id"; continue; fi
-                  if [ -n "$VALUE" ]; then FLAGS="$FLAGS -D$KEY=$VALUE"; fi
-                done
                 if [ "$STORE_BUILD" = "true" ]; then
                   export ANDROID_GRADLE_TASK="bundleRelease --build-cache --parallel --no-watch-fs"
                   if [ -n "$STORE_BUILD_NUMBER" ]; then FLAGS="$FLAGS -DNMV_BUILD_NUMBER=$STORE_BUILD_NUMBER"; fi
@@ -477,7 +460,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
-                key: ios-hxpkg-v5-${{ hashFiles('.hxpkg') }}
+                key: ios-hxpkg-v6-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
               if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
@@ -486,7 +469,6 @@ jobs:
                 set -euo pipefail
                 haxelib install hxpkg --quiet --always < /dev/null
                 haxelib run hxpkg install < /dev/null
-                haxelib run extension-admob setup < /dev/null
 
             - name: Save libs
               if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
@@ -583,17 +565,6 @@ jobs:
             - name: Prepare Xcode project
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 15
-              env:
-                  ADMOB_ANDROID_APPID: ${{ secrets.ADMOB_ANDROID_APPID }}
-                  ADMOB_ANDROID_INTERSTITIAL: ${{ secrets.ADMOB_ANDROID_INTERSTITIAL }}
-                  ADMOB_ANDROID_BANNER: ${{ secrets.ADMOB_ANDROID_BANNER }}
-                  ADMOB_ANDROID_REWARDED: ${{ secrets.ADMOB_ANDROID_REWARDED }}
-                  ADMOB_ANDROID_APP_OPEN: ${{ secrets.ADMOB_ANDROID_APP_OPEN }}
-                  ADMOB_IOS_APPID: ${{ secrets.ADMOB_IOS_APPID }}
-                  ADMOB_IOS_INTERSTITIAL: ${{ secrets.ADMOB_IOS_INTERSTITIAL }}
-                  ADMOB_IOS_BANNER: ${{ secrets.ADMOB_IOS_BANNER }}
-                  ADMOB_IOS_REWARDED: ${{ secrets.ADMOB_IOS_REWARDED }}
-                  ADMOB_IOS_APP_OPEN: ${{ secrets.ADMOB_IOS_APP_OPEN }}
               run: |
                 set -euo pipefail
                 python3 .github/scripts/prune_cache.py "$HXCPP_COMPILE_CACHE" "$CACHE_LIMIT_MB" 0.75
@@ -604,12 +575,6 @@ jobs:
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
-                python3 .github/scripts/admob_units.py source/funkin/mobile/native/AdUnits.hx
-                for KEY in ADMOB_ANDROID_APPID ADMOB_IOS_APPID; do
-                  VALUE="${!KEY:-}"
-                  if [ -n "$VALUE" ] && ! [[ "$VALUE" =~ ^ca-app-pub-[0-9]+~[0-9]+$ ]]; then echo "::warning::$KEY is not a valid AdMob app id, using the test id"; continue; fi
-                  if [ -n "$VALUE" ]; then FLAGS="$FLAGS -D$KEY=$VALUE"; fi
-                done
                 if [ "$STORE_BUILD" = "true" ] && [ -n "$STORE_BUILD_NUMBER" ]; then FLAGS="$FLAGS -DNMV_BUILD_NUMBER=$STORE_BUILD_NUMBER"; fi
                 haxelib run lime update Project.xml ios -$BUILD_MODE -nosign $FLAGS < /dev/null
 
@@ -631,27 +596,6 @@ jobs:
                 echo "HXCPP_NEW_FILES=$(( $(find "$HXCPP_COMPILE_CACHE" -type f | wc -l | tr -d ' ') - ${HXCPP_FILES_BEFORE:-0} ))" >> "$GITHUB_ENV"
                 sed -i '' 's/^default: \$(HAXE_BUILDS)$/default:/' "$HAXE_DIR/makefile"
                 grep -q '^default:$' "$HAXE_DIR/makefile"
-
-            - name: Link Swift libraries
-              if: ${{ steps.output.outputs.cache-hit != 'true' }}
-              run: |
-                set -euo pipefail
-                SWIFT_DIR="$(cd "$(dirname "$(xcrun --sdk iphoneos --find swiftc)")/../lib/swift/iphoneos" && pwd)"
-                FLAGS="-L$SWIFT_DIR -L$(xcrun --sdk iphoneos --show-sdk-path)/usr/lib/swift"
-                for LIB in "$SWIFT_DIR"/libswiftCompatibility*.a; do
-                  [ -e "$LIB" ] || continue
-                  NAME=$(basename "$LIB" .a)
-                  FLAGS="$FLAGS -l${NAME#lib}"
-                done
-                PBXPROJ=export/release/ios/NightmareVision.xcodeproj/project.pbxproj
-                test -f "$PBXPROJ"
-                if ! grep -q 'swiftCompatibility' "$PBXPROJ"; then
-                  INSERT=""
-                  for FLAG in $FLAGS; do INSERT="$INSERT\"$FLAG\","; done
-                  INSERT="$INSERT" perl -0pi -e 's/("-stdlib=libc\+\+",)/$1$ENV{INSERT}/g' "$PBXPROJ"
-                fi
-                grep -c 'swiftCompatibility' "$PBXPROJ"
-                echo "Swift link flags: $FLAGS"
 
             - name: Install signing assets
               if: ${{ env.STORE_BUILD == 'true' }}

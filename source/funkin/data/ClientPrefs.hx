@@ -77,25 +77,7 @@ class ClientPrefs
 	
 	@saveVar public static var astcTextures:Bool = true;
 	
-	@saveVar public static var reviewSongs:Int = 0;
-	
-	@saveVar public static var reviewLastAsked:Float = 0;
-	
-	@saveVar public static var purchases:Array<String> = [];
-	
 	@saveVar public static var upgradePrankPending:Bool = false;
-	
-	@saveVar public static var adSongs:Int = 0;
-	
-	@saveVar public static var adsRemoved:Bool = false;
-	
-	@saveVar public static var adsInitAttempts:Int = 0;
-	
-	@saveVar public static var adsGuardVersion:String = '';
-	
-	@saveVar public static var adBreakUntil:Float = 0;
-	
-	@saveVar public static var adsBlockedLaunches:Int = 0;
 	
 	@saveVar public static var batterySaver:String = 'Auto';
 	

@@ -45,21 +45,6 @@
                 "branch": "8978b34b437f943a0d164bd6b3d8b69bd0025081"
             },
             {
-                "name": "extension-iarcore",
-                "link": "https://github.com/LimeExtensions/extension-iarcore",
-                "branch": "a78e49fe69feecef9abcdbcfd08ccc510ed00c6c"
-            },
-            {
-                "name": "extension-iapcore",
-                "link": "https://github.com/LimeExtensions/extension-iapcore",
-                "branch": "fd22c391be8bb59ded6c0b3f5fcc5f6358dd8897"
-            },
-            {
-                "name": "extension-admob",
-                "link": "https://github.com/FunkinCrew/extension-admob",
-                "branch": "c3fea546634c0e799195e6c45d1666e1683ee59d"
-            },
-            {
                 "name": "hxvlc",
                 "version": "2.3.0"
             },

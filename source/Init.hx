@@ -26,8 +26,6 @@ class Init extends FlxState
 		funkin.mobile.input.TouchInput.init();
 		funkin.mobile.EditorTouchSupport.init();
 		funkin.mobile.haptics.Haptics.init();
-		funkin.mobile.native.ReviewUtil.init();
-		funkin.mobile.native.PurchaseUtil.init();
 		funkin.mobile.input.ExternalInput.init();
 		funkin.mobile.ui.TouchCursor.init();
 		#if android
@@ -41,11 +39,6 @@ class Init extends FlxState
 		#if mobile
 		step('battery saver');
 		funkin.mobile.power.BatterySaver.init();
-		#end
-		
-		#if mobile
-		step('ads');
-		funkin.mobile.native.AdUtil.init();
 		#end
 		
 		step('highscore');

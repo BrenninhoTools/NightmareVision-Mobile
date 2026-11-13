@@ -73,13 +73,6 @@
     <haxelib name="android-manager" if="android"/>
     <haxelib name="extension-iostools" if="ios"/>
     <haxelib name="extension-haptics" if="mobile"/>
-    <haxelib name="extension-iarcore" if="mobile"/>
-    <haxelib name="extension-iapcore" if="mobile"/>
-    <haxelib name="extension-admob" if="mobile"/>
-    <setenv name="ADMOB_APPID" value="ca-app-pub-3940256099942544~3347511713" if="android" unless="ADMOB_ANDROID_APPID"/>
-    <setenv name="ADMOB_APPID" value="${ADMOB_ANDROID_APPID}" if="android ADMOB_ANDROID_APPID"/>
-    <setenv name="ADMOB_APPID" value="ca-app-pub-3940256099942544~1458002511" if="ios" unless="ADMOB_IOS_APPID"/>
-    <setenv name="ADMOB_APPID" value="${ADMOB_IOS_APPID}" if="ios ADMOB_IOS_APPID"/>
     <java path="projFiles/android/java" if="android"/>
     <dependency name="nmv-documents" path="projFiles/android/documents" if="android"/>
 

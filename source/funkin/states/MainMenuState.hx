@@ -93,8 +93,7 @@ class MainMenuState extends MusicBeatState
 		add(menuItems);
 		
 		#if mobile
-		if (funkin.mobile.native.AdUtil.removed) optionShit.remove('upgrade');
-		else if (!optionShit.contains('upgrade')) optionShit.insert(optionShit.indexOf('freeplay') + 1, 'upgrade');
+		if (!optionShit.contains('upgrade')) optionShit.insert(optionShit.indexOf('freeplay') + 1, 'upgrade');
 		if (curSelected >= optionShit.length) curSelected = optionShit.length - 1;
 		#end
 		
@@ -161,20 +160,7 @@ class MainMenuState extends MusicBeatState
 		
 		super.create();
 		
-		#if mobile
-		funkin.mobile.native.AdUtil.open(funkin.mobile.native.AdUtil.AdPlacement.MAIN_MENU);
-		#end
-		
 		scriptGroup.call('onCreate', []);
-	}
-	
-	override function destroy()
-	{
-		#if mobile
-		funkin.mobile.native.AdUtil.close(funkin.mobile.native.AdUtil.AdPlacement.MAIN_MENU);
-		#end
-		
-		super.destroy();
 	}
 	
 	override function update(elapsed:Float)

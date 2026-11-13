@@ -25,12 +25,8 @@ class UpgradePrankState extends MusicBeatState
 
 	var hint:FlxText;
 
-	static var alreadyRemoved:Bool = false;
-
 	public static function trigger(item:FlxSprite):Void
 	{
-		alreadyRemoved = ClientPrefs.adsRemoved;
-		funkin.mobile.native.AdUtil.removeAds();
 		ClientPrefs.upgradePrankPending = true;
 		ClientPrefs.flush();
 
@@ -75,7 +71,7 @@ class UpgradePrankState extends MusicBeatState
 		title.y -= 150;
 		add(title);
 
-		final text = alreadyRemoved ? "The ads were already removed.\nThe game closed on purpose, just a prank.\n\nNothing was bought, nothing was charged\nand none of your progress was lost." : "Upgrade complete: all ads were removed for free!\nThe game closed on purpose, just a prank.\n\nNothing was bought, nothing was charged\nand none of your progress was lost.";
+		final text = "There is no Upgrade.\nIt was just a prank, the game closed on purpose.\n\nNothing was bought, nothing was charged\nand none of your progress was lost.";
 		final message = new FlxText(60, 0, FlxG.width - 120, text, 30);
 		message.setFormat(Paths.DEFAULT_FONT, 30, FlxColor.WHITE, CENTER);
 		message.screenCenter(Y);

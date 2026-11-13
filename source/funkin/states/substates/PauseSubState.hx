@@ -174,10 +174,6 @@ class PauseSubState extends MusicBeatSubstate
 		
 		super.create();
 		
-		#if mobile
-		if (!PlayState.chartingMode) funkin.mobile.native.AdUtil.pauseOpened();
-		#end
-		
 		scriptGroup.call('onCreatePost', []);
 	}
 	
@@ -408,10 +404,6 @@ class PauseSubState extends MusicBeatSubstate
 	
 	override function destroy()
 	{
-		#if mobile
-		funkin.mobile.native.AdUtil.pauseClosed();
-		#end
-		
 		pauseMusic.destroy();
 		scriptGroup.call('onDestroy', []);
 		

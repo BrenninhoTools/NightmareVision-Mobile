@@ -2776,8 +2776,6 @@ class PlayState extends MusicBeatState
 			Highscore.saveScore(SONG.song, songScore, storyMeta.difficulty, percent);
 			
 			#if mobile
-			if (!chartingMode && !cpuControlled) funkin.mobile.native.ReviewUtil.songCompleted();
-			if (!chartingMode) funkin.mobile.native.AdUtil.songCompleted();
 			#end
 			
 			if (chartingMode)

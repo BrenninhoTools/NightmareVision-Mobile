@@ -51,13 +51,6 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		title = 'Mobile Options';
 		rpcTitle = 'Mobile Options Menu';
 		
-		var option:Option = new Option('Restore Purchases', 'Restores anything you bought in the store on this account,\nthen goes back to the title screen.', 'hitboxMode', BUTTON);
-		option.callback = () -> {
-			FlxG.sound.play(Paths.sound('confirmMenu'));
-			FlxG.switchState(() -> new funkin.mobile.states.RestorePurchasesState());
-		};
-		addOption(option);
-		
 		var option:Option = new Option('Hitbox Custom', 'Preview the hitbox, import an image, change its colors\nwith RGB and set its alpha.', 'hitboxMode', BUTTON);
 		option.callback = openHitboxCustom;
 		addOption(option);
@@ -139,48 +132,6 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		#end
 		
 		#if mobile
-		if (!funkin.mobile.native.AdUtil.removed)
-		{
-			var option:Option = new Option('Ads Status', 'Shows what the ads are doing. Press to reload them.\n' + funkin.mobile.native.AdUtil.status(), 'storageType', BUTTON);
-			option.callback = () -> {
-				FlxG.sound.play(Paths.sound('confirmMenu'));
-				funkin.mobile.native.AdUtil.retryNow();
-			};
-			addOption(option);
-		}
-		
-		if (funkin.mobile.native.AdUtil.enabled)
-		{
-			final minutes = Std.int(funkin.mobile.native.AdUtil.adBreakMinutes);
-			final left = funkin.mobile.native.AdUtil.breakMinutesLeft;
-			var option:Option = new Option('Ad Break', 'Watch one rewarded ad to play ' + minutes + ' minutes without any ads.'
-				+ (left > 0 ? '\nAd break active: ' + left + ' minutes left.' : '\nThe time adds up if you watch more than one.'), 'storageType', BUTTON);
-			option.callback = () -> {
-				funkin.mobile.native.AdUtil.watchForBreak((earned) -> {
-					FlxG.sound.play(Paths.sound(earned ? 'confirmMenu' : 'cancelMenu'));
-					if (earned) funkin.mobile.haptics.Haptics.confirm();
-				});
-			};
-			addOption(option);
-		}
-		
-		if (funkin.mobile.native.AdUtil.privacyOptionsRequired())
-		{
-			var option:Option = new Option('Ad Privacy Options', 'Opens the ad consent form so you can change\nhow your data is used for ads.', 'storageType', BUTTON);
-			option.callback = () -> {
-				FlxG.sound.play(Paths.sound('confirmMenu'));
-				funkin.mobile.native.AdUtil.showPrivacyOptions();
-			};
-			addOption(option);
-		}
-		
-		var option:Option = new Option('Rate the Game', 'Opens the store review screen so you can rate the game.', 'storageType', BUTTON);
-		option.callback = () -> {
-			FlxG.sound.play(Paths.sound('confirmMenu'));
-			funkin.mobile.native.ReviewUtil.request(true);
-		};
-		addOption(option);
-		
 		var option:Option = new Option('Repair Game Files', 'Checks every game file again and copies back anything\nthat is missing or broken. Your mods are kept.', 'storageType', BUTTON);
 		option.callback = funkin.mobile.backend.StorageUtil.repair;
 		addOption(option);

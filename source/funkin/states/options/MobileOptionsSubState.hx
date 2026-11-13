@@ -74,6 +74,11 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		var option:Option = new Option('Chart Editor in Pause', 'If checked, the pause menu shows a Chart Editor option\nthat opens the current song in the chart editor.', 'chartEditorInPause', BOOL, true);
 		addOption(option);
 		
+		#if android
+		var option:Option = new Option('Screenshot Button', 'If checked, a camera button shows in the top right corner.\nTap it to save a screenshot to the gallery, hold it to share one.', 'screenshotButton', BOOL, false);
+		addOption(option);
+		#end
+		
 		var option:Option = new Option('Touch Cursor', 'If checked, a red cursor shows where your fingers\ntouch the screen.', 'touchCursor', BOOL, false);
 		addOption(option);
 		

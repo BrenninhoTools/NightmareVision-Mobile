@@ -53,6 +53,8 @@ class TouchCursor extends Sprite
 
 	public static var tapTime:Float = 0.25;
 
+	public static var hidden:Bool = false;
+
 	final canvas:Shape;
 
 	final points:Map<Int, CursorPoint> = [];
@@ -164,7 +166,7 @@ class TouchCursor extends Sprite
 		lastTime = now;
 
 		final enabled = ClientPrefs.touchCursor && !ExternalInput.active;
-		visible = enabled;
+		visible = enabled && !hidden;
 
 		if (!enabled)
 		{

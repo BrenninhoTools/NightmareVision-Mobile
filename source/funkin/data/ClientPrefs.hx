@@ -101,6 +101,8 @@ class ClientPrefs
 	
 	@saveVar public static var batterySaverLevel:Int = 20;
 	
+	@saveVar public static var screenshotButton:Bool = false;
+	
 	@saveVar public static var invisiblePauseButton:Bool = false;
 	
 	@saveVar public static var chartEditorInPause:Bool = true;

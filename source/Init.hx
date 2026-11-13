@@ -30,6 +30,9 @@ class Init extends FlxState
 		funkin.mobile.native.PurchaseUtil.init();
 		funkin.mobile.input.ExternalInput.init();
 		funkin.mobile.ui.TouchCursor.init();
+		#if android
+		funkin.mobile.android.util.ScreenshotUtil.init();
+		#end
 		#end
 		
 		step('prefs');

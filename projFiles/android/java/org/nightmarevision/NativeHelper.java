@@ -277,6 +277,19 @@ public class NativeHelper extends Extension
 		catch (Throwable e) {}
 	}
 
+	public static boolean hasAmplitudeControl()
+	{
+		try
+		{
+			Vibrator target = getVibrator();
+			return Build.VERSION.SDK_INT >= 26 && target != null && target.hasAmplitudeControl();
+		}
+		catch (Throwable ignored)
+		{
+			return false;
+		}
+	}
+
 	public static boolean hasVibrator()
 	{
 		return getVibrator() != null;

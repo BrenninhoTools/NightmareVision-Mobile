@@ -13,7 +13,6 @@ import funkin.mobile.input.ExternalInput;
 import funkin.mobile.ui.TouchCursor;
 
 import openfl.display.Bitmap;
-import openfl.display.BitmapData;
 import openfl.display.Shape;
 import openfl.display.Sprite;
 import openfl.events.Event;
@@ -74,7 +73,6 @@ class ScreenshotUtil extends Sprite
 
 	var result:Null<{path:Null<String>, error:Null<String>}> = null;
 
-	var shotData:Null<BitmapData> = null;
 
 	#if target.threaded
 	final lock:sys.thread.Mutex = new sys.thread.Mutex();
@@ -267,6 +265,20 @@ class ScreenshotUtil extends Sprite
 	function capture():Void
 	{
 		#if android
+		final window = lime.app.Application.current?.window;
+		if (window == null)
+		{
+			finish(false, null, 'No window');
+			return;
+		}
+
+		window.onRender.add(onRendered, true, -10000);
+		#end
+	}
+
+	function onRendered(_:lime.graphics.RenderContext):Void
+	{
+		#if android
 		final folder = tempFolder();
 		if (folder == null)
 		{
@@ -274,14 +286,20 @@ class ScreenshotUtil extends Sprite
 			return;
 		}
 
-		var shot:Null<BitmapData> = null;
+		var image:Null<lime.graphics.Image> = null;
 		try
 		{
-			shot = grab();
+			image = lime.app.Application.current.window.readPixels();
 		}
 		catch (e:Dynamic)
 		{
 			finish(false, null, Std.string(e));
+			return;
+		}
+
+		if (image == null)
+		{
+			finish(false, null, 'Could not read the screen');
 			return;
 		}
 
@@ -297,44 +315,43 @@ class ScreenshotUtil extends Sprite
 		catch (e:Dynamic) {}
 
 		final path = haxe.io.Path.join([folder, 'Screenshot_' + DateTools.format(Date.now(), '%Y%m%d_%H%M%S') + '.png']);
-		final image = shot.image;
-		shotData = shot;
+		final limit = maxSize;
 
 		#if target.threaded
 		sys.thread.Thread.create(() -> {
-			final error = save(image, path);
+			final error = save(image, path, limit);
 			lock.acquire();
 			result = {path: error == null ? path : null, error: error};
 			lock.release();
 		});
 		#else
-		final error = save(image, path);
+		final error = save(image, path, limit);
 		result = {path: error == null ? path : null, error: error};
 		#end
 		#end
 	}
 
-	function grab():BitmapData
-	{
-		final game = FlxG.game;
-		final width = stage.stageWidth;
-		final height = stage.stageHeight;
-		final scale = Math.min(1, maxSize / Math.max(width, height));
-
-		final matrix = new openfl.geom.Matrix();
-		matrix.concat(game.transform.matrix);
-		matrix.scale(scale, scale);
-
-		final shot = new BitmapData(Std.int(Math.max(1, width * scale)), Std.int(Math.max(1, height * scale)), false, 0xFF000000);
-		shot.draw(game, matrix, null, null, null, true);
-		return shot;
-	}
-
-	static function save(image:lime.graphics.Image, path:String):Null<String>
+	static function save(image:lime.graphics.Image, path:String, limit:Int):Null<String>
 	{
 		try
 		{
 			if (image == null) return 'Empty capture';
+
+			final data = image.buffer.data;
+			var index = 3;
+			while (index < data.length)
+			{
+				data[index] = 255;
+				index += 4;
+			}
+
+			final largest = Math.max(image.width, image.height);
+			if (limit > 0 && largest > limit)
+			{
+				final ratio = limit / largest;
+				image.resize(Std.int(Math.max(1, image.width * ratio)), Std.int(Math.max(1, image.height * ratio)));
+			}
+
 			final bytes = image.encode(PNG);
 			if (bytes == null || bytes.length == 0) return 'Could not encode the image';
 			sys.io.File.saveBytes(path, bytes);
@@ -360,12 +377,6 @@ class ScreenshotUtil extends Sprite
 		lock.release();
 		#end
 		if (done == null) return;
-
-		if (shotData != null)
-		{
-			shotData.dispose();
-			shotData = null;
-		}
 
 		if (done.error != null || done.path == null)
 		{

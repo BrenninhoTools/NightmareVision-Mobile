@@ -84,6 +84,16 @@ class NativeUtil
 		#end
 	}
 	
+	public static function hasAmplitudeControl():Bool
+	{
+		#if android
+		final func = jni('hasAmplitudeControl', '()Z');
+		return func != null && func();
+		#else
+		return false;
+		#end
+	}
+	
 	public static function stopHaptics():Void
 	{
 		#if android

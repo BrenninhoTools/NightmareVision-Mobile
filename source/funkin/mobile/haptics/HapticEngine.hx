@@ -15,6 +15,10 @@ class HapticEngine
 
 	public static var useCoreHaptics:Bool = true;
 
+	public static var waveforms(default, null):Bool = false;
+
+	public static var useWaveforms:Bool = true;
+
 	static var initialized:Bool = false;
 
 	public static function init():Void
@@ -35,6 +39,7 @@ class HapticEngine
 			#elseif android
 			Haptic.initialize();
 			patterns = true;
+			waveforms = NativeUtil.hasAmplitudeControl();
 			#end
 		}
 		catch (e:Dynamic)
@@ -51,6 +56,7 @@ class HapticEngine
 		if (intensity <= 0) return;
 
 		if (coreHaptics && useCoreHaptics && fireCore(type, intensity, sharpness)) return;
+		if (waveforms && useWaveforms && fireWave(type, intensity, sharpness)) return;
 
 		NativeUtil.haptic(typeId(type), intensity);
 		#end
@@ -102,6 +108,44 @@ class HapticEngine
 					Haptic.vibratePattern([0.07 * boost, 0.045, 0.15 * boost, 0.03, 0.06 * boost], [amplitude, 0, amplitude, 0, amplitude * 0.6], [0.6, 0, 0.35, 0, 0.25]);
 				case RUMBLE:
 					Haptic.vibrateOneShot(0.12 * boost, amplitude, pick(sharpness, 0.2));
+			}
+			return true;
+		}
+		catch (e:Dynamic) {}
+		#end
+
+		return false;
+	}
+
+	static function fireWave(type:HapticType, intensity:Float, sharpness:Float):Bool
+	{
+		#if (extension_haptics && android)
+		final amplitude = Math.min(1, intensity);
+		final boost = Math.min(3, Math.max(1, intensity));
+
+		inline function shape(base:Float, sharp:Float):Float
+			return base * boost * (1.35 - sharp * 0.7);
+
+		inline function level(sharp:Float):Float
+			return Math.min(1, amplitude * (0.8 + sharp * 0.2));
+
+		try
+		{
+			switch (type)
+			{
+				case HEAVY:
+					final sharp = pick(sharpness, 0.3);
+					Haptic.vibratePattern([shape(0.025, sharp), shape(0.04, sharp)], [level(sharp), level(sharp) * 0.55], [sharp, sharp]);
+				case DOUBLE:
+					final sharp = pick(sharpness, 0.5);
+					Haptic.vibratePattern([shape(0.03, sharp), 0.06, shape(0.03, sharp)], [level(sharp), 0, level(sharp) * 0.85], [sharp, 0, sharp]);
+				case CONFIRM:
+					Haptic.vibratePattern([0.06 * boost, 0.04, 0.12 * boost, 0.03, 0.05 * boost], [amplitude, 0, amplitude, 0, amplitude * 0.55], [0.6, 0, 0.35, 0, 0.25]);
+				case RUMBLE:
+					final sharp = pick(sharpness, 0.2);
+					Haptic.vibrateOneShot(Math.min(0.2, 0.09 * boost), level(sharp), sharp);
+				default:
+					return false;
 			}
 			return true;
 		}

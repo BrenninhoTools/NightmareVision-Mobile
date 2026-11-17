@@ -77,8 +77,6 @@ class ClientPrefs
 	
 	@saveVar public static var astcTextures:Bool = true;
 	
-	@saveVar public static var upgradePrankPending:Bool = false;
-	
 	@saveVar public static var batterySaver:String = 'Auto';
 	
 	@saveVar public static var batterySaverLevel:Int = 20;

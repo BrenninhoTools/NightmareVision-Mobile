@@ -92,29 +92,16 @@ class MainMenuState extends MusicBeatState
 		menuItems = new FlxTypedGroup<FlxSprite>();
 		add(menuItems);
 		
-		#if mobile
-		if (!optionShit.contains('upgrade')) optionShit.insert(optionShit.indexOf('freeplay') + 1, 'upgrade');
 		if (curSelected >= optionShit.length) curSelected = optionShit.length - 1;
-		#end
 		
 		for (i in 0...optionShit.length)
 		{
 			var offset:Float = 108 - (Math.max(optionShit.length, 4) - 4) * 80;
 			
 			final menuItem:FlxSprite = new FlxSprite(0, (i * 140) + offset);
-			if (optionShit[i] == 'upgrade')
-			{
-				menuItem.frames = Paths.getSparrowAtlas('menus/upgrade/upgrade');
-				menuItem.animation.addByPrefix('idle', 'upgrade idle', 24);
-				menuItem.animation.addByPrefix('selected', 'upgrade selected', 24);
-				menuItem.animation.addByPrefix('clicked', 'upgrade clicked', 24, false);
-			}
-			else
-			{
-				menuItem.frames = Paths.getSparrowAtlas('menus/mainmenu/menu_' + optionShit[i]);
-				menuItem.animation.addByPrefix('idle', optionShit[i] + " basic", 24);
-				menuItem.animation.addByPrefix('selected', optionShit[i] + " white", 24);
-			}
+			menuItem.frames = Paths.getSparrowAtlas('menus/mainmenu/menu_' + optionShit[i]);
+			menuItem.animation.addByPrefix('idle', optionShit[i] + " basic", 24);
+			menuItem.animation.addByPrefix('selected', optionShit[i] + " white", 24);
 			menuItem.animation.play('idle');
 			menuItem.ID = i;
 			menuItem.screenCenter(X);
@@ -221,15 +208,6 @@ class MainMenuState extends MusicBeatState
 			
 			if (controls.ACCEPT && !touchBlocksAccept)
 			{
-				#if mobile
-				if (optionShit[curSelected] == 'upgrade' && scriptGroup.call('onSelect', ['upgrade']) != ScriptConstants.STOP_FUNC)
-				{
-					canInteract = true;
-					funkin.mobile.states.UpgradePrankState.trigger(menuItems.members[curSelected]);
-					return;
-				}
-				#end
-				
 				if (scriptGroup.call('onSelect', [optionShit[curSelected]]) != ScriptConstants.STOP_FUNC)
 				{
 					canInteract = true;

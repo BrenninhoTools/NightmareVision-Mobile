@@ -155,22 +155,25 @@ class GameOverSubstate extends MusicBeatSubstate
 			}
 		}
 		
-		if (boyfriend.getAnimName() == 'firstDeath' && boyfriend.isAnimFinished() && startedDeath)
+		if (boyfriend != null)
 		{
-			boyfriend.playAnim('deathLoop');
-		}
-		
-		if (boyfriend.getAnimName() == 'firstDeath')
-		{
-			if (boyfriend.animCurFrame >= 12)
+			if (boyfriend.getAnimName() == 'firstDeath' && boyfriend.isAnimFinished() && startedDeath)
 			{
-				FlxG.camera.followLerp = 0.02;
+				boyfriend.playAnim('deathLoop');
 			}
 			
-			if (boyfriend.isAnimFinished())
+			if (boyfriend.getAnimName() == 'firstDeath')
 			{
-				coolStartDeath();
-				startedDeath = true;
+				if (boyfriend.animCurFrame >= 12)
+				{
+					FlxG.camera.followLerp = 0.02;
+				}
+				
+				if (boyfriend.isAnimFinished())
+				{
+					coolStartDeath();
+					startedDeath = true;
+				}
 			}
 		}
 		
@@ -206,7 +209,7 @@ class GameOverSubstate extends MusicBeatSubstate
 		if (!isEnding)
 		{
 			isEnding = true;
-			boyfriend.playAnim('deathConfirm', true);
+			if (boyfriend != null) boyfriend.playAnim('deathConfirm', true);
 			FlxG.sound.music.stop();
 			if (endSoundName != null) FlxG.sound.play(Paths.music(endSoundName));
 			new FlxTimer().start(0.7, function(tmr:FlxTimer) {
@@ -216,6 +219,18 @@ class GameOverSubstate extends MusicBeatSubstate
 			});
 			PlayState.instance?.scripts.call('onGameOverConfirm', [true]);
 		}
+	}
+	
+	override function beatHit()
+	{
+		PlayState.instance?.scripts.call('onBeatHit', []);
+		super.beatHit();
+	}
+	
+	override function stepHit()
+	{
+		PlayState.instance?.scripts.call('onStepHit', []);
+		super.stepHit();
 	}
 	
 	override function destroy()

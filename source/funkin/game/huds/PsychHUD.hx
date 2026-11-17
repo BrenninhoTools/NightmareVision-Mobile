@@ -239,13 +239,10 @@ class PsychHUD extends BaseHUD
 		var dad = parent.dad;
 		var boyfriend = parent.boyfriend;
 		if (!healthBar.leftToRight)
-		{
 			healthBar.setColors(dad.healthColour, boyfriend.healthColour);
-		}
 		else
-		{
 			healthBar.setColors(boyfriend.healthColour, dad.healthColour);
-		}
+		
 	}
 	
 	public function flipBar()

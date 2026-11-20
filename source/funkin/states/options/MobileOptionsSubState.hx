@@ -55,7 +55,7 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		option.callback = openHitboxCustom;
 		addOption(option);
 		
-		hitboxModeOption = new Option('Hitbox Mode', 'Four Lanes / Triangle / Circle: four touch areas. Arrows: tap the strums.\nD-Pad: a four note pad on the left, right or both sides.', 'hitboxMode', STRING, 'Four Lanes', funkin.mobile.util.Hitbox.MODES.copy());
+		hitboxModeOption = new Option('Hitbox Mode', 'Lanes / Triangle / Circle / Square / Rectangle: four touch areas. Arrows: tap the strums.\nD-Pad: a four note pad on the left, right, both sides or three places.', 'hitboxMode', STRING, 'Four Lanes', funkin.mobile.util.Hitbox.MODES.copy());
 		addOption(hitboxModeOption);
 		
 		var option:Option = new Option('Invisible Hitbox', 'If checked, the hitbox lanes stay invisible while you play,\nbut they still work.', 'invisibleHitbox', BOOL, false);

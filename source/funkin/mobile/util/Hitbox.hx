@@ -17,11 +17,11 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 {
 	public static final COLORS:Array<FlxColor> = [0xFFC24B99, 0xFF00FFFF, 0xFF12FA05, 0xFFF9393F];
 
-	public static final MODES:Array<String> = ['Four Lanes', 'Triangle', 'Circle', 'Arrows', 'D-Pad Left', 'D-Pad Right', 'Double D-Pad'];
+	public static final MODES:Array<String> = ['Four Lanes', 'Triangle', 'Circle', 'Square', 'Rectangle', 'Arrows', 'D-Pad Left', 'D-Pad Right', 'Double D-Pad', 'Triple D-Pad'];
 
 	public static function usesColors(mode:String):Bool
 	{
-		return mode == 'Four Lanes' || mode == 'Triangle' || mode == 'Circle';
+		return mode == 'Four Lanes' || mode == 'Triangle' || mode == 'Circle' || mode == 'Square' || mode == 'Rectangle';
 	}
 
 	public static function build(actions:Array<String>, camera:FlxCamera):Hitbox
@@ -35,6 +35,10 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 				hitbox.applyDPad(mode == 'D-Pad Right');
 			case 'Double D-Pad':
 				hitbox.applyDoubleDPad();
+			case 'Triple D-Pad':
+				hitbox.applyTripleDPad();
+			case 'Square' | 'Rectangle':
+				hitbox.applyShape(mode);
 			case 'Triangle':
 				hitbox.applyTriangle();
 			case 'Circle':
@@ -249,6 +253,97 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		return best;
 	}
 
+	public static var squareCenterY:Float = 0.6;
+
+	public static var shapeTolerance:Float = 1.25;
+
+	public static function shapeBounds(mode:String, index:Int, width:Float, height:Float):Rectangle
+	{
+		final laneWidth = width / 4;
+
+		if (mode == 'Rectangle')
+		{
+			final barWidth = laneWidth * 0.84;
+			final barHeight = height * 0.62;
+			return new Rectangle(laneWidth * index + (laneWidth - barWidth) / 2, height * 0.95 - barHeight, barWidth, barHeight);
+		}
+
+		final size = Math.min(laneWidth * 0.86, height * 0.5);
+		return new Rectangle(laneWidth * (index + 0.5) - size / 2, height * squareCenterY - size / 2, size, size);
+	}
+
+	public static function shapeLaneAt(mode:String, x:Float, y:Float, width:Float, height:Float, padding:Float = 0, ?preferred:Int = -1):Int
+	{
+		var best = -1;
+		var bestScore = Math.POSITIVE_INFINITY;
+
+		for (index in 0...4)
+		{
+			final bounds = shapeBounds(mode, index, width, height);
+			final halfWidth = bounds.width / 2;
+			final halfHeight = bounds.height / 2;
+			final dx = Math.abs(x - (bounds.x + halfWidth)) / (halfWidth * shapeTolerance + padding);
+			final dy = Math.abs(y - (bounds.y + halfHeight)) / (halfHeight * shapeTolerance + padding);
+			final score = Math.max(dx, dy);
+			if (score > 1) continue;
+
+			final weighted = score - (index == preferred ? 0.08 : 0);
+			if (weighted < bestScore)
+			{
+				bestScore = weighted;
+				best = index;
+			}
+		}
+
+		return best;
+	}
+
+	public static function createShapeGraphic(width:Float, height:Float, color:FlxColor):BitmapData
+	{
+		final w = Std.int(Math.max(2, Math.ceil(width)));
+		final h = Std.int(Math.max(2, Math.ceil(height)));
+		final radius = Math.min(w, h) * 0.22;
+		final inset = borderSize / 2 + 1;
+		final shape = new openfl.display.Shape();
+		final graphics = shape.graphics;
+
+		graphics.lineStyle(borderSize, color.rgb, 1);
+		graphics.beginFill(color.rgb, fillAlpha);
+		graphics.drawRoundRect(inset, inset, w - inset * 2, h - inset * 2, radius, radius);
+		graphics.endFill();
+
+		final inner = Math.min(w, h) * 0.18;
+		graphics.lineStyle(borderSize * 0.6, color.rgb, 0.5);
+		graphics.drawRoundRect(inner, inner, w - inner * 2, h - inner * 2, radius * 0.6, radius * 0.6);
+
+		final bitmap = new BitmapData(w, h, true, FlxColor.TRANSPARENT);
+		bitmap.draw(shape, null, null, null, null, true);
+		return bitmap;
+	}
+
+	public var shapeMode(default, null):Null<String> = null;
+
+	public function applyShape(mode:String):Void
+	{
+		if (members.length < 4) return;
+
+		shapeMode = mode;
+
+		for (index in 0...4)
+		{
+			final lane = members[index];
+			if (lane == null) continue;
+
+			final bounds = shapeBounds(mode, index, FlxG.width, FlxG.height);
+			lane.loadGraphic(createShapeGraphic(bounds.width, bounds.height, getColor(index)));
+			lane.setPosition(bounds.x, bounds.y);
+			lane.updateHitbox();
+
+			final laneIndex = index;
+			lane.hitTest = (x, y, padding) -> shapeLaneAt(mode, x, y, FlxG.width, FlxG.height, padding, laneIndex) == laneIndex;
+		}
+	}
+
 	public static function createCircleGraphic(diameter:Float, color:FlxColor):BitmapData
 	{
 		final size = Std.int(Math.max(2, Math.ceil(diameter)));
@@ -318,31 +413,56 @@ class Hitbox extends FlxTypedGroup<TouchButton>
 		if (members.length < 4) return;
 
 		applyDPad(false);
+		addExtraDPads([2]);
+	}
 
+	public function applyTripleDPad():Void
+	{
+		if (members.length < 4) return;
+
+		applyDPad(false);
+		addExtraDPads([1, 2]);
+	}
+
+	function addExtraDPads(sides:Array<Int>):Void
+	{
 		final atlas = loadNoteAtlas();
 		final camera = members[0].cameras;
 
-		for (index in 0...4)
+		for (side in sides)
 		{
-			final lane = createLane(index, actions[index]);
-			lane.cameras = camera;
-			lane.loadGraphic(createDPadGraphic(dpadSize, getColor(index), atlas, DPAD_NOTES[index]));
-			lane.updateHitbox();
-			final position = dpadPosition(index, true);
-			lane.setPosition(position[0], position[1]);
-			lane.alpha = shownAlpha(idleAlpha);
-			add(lane);
+			for (index in 0...4)
+			{
+				final lane = createLane(index, actions[index]);
+				lane.cameras = camera;
+				lane.loadGraphic(createDPadGraphic(dpadSize, getColor(index), atlas, DPAD_NOTES[index]));
+				lane.updateHitbox();
+				final position = dpadPositionAt(index, side);
+				lane.setPosition(position[0], position[1]);
+				lane.alpha = shownAlpha(idleAlpha);
+				add(lane);
+			}
 		}
 
 		if (atlas != null) atlas.parent.destroy();
 	}
 
-	public static function dpadPosition(index:Int, onRight:Bool):Array<Float>
+	public static inline function dpadPosition(index:Int, onRight:Bool):Array<Float>
+	{
+		return dpadPositionAt(index, onRight ? 2 : 0);
+	}
+
+	public static function dpadPositionAt(index:Int, side:Int):Array<Float>
 	{
 		final size = dpadSize;
 		final step = size + dpadGap;
 		final width = size * 3 + dpadGap * 2;
-		final left = onRight ? MobileUtil.rightEdge() - width : MobileUtil.leftEdge();
+		final left = switch (side)
+		{
+			case 0: MobileUtil.leftEdge();
+			case 1: (MobileUtil.leftEdge() + MobileUtil.rightEdge() - width) / 2;
+			default: MobileUtil.rightEdge() - width;
+		}
 		final bottom = MobileUtil.bottomEdge() - size;
 
 		return switch (index)

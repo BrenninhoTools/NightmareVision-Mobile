@@ -3,7 +3,6 @@ package funkin.states.options;
 import openfl.display.BitmapData;
 
 import flixel.FlxCamera;
-import flixel.text.FlxText;
 import flixel.util.FlxColor;
 
 import haxe.ui.backend.flixel.UISubState;
@@ -27,7 +26,7 @@ class HitboxCustomSubState extends UISubState
 {
 	public static final LANE_NAMES:Array<String> = ['Left', 'Down', 'Up', 'Right'];
 
-	public static final MODE_LABELS:Array<String> = ['Lanes', 'Triangle', 'Circle', 'Arrows', 'Pad Left', 'Pad Right', 'Double Pad'];
+	public static final MODE_LABELS:Array<String> = ['Lanes', 'Triangle', 'Circle', 'Square', 'Rectangle', 'Arrows', 'Pad Left', 'Pad Right', 'Double Pad', 'Triple Pad'];
 
 	public static final IMAGE_EXTENSIONS:Array<String> = ['png', 'jpg', 'jpeg'];
 
@@ -57,7 +56,13 @@ class HitboxCustomSubState extends UISubState
 
 	var lanes:Array<FlxSprite> = [];
 
-	var previewLabel:FlxText;
+	var previewLabel:Label;
+
+	var previewHint:HBox;
+
+	var previewShape:Null<String> = null;
+
+	var overlays:Array<Component> = [];
 
 	var noteAtlas:Null<flixel.graphics.frames.FlxAtlasFrames> = null;
 
@@ -141,10 +146,12 @@ class HitboxCustomSubState extends UISubState
 		previewX = left;
 		previewY = top + (MobileUtil.bottomEdge() - top - previewHeight) / 2;
 
-		final title = new FlxText(previewX, previewY - 34, previewWidth, 'Hitbox Preview', 24);
-		title.setFormat(Paths.DEFAULT_FONT, 24, FlxColor.WHITE, CENTER, OUTLINE, FlxColor.BLACK);
-		title.scrollFactor.set();
-		add(title);
+		final title = makeLabel('Hitbox Preview', 22);
+		title.left = previewX;
+		title.top = previewY - 36;
+		title.width = previewWidth;
+		title.styleString = 'font-size: 22px; font-bold: true; color: #FFFFFF; text-align: center;';
+		addOverlay(title);
 
 		final frame = new FlxSprite(previewX - 3, previewY - 3).makeGraphic(Std.int(previewWidth + 6), Std.int(previewHeight + 6), FlxColor.WHITE);
 		frame.scrollFactor.set();
@@ -159,13 +166,22 @@ class HitboxCustomSubState extends UISubState
 		previewBg.scrollFactor.set();
 		add(previewBg);
 
-		previewLabel = new FlxText(previewX, previewY + 10, previewWidth, '', 18);
-		previewLabel.setFormat(Paths.DEFAULT_FONT, 18, FlxColor.WHITE, CENTER, OUTLINE, FlxColor.BLACK);
-		previewLabel.scrollFactor.set();
+		previewHint = new HBox();
+		previewHint.left = previewX + 12;
+		previewHint.top = previewY + 10;
+		previewHint.width = previewWidth - 24;
+		previewHint.padding = 6;
+		previewHint.styleString = 'background-color: #1E1B2A; background-opacity: 0.75; border: 1px solid #8A6BD1; border-radius: 6px;';
+
+		previewLabel = makeLabel('', 15);
+		previewLabel.percentWidth = 100;
+		previewLabel.styleString = 'font-size: 15px; color: #FFFFFF; text-align: center;';
+		previewHint.addComponent(previewLabel);
 
 		noteAtlas = Hitbox.loadNoteAtlas();
 
 		buildPanel(panelLeft, top);
+		addOverlay(previewHint);
 
 		#if mobile
 		backButton = MobileUtil.createBackButton(uiCamera);
@@ -222,7 +238,7 @@ class HitboxCustomSubState extends UISubState
 			button.text = MODE_LABELS[index];
 			button.toggle = true;
 			button.percentWidth = 33;
-			button.height = 40;
+			button.height = 36;
 			button.onClick = (_) -> setMode(mode);
 			modeGrid.addComponent(button);
 			modeButtons.push(button);
@@ -405,6 +421,14 @@ class HitboxCustomSubState extends UISubState
 		return row;
 	}
 
+	function addOverlay(component:Component):Void
+	{
+		Screen.instance.addComponent(component);
+		if (!members.contains(component)) add(component);
+		component.cameras = [uiCamera];
+		overlays.push(component);
+	}
+
 	function makeLabel(text:String, size:Int):Label
 	{
 		final label = new Label();
@@ -463,7 +487,7 @@ class HitboxCustomSubState extends UISubState
 	function colorsEditable():Bool
 	{
 		final mode = ClientPrefs.hitboxMode;
-		return mode == 'Triangle' || mode == 'Circle' || (mode == 'Four Lanes' && customImage == null);
+		return mode == 'Triangle' || mode == 'Circle' || mode == 'Square' || mode == 'Rectangle' || (mode == 'Four Lanes' && customImage == null);
 	}
 
 	function showPage(rgb:Bool):Void
@@ -701,7 +725,7 @@ class HitboxCustomSubState extends UISubState
 		lanes = [];
 		previewTriangle = false;
 		previewCircle = false;
-		remove(previewLabel, true);
+		previewShape = null;
 	}
 
 	function addPreview(sprite:FlxSprite):FlxSprite
@@ -730,15 +754,21 @@ class HitboxCustomSubState extends UISubState
 				}
 				previewLabel.text = 'Tap the arrows at the bottom of the screen';
 
-			case 'D-Pad Left' | 'D-Pad Right' | 'Double D-Pad':
+			case 'D-Pad Left' | 'D-Pad Right' | 'Double D-Pad' | 'Triple D-Pad':
 				final size = Std.int(Hitbox.dpadSize * scale);
-				final sides = ClientPrefs.hitboxMode == 'Double D-Pad' ? [false, true] : [ClientPrefs.hitboxMode == 'D-Pad Right'];
+				final sides = switch (ClientPrefs.hitboxMode)
+				{
+					case 'Triple D-Pad': [0, 1, 2];
+					case 'Double D-Pad': [0, 2];
+					case 'D-Pad Right': [2];
+					default: [0];
+				}
 
-				for (onRight in sides)
+				for (side in sides)
 				{
 					for (i in 0...4)
 					{
-						final position = Hitbox.dpadPosition(i, onRight);
+						final position = Hitbox.dpadPositionAt(i, side);
 						final button = addPreview(new FlxSprite().loadGraphic(Hitbox.createDPadGraphic(size, Hitbox.COLORS[i], noteAtlas, Hitbox.DPAD_NOTES[i])));
 						button.setPosition(previewX + position[0] * scale, previewY + position[1] * scale);
 					}
@@ -756,6 +786,18 @@ class HitboxCustomSubState extends UISubState
 					lanes.push(lane);
 				}
 				previewLabel.text = 'Tap a circle to edit its color';
+
+			case 'Square' | 'Rectangle':
+				previewShape = ClientPrefs.hitboxMode;
+				for (i in 0...4)
+				{
+					final bounds = Hitbox.shapeBounds(previewShape, i, previewWidth, previewHeight);
+					final lane = addPreview(new FlxSprite().loadGraphic(Hitbox.createShapeGraphic(bounds.width, bounds.height, FlxColor.WHITE)));
+					lane.setPosition(previewX + bounds.x, previewY + bounds.y);
+					lane.color = colors[i];
+					lanes.push(lane);
+				}
+				previewLabel.text = 'Tap a ' + previewShape.toLowerCase() + ' to edit its color';
 
 			case 'Triangle':
 				previewTriangle = true;
@@ -785,7 +827,6 @@ class HitboxCustomSubState extends UISubState
 				previewLabel.text = customImage != null ? 'Custom image hitbox' : 'Tap a lane to edit its color';
 		}
 
-		add(previewLabel);
 		highlightLanes();
 	}
 
@@ -812,6 +853,7 @@ class HitboxCustomSubState extends UISubState
 		if (localX < 0 || localY < 0 || localX >= previewWidth || localY >= previewHeight) return -1;
 
 		if (previewCircle) return Hitbox.circleLaneAt(localX, localY, previewWidth, previewHeight);
+		if (previewShape != null) return Hitbox.shapeLaneAt(previewShape, localX, localY, previewWidth, previewHeight);
 
 		if (previewTriangle)
 		{
@@ -878,6 +920,9 @@ class HitboxCustomSubState extends UISubState
 	override function destroy()
 	{
 		if (panel != null) Screen.instance.removeComponent(panel, false);
+		for (component in overlays)
+			Screen.instance.removeComponent(component, false);
+		overlays = [];
 
 		if (noteAtlas != null)
 		{

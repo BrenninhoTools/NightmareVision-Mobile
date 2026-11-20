@@ -36,6 +36,10 @@ install_commit() {
   fi
   git -C "$DIR" checkout -q FETCH_HEAD
   printf 'git' > "$ROOT/.current"
+
+  if [ "$NAME" = "hxcpp" ] && [ ! -f "$DIR/hxcpp.n" ]; then
+    (cd "$DIR/tools/hxcpp" && haxe compile.hxml) || return 1
+  fi
   echo "Installed $NAME from $LINK at $REF"
 }
 
@@ -51,8 +55,13 @@ for ATTEMPT in 1 2 3 4; do
     fi
   done
 
+  HXCPP_DIR=$(haxelib path hxcpp 2>/dev/null | head -n 1)
+  if [ -n "$HXCPP_DIR" ] && [ -d "$HXCPP_DIR/tools/hxcpp" ] && [ ! -f "$HXCPP_DIR/hxcpp.n" ]; then
+    (cd "$HXCPP_DIR/tools/hxcpp" && haxe compile.hxml) || echo "::warning::Could not build hxcpp.n"
+  fi
+
   MISSING=$(missing)
-  if [ -z "$MISSING" ]; then
+  if [ -z "$MISSING" ] && { [ -z "$HXCPP_DIR" ] || [ -f "$HXCPP_DIR/hxcpp.n" ]; }; then
     rm -f hxpkg.log
     echo "All libraries installed"
     exit 0

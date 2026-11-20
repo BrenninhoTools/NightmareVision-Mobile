@@ -144,7 +144,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
-                key: android-hxpkg-v6-${{ hashFiles('.hxpkg') }}
+                key: android-hxpkg-v7-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
               if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
@@ -409,7 +409,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
-                key: ios-hxpkg-v8-${{ hashFiles('.hxpkg') }}
+                key: ios-hxpkg-v9-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
               if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}

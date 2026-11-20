@@ -68,6 +68,10 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		addOption(option);
 		
 		#if android
+		var option:Option = new Option('Performance Boost', 'If checked, the game tells Android how long each frame takes,\nso the CPU only speeds up when needed. Saves battery and stops stutters.', 'performanceHints', BOOL, true);
+		option.onChange = funkin.mobile.power.BatterySaver.refreshHint;
+		addOption(option);
+		
 		var option:Option = new Option('Low Latency Touch', 'If checked, touches reach the game as soon as they happen\ninstead of once per screen refresh. Needs Android 11 or newer.', 'lowLatencyTouch', BOOL, true);
 		option.onChange = funkin.mobile.input.TouchInput.calibrate;
 		addOption(option);

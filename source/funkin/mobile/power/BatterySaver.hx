@@ -5,6 +5,7 @@ import androidmanager.battery.Battery;
 import androidmanager.callback.Callback;
 import androidmanager.content.Interface;
 import androidmanager.os.Device;
+import androidmanager.os.Performance;
 import androidmanager.view.Window;
 #elseif ios
 import ios.Callback as IOSCallback;
@@ -22,6 +23,7 @@ enum abstract SaverReason(String) to String
 	var LOW_BATTERY = 'Low battery';
 	var SYSTEM = 'System battery saver';
 	var HOT = 'Device is hot';
+	var GAME_MODE = 'Game Mode set to battery';
 }
 
 class BatterySaver
@@ -58,6 +60,16 @@ class BatterySaver
 
 	static var initialized:Bool = false;
 
+	public static var gameMode(default, null):Int = 0;
+
+	public static var hintActive(default, null):Bool = false;
+
+	static var appliedHint:Int = -1;
+
+	static var appliedState:Int = -1;
+
+	static var loading:Bool = false;
+
 	static var pollTimer:Float = 0;
 
 	static var lastInput:Float = 0;
@@ -91,6 +103,12 @@ class BatterySaver
 				lastInput = now();
 				pollTimer = pollSeconds;
 			});
+
+			FlxG.signals.preStateSwitch.add(() -> setLoading(true));
+			FlxG.signals.postStateSwitch.add(() -> setLoading(false));
+			FlxG.signals.preUpdate.add(beginFrame);
+			FlxG.signals.postDraw.add(endFrame);
+			refreshHint();
 			#else
 			IOSDevice.startMonitoring();
 			IOSCallback.addListener(onIOSEvent);
@@ -122,7 +140,13 @@ class BatterySaver
 	{
 		#if (android || ios)
 		final battery = level >= 0 ? level + '%' + (charging ? ' charging' : '') : 'unknown';
-		return (active ? 'Active: ' + reason : 'Inactive') + ', battery ' + battery + (thermal >= 2 ? ', device hot' : '');
+		final mode = switch (gameMode)
+		{
+			case 2: ', Game Mode: performance';
+			case 3: ', Game Mode: battery';
+			default: '';
+		}
+		return (active ? 'Active: ' + reason : 'Inactive') + ', battery ' + battery + (thermal >= 2 ? ', device hot' : '') + mode;
 		#else
 		return 'Not available';
 		#end
@@ -165,6 +189,7 @@ class BatterySaver
 			charging = Battery.isCharging();
 			systemSaver = Battery.isPowerSaveMode();
 			thermal = Device.thermalStatus;
+			gameMode = Performance.gameMode;
 			#else
 			final battery = IOSDevice.batteryLevel;
 			level = battery >= 0 ? Math.round(battery * 100) : -1;
@@ -199,8 +224,10 @@ class BatterySaver
 			default:
 		}
 
+		if (gameMode == 3) return GAME_MODE;
 		if (systemSaver) return SYSTEM;
 		if (thermal >= 3) return HOT;
+		if (gameMode == 2) return NONE;
 
 		final limit = ClientPrefs.batterySaverLevel + (wasActive ? hysteresis : 0);
 		if (!charging && level >= 0 && level <= limit) return LOW_BATTERY;
@@ -224,6 +251,22 @@ class BatterySaver
 			if (capped) setFps(fps);
 			else ClientPrefs.changeFps(ClientPrefs.framerate);
 		}
+
+		#if android
+		final target = FlxG.drawFramerate > 0 ? FlxG.drawFramerate : 60;
+		if (hintActive && target != appliedHint)
+		{
+			appliedHint = target;
+			Performance.setHintTarget(target);
+		}
+
+		final state = gameplay ? 3 : 2;
+		if (state != appliedState && !loading)
+		{
+			appliedState = state;
+			Performance.setGameState(false, state);
+		}
+		#end
 
 		if (active != appliedRefresh)
 		{
@@ -255,6 +298,57 @@ class BatterySaver
 			IOSScreen.keepAwake = keepOn;
 			#end
 		}
+	}
+
+	public static function refreshHint():Void
+	{
+		#if android
+		try
+		{
+			if (ClientPrefs.performanceHints && !hintActive && Performance.hintSupported)
+			{
+				hintActive = Performance.startHintSession(FlxG.drawFramerate > 0 ? FlxG.drawFramerate : 60);
+				appliedHint = -1;
+			}
+			else if (!ClientPrefs.performanceHints && hintActive)
+			{
+				Performance.closeHintSession();
+				hintActive = false;
+			}
+		}
+		catch (e:Dynamic)
+		{
+			hintActive = false;
+		}
+		#end
+	}
+
+	static function beginFrame():Void
+	{
+		#if android
+		if (hintActive) Performance.beginFrame();
+		#end
+	}
+
+	static function endFrame():Void
+	{
+		#if android
+		if (hintActive) Performance.endFrame();
+		#end
+	}
+
+	static function setLoading(value:Bool):Void
+	{
+		#if android
+		if (loading == value) return;
+		loading = value;
+		appliedState = -1;
+		try
+		{
+			Performance.setGameState(value, value ? 4 : (inGameplay() ? 3 : 2));
+		}
+		catch (e:Dynamic) {}
+		#end
 	}
 
 	static function cap(fps:Int, limit:Int):Int

@@ -322,7 +322,37 @@ class TouchInput
 			window.onKeyDown.add(onKeyDown);
 			window.onKeyUp.add(onKeyUp);
 		}
+
+		calibrate();
+		FlxG.signals.gameResized.add((_, _) -> calibrate());
 		#end
+	}
+
+	public static var calibrated(default, null):Bool = false;
+
+	public static function calibrate():Void
+	{
+		#if android
+		try
+		{
+			androidmanager.view.Input.requestUnbufferedDispatch(ClientPrefs.lowLatencyTouch);
+
+			final scale = FlxG.scaleMode != null ? FlxG.scaleMode.scale : null;
+			if (scale == null || scale.x <= 0) return;
+
+			final slop = androidmanager.view.Input.touchSlop / scale.x;
+			tapDistance = clamp(slop * 2.5, 30, 56);
+			longPressTime = clamp(androidmanager.view.Input.longPressTimeout + 50, 350, 800);
+			doubleTapTime = clamp(androidmanager.view.Input.doubleTapTimeout, 200, 450);
+			calibrated = true;
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
+
+	static inline function clamp(value:Float, min:Float, max:Float):Float
+	{
+		return Math.max(min, Math.min(max, value));
 	}
 
 	public static function register(zone:TouchButton):Void

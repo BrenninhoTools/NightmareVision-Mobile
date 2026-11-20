@@ -6,6 +6,9 @@ import funkin.mobile.native.NativeUtil;
 #if extension_haptics
 import extension.haptics.Haptic;
 #end
+#if android
+import androidmanager.os.Vibrator;
+#end
 
 class HapticEngine
 {
@@ -18,6 +21,16 @@ class HapticEngine
 	public static var waveforms(default, null):Bool = false;
 
 	public static var useWaveforms:Bool = true;
+
+	public static var compositions(default, null):Bool = false;
+
+	public static var useCompositions:Bool = true;
+
+	static var hasThud:Bool = false;
+
+	static var hasLowTick:Bool = false;
+
+	static var hasRise:Bool = false;
 
 	static var initialized:Bool = false;
 
@@ -48,6 +61,21 @@ class HapticEngine
 			patterns = false;
 		}
 		#end
+
+		#if android
+		try
+		{
+			Vibrator.usage = MEDIA;
+			compositions = Vibrator.isPrimitiveSupported(CLICK) && Vibrator.isPrimitiveSupported(TICK);
+			hasThud = Vibrator.isPrimitiveSupported(THUD);
+			hasLowTick = Vibrator.isPrimitiveSupported(LOW_TICK);
+			hasRise = Vibrator.isPrimitiveSupported(QUICK_RISE);
+		}
+		catch (e:Dynamic)
+		{
+			compositions = false;
+		}
+		#end
 	}
 
 	public static function fire(type:HapticType, intensity:Float, sharpness:Float = -1):Void
@@ -56,6 +84,7 @@ class HapticEngine
 		if (intensity <= 0) return;
 
 		if (coreHaptics && useCoreHaptics && fireCore(type, intensity, sharpness)) return;
+		if (compositions && useCompositions && fireComposition(type, intensity, sharpness)) return;
 		if (waveforms && useWaveforms && fireWave(type, intensity, sharpness)) return;
 
 		NativeUtil.haptic(typeId(type), intensity);
@@ -110,6 +139,44 @@ class HapticEngine
 					Haptic.vibrateOneShot(0.12 * boost, amplitude, pick(sharpness, 0.2));
 			}
 			return true;
+		}
+		catch (e:Dynamic) {}
+		#end
+
+		return false;
+	}
+
+	static function fireComposition(type:HapticType, intensity:Float, sharpness:Float):Bool
+	{
+		#if android
+		final level = Math.min(1, intensity);
+		final extra = Math.min(1, Math.max(0, intensity - 1) / 2);
+		final soft = sharpness >= 0 && sharpness < 0.35;
+
+		final steps:Array<androidmanager.os.Vibrator.CompositionStep> = switch (type)
+		{
+			case SELECTION:
+				[{primitive: soft && hasLowTick ? LOW_TICK : TICK, scale: 0.35 + level * 0.4}];
+			case LIGHT:
+				[{primitive: soft && hasLowTick ? LOW_TICK : TICK, scale: 0.5 + level * 0.5}];
+			case MEDIUM:
+				[{primitive: soft && hasThud ? THUD : CLICK, scale: 0.45 + level * 0.55}];
+			case HEAVY:
+				[{primitive: hasThud && (sharpness < 0 || sharpness < 0.6) ? THUD : CLICK, scale: level}];
+			case DOUBLE:
+				[{primitive: CLICK, scale: level}, {primitive: CLICK, scale: level * 0.8, delay: 70}];
+			case CONFIRM:
+				hasRise ? [{primitive: QUICK_RISE, scale: level * 0.6}, {primitive: CLICK, scale: level, delay: 20}, {primitive: hasThud ? THUD : CLICK, scale: level * 0.7, delay: 60}] : [{primitive: CLICK, scale: level}, {primitive: CLICK, scale: level, delay: 90}];
+			default:
+				null;
+		}
+
+		if (steps == null) return false;
+		if (extra > 0) steps.push({primitive: hasThud ? THUD : CLICK, scale: extra, delay: 0});
+
+		try
+		{
+			return Vibrator.compose(steps);
 		}
 		catch (e:Dynamic) {}
 		#end

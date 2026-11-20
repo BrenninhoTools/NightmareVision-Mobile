@@ -68,6 +68,10 @@ class MobileOptionsSubState extends BaseOptionsMenu
 		addOption(option);
 		
 		#if android
+		var option:Option = new Option('Low Latency Touch', 'If checked, touches reach the game as soon as they happen\ninstead of once per screen refresh. Needs Android 11 or newer.', 'lowLatencyTouch', BOOL, true);
+		option.onChange = funkin.mobile.input.TouchInput.calibrate;
+		addOption(option);
+		
 		var option:Option = new Option('Screenshot Button', 'If checked, a camera button shows in the top right corner.\nTap it to save a screenshot to the gallery, hold it to share one.', 'screenshotButton', BOOL, false);
 		addOption(option);
 		#end

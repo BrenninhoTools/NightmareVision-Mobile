@@ -45,12 +45,19 @@ class DiscordClient
 	 */
 	public static var username:String = 'Unknown';
 	
+	public static var supported(get, never):Bool;
+	
+	static function get_supported():Bool
+	{
+		return Discord.IsSupported();
+	}
+	
 	/**
 	 * Initiates the discord thread and hooks to `rpcId`
 	 */
 	public static function init()
 	{
-		if (!ClientPrefs.discordEnabled)
+		if (!ClientPrefs.discordEnabled || !supported)
 		{
 			close();
 			return;
@@ -173,6 +180,7 @@ class DiscordClient
 	 */
 	static function updatePresence():Void
 	{
+		if (!initiated) return;
 		Discord.UpdatePresence(cpp.RawConstPointer.addressOf(discordPresence));
 	}
 	
@@ -200,6 +208,10 @@ class DiscordClient
 	public static final NMV_ID:String = '';
 	
 	public static var rpcId(default, set):String = '';
+	
+	public static var supported(get, never):Bool;
+	
+	static function get_supported():Bool return false;
 	
 	public static inline function changePresence(details:String = 'In the Menus', ?state:String, ?smallImageKey:String, hasStartTimestamp:Bool = false, ?endTimestamp:Float,
 		largeImageKey:String = 'icon'):Void {}

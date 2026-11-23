@@ -3,6 +3,8 @@ set -uo pipefail
 
 haxelib install hxpkg --quiet --always < /dev/null || exit 1
 
+SUBMODULE_LIBS="hxdiscord_rpc"
+
 PACKAGES=$(python3 -c "
 import json
 for profile in json.load(open('.hxpkg')):
@@ -55,13 +57,25 @@ for ATTEMPT in 1 2 3 4; do
     fi
   done
 
+  SUBMODULES_OK=1
+  for LIB in $SUBMODULE_LIBS; do
+    GIT_DIR=".haxelib/${LIB//./,}/git"
+    [ -f "$GIT_DIR/.gitmodules" ] || continue
+    if ! git -C "$GIT_DIR" submodule update --init --depth 1 -q; then
+      echo "::warning::Could not fetch submodules of $LIB"
+    fi
+    if git -C "$GIT_DIR" submodule status | grep -q '^-'; then
+      SUBMODULES_OK=0
+    fi
+  done
+
   HXCPP_DIR=$(haxelib path hxcpp 2>/dev/null | head -n 1)
   if [ -n "$HXCPP_DIR" ] && [ -d "$HXCPP_DIR/tools/hxcpp" ] && [ ! -f "$HXCPP_DIR/hxcpp.n" ]; then
     (cd "$HXCPP_DIR/tools/hxcpp" && haxe compile.hxml) || echo "::warning::Could not build hxcpp.n"
   fi
 
   MISSING=$(missing)
-  if [ -z "$MISSING" ] && { [ -z "$HXCPP_DIR" ] || [ -f "$HXCPP_DIR/hxcpp.n" ]; }; then
+  if [ -z "$MISSING" ] && [ "$SUBMODULES_OK" = "1" ] && { [ -z "$HXCPP_DIR" ] || [ -f "$HXCPP_DIR/hxcpp.n" ]; }; then
     rm -f hxpkg.log
     echo "All libraries installed"
     exit 0

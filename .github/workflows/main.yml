@@ -103,7 +103,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: export/release/android/signed/NightmareVision.apk
-                key: android-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.ASTC_ENABLED }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
+                key: android-output-${{ env.OUTPUT_CACHE_VERSION }}-${{ env.BUILD_MODE }}-${{ env.ASTC_ENABLED }}-${{ secrets.DISCORD_SDK_TOKEN != '' && env.DISCORD_SDK_VERSION || 'nodiscord' }}-${{ env.LIME_HASH }}-${{ inputs.buildFlags }}-${{ hashFiles('source/**', 'assets/**', 'Project.xml', '.hxpkg', 'projFiles/**', '.github/workflows/main.yml', '.github/scripts/**') }}
 
             - name: Setup environment
               if: ${{ steps.output.outputs.cache-hit != 'true' }}

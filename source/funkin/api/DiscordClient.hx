@@ -15,6 +15,8 @@ class DiscordClient
 	 */
 	public static final NMV_ID:String = '1252033037680513115';
 	
+	public static final MOBILE_ID:String = '1540653184530251847';
+	
 	/**
 	 * Additional thread to run discord tasks without lagspikes
 	 */
@@ -30,7 +32,7 @@ class DiscordClient
 	 * 
 	 * change this to set it to display your own mod
 	 */
-	public static var rpcId(default, set):String = NMV_ID;
+	public static var rpcId(default, set):String = #if android MOBILE_ID #else NMV_ID #end;
 	
 	/**
 	 * The active RPC presence.
@@ -142,6 +144,7 @@ class DiscordClient
 		final discriminator:String = cast request[0].discriminator;
 		
 		username = discriminator != '0' ? '$user#$discriminator' : '$user';
+		if (username.length == 0) username = 'Unknown';
 		Logger.log('Successfully connected to user [$username]', NOTICE);
 		
 		changePresence();

@@ -82,6 +82,8 @@ env:
     ASTC_QUALITY: medium
     BUILD_MODE: release
     CLEAN_BUILD: ${{ inputs.clean && 'true' || 'false' }}
+    DISCORD_SDK_REPO: BrenninhoTools/discord-social-sdk
+    DISCORD_SDK_VERSION: 1.11.24259
 
 jobs:
     Android:
@@ -284,6 +286,38 @@ jobs:
                   .astc-cache/hashes.json
                 key: linux-astc-${{ env.ASTC_BLOCK }}-${{ env.ASTC_QUALITY }}-${{ hashFiles('assets/**/*.png', '.github/astc-excludes.txt') }}
 
+            - name: Restore Discord Social SDK
+              id: discordsdk
+              if: ${{ steps.output.outputs.cache-hit != 'true' }}
+              uses: actions/cache/restore@v4
+              with:
+                path: .discord-social-sdk
+                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v1
+
+            - name: Prepare Discord Social SDK
+              if: ${{ steps.output.outputs.cache-hit != 'true' && steps.discordsdk.outputs.cache-hit != 'true' }}
+              env:
+                GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+              run: |
+                set -euo pipefail
+                if [ -z "${GH_TOKEN:-}" ]; then
+                  echo "::notice::DISCORD_SDK_TOKEN is not set, building without Discord Rich Presence on Android"
+                  exit 0
+                fi
+                DOWNLOAD="$RUNNER_TEMP/discord-social-sdk"
+                rm -rf "$DOWNLOAD"
+                gh release download "$DISCORD_SDK_VERSION" -R "$DISCORD_SDK_REPO" -p '*.zip' -D "$DOWNLOAD"
+                LIB_DIR=$(haxelib path hxdiscord_rpc | head -n 1)
+                python3 -I "${LIB_DIR%/}/tools/prepare_social_sdk.py" "$(ls "$DOWNLOAD"/*.zip | head -n 1)" .discord-social-sdk
+                rm -rf "$DOWNLOAD"
+
+            - name: Save Discord Social SDK
+              if: ${{ steps.output.outputs.cache-hit != 'true' && steps.discordsdk.outputs.cache-hit != 'true' && hashFiles('.discord-social-sdk/build.gradle') != '' }}
+              uses: actions/cache/save@v4
+              with:
+                path: .discord-social-sdk
+                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v1
+
             - name: Compile build
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
               timeout-minutes: 50
@@ -297,6 +331,7 @@ jobs:
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
+                if [ -f .discord-social-sdk/build.gradle ]; then FLAGS="$FLAGS -DDISCORD_SOCIAL_SDK=$GITHUB_WORKSPACE/.discord-social-sdk"; fi
                 unset CC CXX
                 export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
                 haxelib run lime build Project.xml android -$BUILD_MODE -arm64 $FLAGS < /dev/null

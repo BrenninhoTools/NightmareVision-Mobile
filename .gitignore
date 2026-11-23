@@ -32,3 +32,4 @@ desktop.ini
 
 *.astc
 .astc-cache/
+.discord-social-sdk/

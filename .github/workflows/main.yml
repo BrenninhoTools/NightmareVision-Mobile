@@ -146,7 +146,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: .haxelib
-                key: android-hxpkg-v8-${{ hashFiles('.hxpkg') }}
+                key: android-hxpkg-v9-${{ hashFiles('.hxpkg') }}
 
             - name: Install libs
               if: ${{ steps.output.outputs.cache-hit != 'true' && (steps.libs.outputs.cache-hit != 'true') }}
@@ -292,7 +292,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: .discord-social-sdk
-                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v1
+                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v2
 
             - name: Prepare Discord Social SDK
               if: ${{ steps.output.outputs.cache-hit != 'true' && steps.discordsdk.outputs.cache-hit != 'true' }}
@@ -320,11 +320,11 @@ jobs:
                 rm -rf "$DOWNLOAD"
 
             - name: Save Discord Social SDK
-              if: ${{ steps.output.outputs.cache-hit != 'true' && steps.discordsdk.outputs.cache-hit != 'true' && hashFiles('.discord-social-sdk/build.gradle') != '' }}
+              if: ${{ steps.output.outputs.cache-hit != 'true' && steps.discordsdk.outputs.cache-hit != 'true' && hashFiles('.discord-social-sdk/gradle/build.gradle') != '' }}
               uses: actions/cache/save@v4
               with:
                 path: .discord-social-sdk
-                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v1
+                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v2
 
             - name: Compile build
               if: ${{ steps.output.outputs.cache-hit != 'true' }}
@@ -339,7 +339,7 @@ jobs:
                 if [ -d "$HXCPP_COMPILE_CACHE" ]; then find "$HXCPP_COMPILE_CACHE" -type d -name "pch*" -prune -exec rm -rf {} +; fi
                 FLAGS=""
                 if [ -n "${BUILD_FLAGS:-}" ]; then FLAGS="-D $BUILD_FLAGS"; fi
-                if [ -f .discord-social-sdk/build.gradle ]; then FLAGS="$FLAGS -DDISCORD_SOCIAL_SDK=$GITHUB_WORKSPACE/.discord-social-sdk"; fi
+                if [ -f .discord-social-sdk/gradle/build.gradle ]; then FLAGS="$FLAGS -DDISCORD_SOCIAL_SDK=$GITHUB_WORKSPACE/.discord-social-sdk"; fi
                 unset CC CXX
                 export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
                 haxelib run lime build Project.xml android -$BUILD_MODE -arm64 $FLAGS < /dev/null

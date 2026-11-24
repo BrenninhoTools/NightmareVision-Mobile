@@ -4,11 +4,13 @@ package funkin.api;
 import sys.thread.Mutex;
 import sys.thread.Thread;
 
+import hxdiscord_rpc.Types.DiscordButton;
 import hxdiscord_rpc.Types.DiscordEventHandlers;
 import hxdiscord_rpc.Types.DiscordUser;
 import hxdiscord_rpc.Discord;
 import hxdiscord_rpc.Types.DiscordRichPresence;
 
+@:keep
 class DiscordClient
 {
 	/**
@@ -21,6 +23,18 @@ class DiscordClient
 	public static final DEFAULT_ID:String = #if android MOBILE_ID #else NMV_ID #end;
 	
 	public static final ICON_URL:String = 'https://raw.githubusercontent.com/BrenninhoTools/NightmareVision-Mobile/dev/projFiles/icon/iconOG.png';
+	
+	public static final DOWNLOAD_URL:String = 'https://github.com/BrenninhoTools/NightmareVision-Mobile/releases/latest';
+	
+	public static inline final PLAYING:Int = 0;
+	
+	public static inline final LISTENING:Int = 2;
+	
+	public static inline final WATCHING:Int = 3;
+	
+	public static inline final COMPETING:Int = 5;
+	
+	public static var activityType(default, set):Int = PLAYING;
 
 	static inline final TICK_INTERVAL:Float = 0.5;
 
@@ -60,7 +74,13 @@ class DiscordClient
 
 	static var presenceSmallImage:Null<String> = null;
 
-	static var presenceLargeImage:Null<String> = resolveImage('icon');
+	static var presenceLargeImage:Null<String> = 'icon';
+	
+	static var presenceSmallText:Null<String> = null;
+	
+	static final buttonLabels:Array<Null<String>> = [#if mobile 'Get NightmareVision Mobile' #else null #end, null];
+	
+	static final buttonUrls:Array<Null<String>> = [#if mobile DOWNLOAD_URL #else null #end, null];
 
 	static var presenceLargeText:Null<String> = null;
 
@@ -267,7 +287,8 @@ class DiscordClient
 		presenceDetails = details;
 		presenceState = state;
 		presenceSmallImage = smallImageKey;
-		presenceLargeImage = resolveImage(largeImageKey);
+		presenceLargeImage = largeImageKey;
+		presenceSmallText = null;
 		presenceLargeText = 'FNF NMV (${Main.NMV_VERSION})' + platformName();
 		presenceStart = Std.int(start / 1000);
 		presenceEnd = Std.int(end / 1000);
@@ -275,12 +296,58 @@ class DiscordClient
 		lock.release();
 	}
 
-	static function resolveImage(key:Null<String>):Null<String>
+	public static function setSmallImage(?key:String, ?text:String):Void
 	{
+		lock.acquire();
+		presenceSmallImage = key;
+		presenceSmallText = text;
+		pending = true;
+		lock.release();
+	}
+	
+	public static function setButton(index:Int, ?label:String, ?url:String):Void
+	{
+		if (index < 0 || index > 1) return;
+		
+		lock.acquire();
+		final valid = label != null && label.length > 0 && url != null && url.startsWith('http');
+		buttonLabels[index] = valid ? label.substr(0, 32) : null;
+		buttonUrls[index] = valid ? url : null;
+		pending = true;
+		lock.release();
+	}
+	
+	public static function clearButtons():Void
+	{
+		setButton(0);
+		setButton(1);
+	}
+	
+	static function set_activityType(value:Int):Int
+	{
+		if (value != PLAYING && value != LISTENING && value != WATCHING && value != COMPETING) value = PLAYING;
+		
+		lock.acquire();
+		activityType = value;
+		pending = true;
+		lock.release();
+		return activityType;
+	}
+	
+	static function isUrl(key:Null<String>):Bool
+	{
+		return key != null && (key.startsWith('https://') || key.startsWith('http://'));
+	}
+	
+	static function resolveImage(key:Null<String>, large:Bool):Null<String>
+	{
+		if (isUrl(key)) return key;
+		
 		#if mobile
-		if (key == null || key.length == 0 || key == 'icon') return ICON_URL;
+		if (rpcId == MOBILE_ID) return large ? ICON_URL : null;
 		#end
-		return key;
+		
+		return key == null || key.length == 0 ? null : key;
 	}
 	
 	static function platformName():String
@@ -302,8 +369,13 @@ class DiscordClient
 			presenceSmallImage,
 			presenceLargeImage,
 			presenceLargeText,
+			presenceSmallText,
+			rpcId,
+			Std.string(activityType),
 			Std.string(presenceStart),
-			Std.string(presenceEnd)
+			Std.string(presenceEnd),
+			buttonLabels.join('|'),
+			buttonUrls.join('|')
 		].join('\n');
 	}
 
@@ -325,9 +397,21 @@ class DiscordClient
 
 		discordPresence.details = presenceDetails;
 		discordPresence.state = presenceState;
-		discordPresence.smallImageKey = presenceSmallImage;
-		discordPresence.largeImageKey = presenceLargeImage;
+		final smallImage = resolveImage(presenceSmallImage, false);
+		
+		discordPresence.type = activityType;
+		discordPresence.smallImageKey = smallImage;
+		discordPresence.smallImageText = smallImage != null ? presenceSmallText : null;
+		discordPresence.largeImageKey = resolveImage(presenceLargeImage, true);
 		discordPresence.largeImageText = presenceLargeText;
+		
+		for (index in 0...2)
+		{
+			final button = new DiscordButton();
+			button.label = buttonLabels[index];
+			button.url = buttonUrls[index];
+			discordPresence.buttons[index] = button;
+		}
 		discordPresence.startTimestamp = presenceStart;
 		discordPresence.endTimestamp = presenceEnd;
 
@@ -351,6 +435,7 @@ class DiscordClient
  *
  * Does nothing but exists for the cases discord is unavailable.
  */
+@:keep
 class DiscordClient
 {
 	public static final NMV_ID:String = '';
@@ -360,6 +445,18 @@ class DiscordClient
 	public static final DEFAULT_ID:String = '';
 	
 	public static final ICON_URL:String = '';
+	
+	public static final DOWNLOAD_URL:String = '';
+	
+	public static inline final PLAYING:Int = 0;
+	
+	public static inline final LISTENING:Int = 2;
+	
+	public static inline final WATCHING:Int = 3;
+	
+	public static inline final COMPETING:Int = 5;
+	
+	public static var activityType:Int = PLAYING;
 
 	public static var rpcId(default, set):String = '';
 
@@ -367,8 +464,14 @@ class DiscordClient
 
 	static function get_supported():Bool return false;
 
-	public static inline function changePresence(details:String = 'In the Menus', ?state:String, ?smallImageKey:String, hasStartTimestamp:Bool = false, ?endTimestamp:Float,
+	public static function changePresence(details:String = 'In the Menus', ?state:String, ?smallImageKey:String, hasStartTimestamp:Bool = false, ?endTimestamp:Float,
 		largeImageKey:String = 'icon'):Void {}
+		
+	public static function setSmallImage(?key:String, ?text:String):Void {}
+	
+	public static function setButton(index:Int, ?label:String, ?url:String):Void {}
+	
+	public static function clearButtons():Void {}
 
 	public static function close():Void {}
 

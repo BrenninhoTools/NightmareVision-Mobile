@@ -222,6 +222,20 @@ class TouchInput
 
 	public static var edgeDeadZone:Float = 24;
 
+	public static var axisLockRatio:Float = 2.2;
+
+	public static var swipeSizeMm:Float = 8.5;
+
+	public static var distanceScale(default, null):Float = 1;
+
+	public static var velocityWindow:Float = 90;
+
+	static final samples:Map<Int, Array<Float>> = [];
+
+	static var sampleVelocityX:Float = 0;
+
+	static var sampleVelocityY:Float = 0;
+
 	public static final onTap:flixel.util.FlxSignal.FlxTypedSignal<Float->Float->Void> = new flixel.util.FlxSignal.FlxTypedSignal<Float->Float->Void>();
 
 	public static final onSwipe:flixel.util.FlxSignal.FlxTypedSignal<SwipeDirection->Void> = new flixel.util.FlxSignal.FlxTypedSignal<SwipeDirection->Void>();
@@ -256,8 +270,10 @@ class TouchInput
 
 	static function onStageTouchBegin(event:openfl.events.TouchEvent):Void
 	{
-		beginTimes.set(event.touchPointID, now());
+		final time = now();
+		beginTimes.set(event.touchPointID, time);
 		endTimes.remove(event.touchPointID);
+		samples.set(event.touchPointID, []);
 
 		final scale = FlxG.scaleMode != null ? FlxG.scaleMode.scale : null;
 		if (scale == null || scale.x == 0 || scale.y == 0) return;
@@ -265,6 +281,15 @@ class TouchInput
 		final point = beginPoints.get(event.touchPointID) ?? FlxPoint.get();
 		point.set((event.stageX - FlxG.game.x) / scale.x, (event.stageY - FlxG.game.y) / scale.y);
 		beginPoints.set(event.touchPointID, point);
+		addSample(event.touchPointID, time, point.x, point.y);
+	}
+
+	static function onStageTouchMove(event:openfl.events.TouchEvent):Void
+	{
+		final scale = FlxG.scaleMode != null ? FlxG.scaleMode.scale : null;
+		if (scale == null || scale.x == 0 || scale.y == 0) return;
+
+		addSample(event.touchPointID, now(), (event.stageX - FlxG.game.x) / scale.x, (event.stageY - FlxG.game.y) / scale.y);
 	}
 
 	static function onStageTouchEnd(event:openfl.events.TouchEvent):Void
@@ -272,6 +297,89 @@ class TouchInput
 		final time = now();
 		lastReleaseTime = time;
 		endTimes.set(event.touchPointID, time);
+
+		final scale = FlxG.scaleMode != null ? FlxG.scaleMode.scale : null;
+		if (scale != null && scale.x != 0 && scale.y != 0)
+			addSample(event.touchPointID, time, (event.stageX - FlxG.game.x) / scale.x, (event.stageY - FlxG.game.y) / scale.y);
+	}
+
+	static function addSample(id:Int, time:Float, x:Float, y:Float):Void
+	{
+		var list = samples.get(id);
+		if (list == null)
+		{
+			list = [];
+			samples.set(id, list);
+		}
+
+		list.push(time);
+		list.push(x);
+		list.push(y);
+
+		while (list.length > 3 && (time - list[0] > velocityWindow * 2 || list.length > 96))
+			list.splice(0, 3);
+	}
+
+	static function sampleVelocity(id:Int):Bool
+	{
+		final list = samples.get(id);
+		if (list == null || list.length < 6) return false;
+
+		final last = list[list.length - 3];
+		final from = last - velocityWindow;
+
+		var count = 0;
+		var meanT = 0.0;
+		var meanX = 0.0;
+		var meanY = 0.0;
+		var index = 0;
+		while (index < list.length)
+		{
+			if (list[index] >= from)
+			{
+				count++;
+				meanT += list[index];
+				meanX += list[index + 1];
+				meanY += list[index + 2];
+			}
+			index += 3;
+		}
+
+		if (count < 2) return false;
+
+		meanT /= count;
+		meanX /= count;
+		meanY /= count;
+
+		var varianceT = 0.0;
+		var covarianceX = 0.0;
+		var covarianceY = 0.0;
+		index = 0;
+		while (index < list.length)
+		{
+			if (list[index] >= from)
+			{
+				final offset = list[index] - meanT;
+				varianceT += offset * offset;
+				covarianceX += offset * (list[index + 1] - meanX);
+				covarianceY += offset * (list[index + 2] - meanY);
+			}
+			index += 3;
+		}
+
+		if (varianceT < 16) return false;
+
+		sampleVelocityX = covarianceX / varianceT;
+		sampleVelocityY = covarianceY / varianceT;
+
+		final idle = now() - last;
+		if (idle > 70 && endTimes.get(id) == null)
+		{
+			sampleVelocityX = 0;
+			sampleVelocityY = 0;
+		}
+
+		return true;
 	}
 
 	static function clearTouch(id:Int):Void
@@ -311,20 +419,52 @@ class TouchInput
 
 		FlxG.signals.preUpdate.add(onPreUpdate);
 		FlxG.stage.addEventListener(openfl.events.TouchEvent.TOUCH_BEGIN, onStageTouchBegin, false, 40000);
+		FlxG.stage.addEventListener(openfl.events.TouchEvent.TOUCH_MOVE, onStageTouchMove, false, 40000);
 		FlxG.stage.addEventListener(openfl.events.TouchEvent.TOUCH_END, onStageTouchEnd, false, 40000);
 		FlxG.signals.postUpdate.add(poll);
 		FlxG.signals.preStateSwitch.add(reset);
 
-		#if android
 		final window = lime.app.Application.current?.window;
+		if (window != null) window.onDeactivate.add(onDeactivate);
+
+		#if android
 		if (window != null)
 		{
 			window.onKeyDown.add(onKeyDown);
 			window.onKeyUp.add(onKeyUp);
 		}
+		#end
 
 		calibrate();
 		FlxG.signals.gameResized.add((_, _) -> calibrate());
+	}
+
+	static function onDeactivate():Void
+	{
+		releaseAll();
+		seenTouches.clear();
+		samples.clear();
+		for (id in [for (key in beginPoints.keys()) key])
+			clearTouch(id);
+		beginTimes.clear();
+		endTimes.clear();
+	}
+
+	static function calibrateDistance():Void
+	{
+		distanceScale = 1;
+
+		#if mobile
+		try
+		{
+			final scale = FlxG.scaleMode != null ? FlxG.scaleMode.scale : null;
+			final display = lime.system.System.getDisplay(0);
+			if (scale == null || scale.x <= 0 || display == null || display.dpi <= 0) return;
+
+			final target = display.dpi * swipeSizeMm / 25.4 / scale.x;
+			distanceScale = clamp(target / 95, 0.75, 1.35);
+		}
+		catch (e:Dynamic) {}
 		#end
 	}
 
@@ -332,6 +472,8 @@ class TouchInput
 
 	public static function calibrate():Void
 	{
+		calibrateDistance();
+
 		#if android
 		try
 		{
@@ -445,6 +587,7 @@ class TouchInput
 		maxFingers = 0;
 		justTapped = false;
 		lastSwipe = NONE;
+		samples.clear();
 	}
 
 	public static function poll():Void
@@ -508,6 +651,8 @@ class TouchInput
 			}
 
 			handleGesture(touch, zone, allowGestures, quick);
+
+			if (touch.justReleased) samples.remove(id);
 		}
 		#end
 
@@ -750,19 +895,24 @@ class TouchInput
 
 		final deltaX = touch.gameX - gesture.anchorX;
 		final deltaY = touch.gameY - gesture.anchorY;
-		final step = gesture.steps > 0 ? swipeDistance * continueRatio : swipeDistance;
+		final distance = swipeDistance * distanceScale;
+		final step = gesture.steps > 0 ? distance * continueRatio : distance;
+		final lockedVertical = gesture.direction == UP || gesture.direction == DOWN;
+		final lockedHorizontal = gesture.direction == LEFT || gesture.direction == RIGHT;
+		final verticalRatio = lockedHorizontal ? swipeAxisRatio * axisLockRatio : swipeAxisRatio;
+		final horizontalRatio = lockedVertical ? swipeAxisRatio * axisLockRatio : swipeAxisRatio;
 
 		var direction:SwipeDirection = NONE;
 		var count = 0;
 
-		if (Math.abs(deltaY) >= step && Math.abs(deltaY) >= Math.abs(deltaX) * swipeAxisRatio)
+		if (Math.abs(deltaY) >= (lockedHorizontal ? distance : step) && Math.abs(deltaY) >= Math.abs(deltaX) * verticalRatio)
 		{
 			direction = resolveDirection(0, deltaY);
 			count = Std.int(Math.min(maxStepsPerFrame, Math.floor(Math.abs(deltaY) / step)));
 			gesture.anchorY += (deltaY > 0 ? 1 : -1) * step * count;
 			gesture.anchorX = touch.gameX;
 		}
-		else if (Math.abs(deltaX) >= step && Math.abs(deltaX) >= Math.abs(deltaY) * swipeAxisRatio)
+		else if (Math.abs(deltaX) >= (lockedVertical ? distance : step) && Math.abs(deltaX) >= Math.abs(deltaY) * horizontalRatio)
 		{
 			direction = resolveDirection(deltaX, 0);
 			count = Std.int(Math.min(maxStepsPerFrame, Math.floor(Math.abs(deltaX) / step)));
@@ -796,14 +946,21 @@ class TouchInput
 
 	static function quickSwipe(gesture:TouchGesture, deltaX:Float, deltaY:Float, now:Float):Bool
 	{
-		if (now - gesture.lastMoveTime > 90) return false;
+		var velocityX = gesture.velocityX;
+		var velocityY = gesture.velocityY;
+		if (sampleVelocity(gesture.id))
+		{
+			velocityX = sampleVelocityX;
+			velocityY = sampleVelocityY;
+		}
+		else if (now - gesture.lastMoveTime > 90) return false;
 
-		final minimum = swipeDistance * quickSwipeRatio;
+		final minimum = swipeDistance * distanceScale * quickSwipeRatio;
 		var direction:SwipeDirection = NONE;
 
-		if (Math.abs(deltaY) >= minimum && Math.abs(deltaY) >= Math.abs(deltaX) * swipeAxisRatio && Math.abs(gesture.velocityY) >= quickSwipeSpeed)
+		if (Math.abs(deltaY) >= minimum && Math.abs(deltaY) >= Math.abs(deltaX) * swipeAxisRatio && Math.abs(velocityY) >= quickSwipeSpeed)
 			direction = resolveDirection(0, deltaY);
-		else if (Math.abs(deltaX) >= minimum && Math.abs(deltaX) >= Math.abs(deltaY) * swipeAxisRatio && Math.abs(gesture.velocityX) >= quickSwipeSpeed)
+		else if (Math.abs(deltaX) >= minimum && Math.abs(deltaX) >= Math.abs(deltaY) * swipeAxisRatio && Math.abs(velocityX) >= quickSwipeSpeed)
 			direction = resolveDirection(deltaX, 0);
 
 		if (direction == NONE) return false;
@@ -846,12 +1003,21 @@ class TouchInput
 
 	static function flick(gesture:TouchGesture):Void
 	{
-		if (!flickEnabled || FlxG.game.ticks - gesture.lastMoveTime > 80) return;
+		if (!flickEnabled) return;
+
+		var velocityX = gesture.velocityX;
+		var velocityY = gesture.velocityY;
+		if (sampleVelocity(gesture.id))
+		{
+			velocityX = sampleVelocityX;
+			velocityY = sampleVelocityY;
+		}
+		else if (FlxG.game.ticks - gesture.lastMoveTime > 80) return;
 
 		final speed = switch (gesture.direction)
 		{
-			case UP | DOWN: Math.abs(gesture.velocityY);
-			case LEFT | RIGHT: Math.abs(gesture.velocityX);
+			case UP | DOWN: resolveDirection(0, velocityY) == gesture.direction ? Math.abs(velocityY) : 0;
+			case LEFT | RIGHT: resolveDirection(velocityX, 0) == gesture.direction ? Math.abs(velocityX) : 0;
 			default: 0;
 		}
 

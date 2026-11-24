@@ -33,6 +33,8 @@ class ModsState extends MusicBeatState
 	
 	override function create()
 	{
+		DiscordClient.changePresence('Mods Menu');
+
 		modList = [];
 		FunkinSound.playMusic(Paths.music("freakyMenu"));
 		Mods.updateModList();

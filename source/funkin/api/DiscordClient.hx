@@ -93,7 +93,45 @@ class DiscordClient
 		}
 		
 		initiated = true;
+		
+		#if mobile
+		hookLifecycle();
+		#end
 	}
+	
+	#if mobile
+	static var lifecycleHooked:Bool = false;
+	
+	static var hidden:Bool = false;
+	
+	static function hookLifecycle():Void
+	{
+		if (lifecycleHooked) return;
+		lifecycleHooked = true;
+		
+		final window = FlxG.stage.window;
+		window.onDeactivate.add(onBackground);
+		window.onActivate.add(onForeground);
+		lime.app.Application.current?.onExit.add((_) -> close());
+	}
+	
+	static function onBackground():Void
+	{
+		if (!initiated || hidden) return;
+		hidden = true;
+		Discord.ClearPresence();
+		Discord.RunCallbacks();
+	}
+	
+	static function onForeground():Void
+	{
+		if (!hidden) return;
+		hidden = false;
+		if (!initiated) return;
+		updatePresence();
+		Discord.RunCallbacks();
+	}
+	#end
 	
 	/**
 	 * Shuts down the current discord RPC connection
@@ -108,6 +146,9 @@ class DiscordClient
 		
 		username = 'Unknown';
 		initiated = false;
+		#if mobile
+		hidden = false;
+		#end
 	}
 	
 	/**
@@ -183,7 +224,7 @@ class DiscordClient
 	 */
 	static function updatePresence():Void
 	{
-		if (!initiated) return;
+		if (!initiated #if mobile || hidden #end) return;
 		Discord.UpdatePresence(cpp.RawConstPointer.addressOf(discordPresence));
 	}
 	

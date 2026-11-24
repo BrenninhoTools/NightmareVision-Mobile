@@ -19,6 +19,8 @@ class DiscordClient
 	public static final MOBILE_ID:String = '1540653184530251847';
 
 	public static final DEFAULT_ID:String = #if android MOBILE_ID #else NMV_ID #end;
+	
+	public static final ICON_URL:String = 'https://raw.githubusercontent.com/BrenninhoTools/NightmareVision-Mobile/dev/projFiles/icon/iconOG.png';
 
 	static inline final TICK_INTERVAL:Float = 0.5;
 
@@ -58,7 +60,7 @@ class DiscordClient
 
 	static var presenceSmallImage:Null<String> = null;
 
-	static var presenceLargeImage:Null<String> = 'icon';
+	static var presenceLargeImage:Null<String> = resolveImage('icon');
 
 	static var presenceLargeText:Null<String> = null;
 
@@ -265,7 +267,7 @@ class DiscordClient
 		presenceDetails = details;
 		presenceState = state;
 		presenceSmallImage = smallImageKey;
-		presenceLargeImage = largeImageKey;
+		presenceLargeImage = resolveImage(largeImageKey);
 		presenceLargeText = 'FNF NMV (${Main.NMV_VERSION})' + platformName();
 		presenceStart = Std.int(start / 1000);
 		presenceEnd = Std.int(end / 1000);
@@ -273,6 +275,14 @@ class DiscordClient
 		lock.release();
 	}
 
+	static function resolveImage(key:Null<String>):Null<String>
+	{
+		#if mobile
+		if (key == null || key.length == 0 || key == 'icon') return ICON_URL;
+		#end
+		return key;
+	}
+	
 	static function platformName():String
 	{
 		#if android
@@ -348,6 +358,8 @@ class DiscordClient
 	public static final MOBILE_ID:String = '';
 
 	public static final DEFAULT_ID:String = '';
+	
+	public static final ICON_URL:String = '';
 
 	public static var rpcId(default, set):String = '';
 

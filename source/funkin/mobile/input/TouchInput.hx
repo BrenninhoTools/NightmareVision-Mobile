@@ -458,11 +458,11 @@ class TouchInput
 		try
 		{
 			final scale = FlxG.scaleMode != null ? FlxG.scaleMode.scale : null;
-			final display = lime.system.System.getDisplay(0);
-			if (scale == null || scale.x <= 0 || display == null || display.dpi <= 0) return;
+			if (scale == null || scale.x <= 0) return;
 
-			final target = display.dpi * swipeSizeMm / 25.4 / scale.x;
+			final target = funkin.mobile.util.DeviceProfile.millimetersToGame(swipeSizeMm);
 			distanceScale = clamp(target / 95, 0.75, 1.35);
+			edgeDeadZone = clamp(funkin.mobile.util.DeviceProfile.millimetersToGame(3), 12, 36);
 		}
 		catch (e:Dynamic) {}
 		#end

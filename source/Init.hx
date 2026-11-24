@@ -79,6 +79,7 @@ FlxG.plugins.drawOnTop = true;
 		
 		#if mobile
 		funkin.mobile.ui.ScreenStyle.init();
+		funkin.mobile.util.DeviceProfile.init();
 		#end
 		
 		step('music');

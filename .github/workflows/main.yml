@@ -84,6 +84,7 @@ env:
     CLEAN_BUILD: ${{ inputs.clean && 'true' || 'false' }}
     DISCORD_SDK_REPO: BrenninhoTools/discord-social-sdk
     DISCORD_SDK_VERSION: 1.11.24259
+    DISCORD_APP_ID: "1540653184530251847"
 
 jobs:
     Android:
@@ -292,7 +293,7 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                 path: .discord-social-sdk
-                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v2
+                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-${{ env.DISCORD_APP_ID }}-v3
 
             - name: Prepare Discord Social SDK
               if: ${{ steps.output.outputs.cache-hit != 'true' && steps.discordsdk.outputs.cache-hit != 'true' }}
@@ -316,7 +317,7 @@ jobs:
                 rm -rf "$DOWNLOAD"
                 gh release download "$DISCORD_SDK_VERSION" -R "$DISCORD_SDK_REPO" -p '*.zip' -D "$DOWNLOAD"
                 LIB_DIR=$(haxelib path hxdiscord_rpc | head -n 1)
-                python3 -I "${LIB_DIR%/}/tools/prepare_social_sdk.py" "$(ls "$DOWNLOAD"/*.zip | head -n 1)" .discord-social-sdk
+                python3 -I "${LIB_DIR%/}/tools/prepare_social_sdk.py" "$(ls "$DOWNLOAD"/*.zip | head -n 1)" .discord-social-sdk --app-id "$DISCORD_APP_ID"
                 rm -rf "$DOWNLOAD"
 
             - name: Save Discord Social SDK
@@ -324,7 +325,7 @@ jobs:
               uses: actions/cache/save@v4
               with:
                 path: .discord-social-sdk
-                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-v2
+                key: discord-social-sdk-${{ env.DISCORD_SDK_VERSION }}-${{ env.DISCORD_APP_ID }}-v3
 
             - name: Compile build
               if: ${{ steps.output.outputs.cache-hit != 'true' }}

@@ -388,7 +388,7 @@ class Mods
 		}
 		
 		if (pack.discordClientID != null) funkin.api.DiscordClient.rpcId = pack.discordClientID;
-		else funkin.api.DiscordClient.rpcId = DiscordClient.NMV_ID;
+		else funkin.api.DiscordClient.rpcId = funkin.api.DiscordClient.DEFAULT_ID;
 		
 		Paths.DEFAULT_FONT = pack.defaultFont != null && FunkinAssets.exists(Paths.font(pack.defaultFont)) ? Paths.font(pack.defaultFont) : Paths.font('vcr.ttf');
 		

@@ -6,23 +6,90 @@ on:
             version:
                 description: Release version, must match a file in documents-mobile/releases
                 required: true
-                default: V3
+                default: V4
                 type: string
+            platform:
+                description: Platforms to include
+                type: choice
+                default: both
+                options:
+                    - both
+                    - android
+                    - ios
             prerelease:
                 description: Mark as pre-release
-                required: false
-                default: false
                 type: boolean
+                default: false
+            draft:
+                description: Create as draft
+                type: boolean
+                default: false
+            overwrite:
+                description: Replace the release if the tag already exists
+                type: boolean
+                default: false
+            clean:
+                description: Ignore build caches and compile from scratch
+                type: boolean
+                default: false
 
 permissions:
     contents: write
 
+concurrency:
+    group: release-${{ inputs.version }}
+    cancel-in-progress: false
+
 jobs:
+    Check:
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        outputs:
+            tag: ${{ steps.check.outputs.tag }}
+
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                fetch-depth: 1
+
+            - name: Validate release
+              id: check
+              env:
+                GH_TOKEN: ${{ github.token }}
+                VERSION: ${{ inputs.version }}
+                OVERWRITE: ${{ inputs.overwrite }}
+                HAS_DISCORD_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN != '' }}
+              run: |
+                set -euo pipefail
+                if ! [[ "$VERSION" =~ ^[A-Za-z0-9._-]+$ ]]; then
+                  echo "::error::Version '$VERSION' has invalid characters"
+                  exit 1
+                fi
+                NOTES="documents-mobile/releases/$VERSION.md"
+                if [ ! -s "$NOTES" ]; then
+                  echo "::error::Release notes $NOTES are missing or empty. Available: $(ls documents-mobile/releases | sed 's/\.md$//' | tr '\n' ' ')"
+                  exit 1
+                fi
+                if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" --jq .id > /dev/null 2>&1 && [ "$OVERWRITE" != "true" ]; then
+                  echo "::error::Release $VERSION already exists. Run again with overwrite enabled to replace it"
+                  exit 1
+                fi
+                if [ "$HAS_DISCORD_TOKEN" != "true" ]; then
+                  echo "::warning::DISCORD_SDK_TOKEN is not set, the Android build will not have Discord Rich Presence"
+                fi
+                echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+
     Build:
+        needs: Check
         uses: ./.github/workflows/main.yml
+        secrets: inherit
+        with:
+            platform: ${{ inputs.platform }}
+            clean: ${{ inputs.clean }}
+            astc: true
 
     Release:
-        needs: Build
+        needs: [Check, Build]
         runs-on: ubuntu-24.04
         timeout-minutes: 15
 
@@ -31,37 +98,80 @@ jobs:
               with:
                 fetch-depth: 1
 
-            - name: Check release notes
-              run: test -f "documents-mobile/releases/${{ inputs.version }}.md"
-
             - name: Download Android
+              if: ${{ inputs.platform != 'ios' }}
               uses: actions/download-artifact@v5
               with:
                 name: NightmareVision (Android)
                 path: artifacts/android
 
             - name: Download iOS
+              if: ${{ inputs.platform != 'android' }}
               uses: actions/download-artifact@v5
               with:
                 name: NightmareVision (iOS)
                 path: artifacts/ios
 
             - name: Prepare files
+              env:
+                VERSION: ${{ needs.Check.outputs.tag }}
               run: |
                 set -euo pipefail
                 mkdir -p release
-                cp artifacts/android/NightmareVision.apk release/NightmareVision-Android.apk
-                cp artifacts/ios/NightmareVision.ipa release/NightmareVision-iOS.ipa
+                if [ -d artifacts/android ]; then
+                  APK=$(find artifacts/android -name '*.apk' | head -n 1)
+                  [ -n "$APK" ] || { echo "::error::Android APK not found"; exit 1; }
+                  cp "$APK" "release/NightmareVision-$VERSION-Android.apk"
+                fi
+                if [ -d artifacts/ios ]; then
+                  IPA=$(find artifacts/ios -name '*.ipa' | head -n 1)
+                  [ -n "$IPA" ] || { echo "::error::iOS IPA not found"; exit 1; }
+                  cp "$IPA" "release/NightmareVision-$VERSION-iOS.ipa"
+                fi
+                (cd release && sha256sum * > SHA256SUMS.txt)
+
+                NOTES="documents-mobile/releases/$VERSION.md"
+                {
+                  cat "$NOTES"
+                  echo
+                  echo "---"
+                  echo
+                  echo "| File | Size | SHA-256 |"
+                  echo "| --- | --- | --- |"
+                  for FILE in release/*.apk release/*.ipa; do
+                    [ -f "$FILE" ] || continue
+                    NAME=$(basename "$FILE")
+                    SIZE=$(numfmt --to=iec --suffix=B "$(stat -c %s "$FILE")")
+                    HASH=$(sha256sum "$FILE" | cut -d ' ' -f 1)
+                    echo "| \`$NAME\` | $SIZE | \`$HASH\` |"
+                  done
+                  echo
+                  echo "Built from [\`${GITHUB_SHA::7}\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA)."
+                } > release/NOTES.md
+
                 ls -la release
+                cat release/NOTES.md >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Remove previous release
+              if: ${{ inputs.overwrite }}
+              env:
+                GH_TOKEN: ${{ github.token }}
+                VERSION: ${{ needs.Check.outputs.tag }}
+              run: |
+                gh release delete "$VERSION" -R "$GITHUB_REPOSITORY" --cleanup-tag -y || true
 
             - name: Publish release
               uses: softprops/action-gh-release@v2
               with:
-                tag_name: ${{ inputs.version }}
-                name: NightmareVision Mobile ${{ inputs.version }}
-                body_path: documents-mobile/releases/${{ inputs.version }}.md
+                tag_name: ${{ needs.Check.outputs.tag }}
+                name: NightmareVision Mobile ${{ needs.Check.outputs.tag }}
+                body_path: release/NOTES.md
                 target_commitish: ${{ github.sha }}
                 prerelease: ${{ inputs.prerelease }}
+                draft: ${{ inputs.draft }}
+                make_latest: ${{ !inputs.prerelease && !inputs.draft }}
+                fail_on_unmatched_files: false
                 files: |
-                  release/NightmareVision-Android.apk
-                  release/NightmareVision-iOS.ipa
+                  release/*.apk
+                  release/*.ipa
+                  release/SHA256SUMS.txt

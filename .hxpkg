@@ -61,7 +61,7 @@
             {
                 "name": "hxdiscord_rpc",
                 "link": "https://github.com/BrenninhoTools/hxdiscord_rpc",
-                "branch": "1287ba26ae6e669dfe1d330f2e0afea685ab3de7"
+                "branch": "35b8cf032f15f60fba9afd83bea3965ca8ce1ff6"
             },
             {
                 "name": "haxeui-flixel",

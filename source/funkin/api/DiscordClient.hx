@@ -36,6 +36,8 @@ class DiscordClient
 	
 	public static var activityType(default, set):Int = PLAYING;
 
+	public static var activityName(default, set):Null<String> = 'NightmareVision';
+
 	static inline final TICK_INTERVAL:Float = 0.5;
 
 	static inline final SEND_INTERVAL:Float = 1.5;
@@ -136,6 +138,7 @@ class DiscordClient
 			discordEventHandlers.disconnected = cpp.Function.fromStaticFunction(onDisconnect);
 
 			Discord.Initialize(rpcId, cpp.RawPointer.addressOf(discordEventHandlers), true, null);
+			Discord.SetActivityName(rpcId == DEFAULT_ID ? activityName : null);
 
 			initiated = true;
 			connected = false;
@@ -323,7 +326,16 @@ class DiscordClient
 		setButton(1);
 	}
 	
-	static function set_activityType(value:Int):Int
+	static function set_activityName(value:Null<String>):Null<String>
+	{
+		lock.acquire();
+		activityName = value != null && value.length > 0 ? value : null;
+		if (initiated) Discord.SetActivityName(rpcId == DEFAULT_ID ? activityName : null);
+		lock.release();
+		return activityName;
+	}
+
+		static function set_activityType(value:Int):Int
 	{
 		if (value != PLAYING && value != LISTENING && value != WATCHING && value != COMPETING) value = PLAYING;
 		
@@ -457,6 +469,8 @@ class DiscordClient
 	public static inline final COMPETING:Int = 5;
 	
 	public static var activityType:Int = PLAYING;
+
+	public static var activityName:Null<String> = null;
 
 	public static var rpcId(default, set):String = '';
 
